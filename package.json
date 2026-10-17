@@ -1,10 +1,10 @@
 {
   "name": "vocabulary-master-ai",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "Bilingual AI flashcard loop: paste words → AI filters & translates → infinite recall loop.",
   "scripts": {
-    "test": "node test/learning.js && node test/suite.js",
+    "test": "node test/learning.js && node test/i18n.js && node test/suite.js",
     "test:browser": "node test/browser.js",
     "dev": "npx --yes serve -l 3000 .",
     "start": "npx --yes serve -l 3000 ."

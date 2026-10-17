@@ -7,13 +7,15 @@
   var motionChoice = 'system';
   try { motionChoice = localStorage.getItem('vm.motion') || 'system'; } catch (e) {}
   var reduced = { get matches() { return motionChoice === 'off' || (motionChoice !== 'on' && systemMotion.matches); } };
+  function tr(key) { return window.VMI18n ? window.VMI18n.t(key) : key; }
+  if (window.VMI18n) window.VMI18n.onChange(function () { updateMotionPreference(); });
   function updateMotionPreference() {
     document.documentElement.dataset.motion = reduced.matches ? 'off' : 'on';
     var button = document.getElementById('btnMotion');
     if (button) {
       button.setAttribute('aria-pressed', String(!reduced.matches));
-      button.setAttribute('aria-label', reduced.matches ? 'Включить полные 3D-анимации' : 'Выключить анимации');
-      button.title = reduced.matches ? 'Движение выключено. Нажми для полного 3D.' : 'Полные 3D-анимации включены';
+      button.setAttribute('aria-label', tr(reduced.matches ? 'motion.onAria' : 'motion.offAria'));
+      button.title = tr(reduced.matches ? 'motion.offTitle' : 'motion.onTitle');
       button.classList.toggle('active', !reduced.matches);
     }
   }
@@ -155,7 +157,7 @@
     cardAnimations.push(animate(el, frames, { duration: duration, delay: wait, fill: 'forwards', easing: 'cubic-bezier(.5,0,.25,1)' }));
     var verdict = document.getElementById('cardVerdict');
     if (verdict) {
-      verdict.textContent = ok ? '✓  В памяти' : '↻  Вернётся в колоду';
+      verdict.textContent = tr(ok ? 'verdict.ok' : 'verdict.no');
       verdict.className = 'card-verdict ' + (ok ? 'is-known' : 'is-repeat');
       animate(verdict, [{ opacity: 0, transform: 'translateY(12px) scale(.8)' }, { opacity: 1, transform: 'translateY(-16px) scale(1)', offset: .4 }, { opacity: 0, transform: 'translateY(-45px) scale(1)' }], { duration: duration, delay: wait });
     }

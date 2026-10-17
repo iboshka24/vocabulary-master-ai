@@ -263,3 +263,13 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
   .activity-panel { padding:18px; } .search-box { max-width:none; }
   .lang-pair { gap:6px; } .swap-btn { width:36px; height:36px; }
 }
+
+/* v2.5 — interface language switcher */
+.ui-lang { position:relative; display:inline-flex; align-items:center; gap:5px; height:36px; padding:0 10px; border:1px solid var(--stroke); border-radius:999px; color:var(--muted); cursor:pointer; transition:color .2s,border-color .2s; }
+.ui-lang:hover,.ui-lang:focus-within { color:var(--text); border-color:var(--amber); }
+.ui-lang select { appearance:none; -webkit-appearance:none; border:0; background:none; color:inherit; font:600 11px var(--font-mono); letter-spacing:.06em; cursor:pointer; padding:0; outline:0; }
+.ui-lang select option { background:var(--surface); color:var(--text); }
+.hint-keys i { font-style:normal; }
+.nav-link,.logo-text { white-space:nowrap; }
+.logo-text em { white-space:nowrap; }
+@media(max-width:720px) { .ui-lang { height:32px; padding:0 8px; } .ui-lang svg { display:none; } }

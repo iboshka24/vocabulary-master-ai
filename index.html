@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="editorial.css?v=2.4" />
-  <link rel="stylesheet" href="motion.css?v=2.4" />
+  <link rel="stylesheet" href="editorial.css?v=2.5" />
+  <link rel="stylesheet" href="motion.css?v=2.5" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -27,7 +27,7 @@
   </div>
 
   <header class="topbar">
-    <a class="logo" href="#" id="logoHome" title="Vocabulary Master AI — на главную">
+    <a class="logo" href="#" id="logoHome" title="Vocabulary Master AI — на главную" data-i18n-attr="title:nav.home">
       <span class="logo-mark">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
@@ -36,23 +36,24 @@
       </span>
       <span class="logo-text">Vocabulary<em>Master AI</em></span>
     </a>
-    <nav class="topnav" aria-label="Основная навигация">
-      <button type="button" class="nav-link active" id="navStudy">Учить слова</button>
-      <button type="button" class="nav-link" id="navLibrary">Моя библиотека</button>
-      <button type="button" class="nav-link" id="navTest">Лексический тест</button>
+    <nav class="topnav" aria-label="Основная навигация" data-i18n-attr="aria-label:nav.aria">
+      <button type="button" class="nav-link active" id="navStudy" data-i18n="nav.study">Учить слова</button>
+      <button type="button" class="nav-link" id="navLibrary" data-i18n="nav.library">Моя библиотека</button>
+      <button type="button" class="nav-link" id="navTest" data-i18n="nav.test">Лексический тест</button>
     </nav>
     <div class="topbar-right">
-      <span class="streak-indicator" title="Дни с завершённой тренировкой"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
-      <button class="icon-btn" id="btnTheme" type="button" title="Сменить тему" aria-label="Сменить тему">◐</button>
+      <span class="streak-indicator" title="Дни с завершённой тренировкой" data-i18n-attr="title:top.streak"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
+      <label class="ui-lang" title="Язык интерфейса" data-i18n-attr="title:top.uiLang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20" /></svg><select id="uiLang" aria-label="Язык интерфейса" data-i18n-attr="aria-label:top.uiLang"><option value="ru">RU</option><option value="en">EN</option><option value="uz">UZ</option></select></label>
+      <button class="icon-btn" id="btnTheme" type="button" title="Сменить тему" aria-label="Сменить тему" data-i18n-attr="title:top.theme,aria-label:top.theme">◐</button>
       <button class="icon-btn motion-toggle" id="btnMotion" type="button" title="3D-анимации" aria-label="Настроить анимации" aria-pressed="true">3D</button>
       <span class="pill" id="topPill" hidden></span>
-      <button class="icon-btn" id="btnSound" type="button" title="Звуки и озвучка (M)" aria-label="Выключить звук">
+      <button class="icon-btn" id="btnSound" type="button" title="Звуки и озвучка (M)" data-i18n-attr="title:top.sound" aria-label="Выключить звук">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.8 5.2a9 9 0 0 1 0 13.6" /></svg>
       </button>
-      <button class="icon-btn" id="btnSettings" type="button" title="Настройки API" aria-label="Настройки API">
+      <button class="icon-btn" id="btnSettings" type="button" title="Настройки API" aria-label="Настройки API" data-i18n-attr="title:top.settings,aria-label:top.settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
       </button>
-      <a class="icon-btn gh-link" href="https://github.com/iboshka24/vocabulary-master-ai" target="_blank" rel="noopener noreferrer" title="Репозиторий на GitHub" aria-label="GitHub">
+      <a class="icon-btn gh-link" href="https://github.com/iboshka24/vocabulary-master-ai" target="_blank" rel="noopener noreferrer" title="Репозиторий на GitHub" aria-label="GitHub" data-i18n-attr="title:top.github">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
         </svg>
@@ -65,91 +66,91 @@
     <section class="screen active" id="screen-setup">
       <div class="hero">
         <div class="hero-copy">
-          <span class="eyebrow"><span class="edition-dot"></span>МАЛЕНЬКАЯ ПРИВЫЧКА. БОЛЬШОЙ СЛОВАРЬ.</span>
-          <h1>Не просто слова.<br><em>Твои новые мысли.</em></h1>
-          <p class="sub">Собирай слова, которые нужны именно тебе. Вспоминай, ошибайся и пробуй снова — мы вернём сложное в нужный момент.</p>
-          <div class="hero-note"><span>Твой темп</span><span>Умные повторения</span><span>Без регистрации</span></div>
+          <span class="eyebrow"><span class="edition-dot"></span><span data-i18n="hero.eyebrow">МАЛЕНЬКАЯ ПРИВЫЧКА. БОЛЬШОЙ СЛОВАРЬ.</span></span>
+          <h1 data-i18n-html="hero.h1">Не просто слова.<br><em>Твои новые мысли.</em></h1>
+          <p class="sub" data-i18n="hero.sub">Собирай слова, которые нужны именно тебе. Вспоминай, ошибайся и пробуй снова — мы вернём сложное в нужный момент.</p>
+          <div class="hero-note"><span data-i18n="hero.n1">Твой темп</span><span data-i18n="hero.n2">Умные повторения</span><span data-i18n="hero.n3">Без регистрации</span></div>
         </div>
         <div class="paper-scene">
           <div class="paper-grid"></div>
           <div class="sample-card behind far" aria-hidden="true"></div>
           <div class="sample-card behind" aria-hidden="true"></div>
-          <button class="sample-card hero-main" id="heroFlip" type="button" aria-label="Перевернуть пример карточки" aria-pressed="false"><span class="hero-turner"><span class="hero-face hero-front"><span class="sample-top"><span>English · 014</span><span>↗</span></span><strong>serendipity</strong><span class="sample-description">Сначала вспомни. Потом переверни.</span><span class="sample-footer">Нажми, чтобы узнать перевод ↗</span></span><span class="hero-face hero-back"><span class="sample-top"><span>Русский · перевод</span><span>✓</span></span><strong>счастливая<br>случайность</strong><span class="sample-description">Найти прекрасное, когда не искал.</span><span class="sample-footer">Так слово становится твоим.</span></span></span></button>
-          <span class="scene-caption">Нажми. Переверни. Запомни.</span>
+          <button class="sample-card hero-main" id="heroFlip" type="button" aria-label="Перевернуть пример карточки" data-i18n-attr="aria-label:hero.flip" aria-pressed="false"><span class="hero-turner"><span class="hero-face hero-front"><span class="sample-top"><span>English · 014</span><span>↗</span></span><strong>serendipity</strong><span class="sample-description" data-i18n="hero.frontDesc">Сначала вспомни. Потом переверни.</span><span class="sample-footer" data-i18n="hero.frontFoot">Нажми, чтобы узнать перевод ↗</span></span><span class="hero-face hero-back"><span class="sample-top"><span data-i18n="hero.backTop">Русский · перевод</span><span>✓</span></span><strong data-i18n-html="hero.backWord">счастливая<br>случайность</strong><span class="sample-description" data-i18n="hero.backDesc">Найти прекрасное, когда не искал.</span><span class="sample-footer" data-i18n="hero.backFoot">Так слово становится твоим.</span></span></span></button>
+          <span class="scene-caption" data-i18n="hero.caption">Нажми. Переверни. Запомни.</span>
         </div>
       </div>
-      <div class="workspace-heading"><h2>Начнём с твоих слов</h2><p>01 / Собери свою колоду</p></div>
+      <div class="workspace-heading"><h2 data-i18n="setup.heading">Начнём с твоих слов</h2><p data-i18n="setup.step">01 / Собери свою колоду</p></div>
       <div class="setup-grid">
         <div class="panel panel-words">
           <div class="panel-head">
-            <h2><span class="dot"></span>Твои слова</h2>
+            <h2><span class="dot"></span><span data-i18n="words.title">Твои слова</span></h2>
             <div class="row-gap">
               <button class="chip-btn" id="btnPaste" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
-                Вставить
+                <span data-i18n="words.paste">Вставить</span>
               </button>
-              <button class="chip-btn" id="btnClear" type="button">Очистить</button>
+              <button class="chip-btn" id="btnClear" type="button" data-i18n="words.clear">Очистить</button>
             </div>
           </div>
 
           <div class="presets-row">
-            <span class="presets-label">Примеры</span>
-            <button class="preset-chip" type="button" data-preset="verbs">Глаголы</button>
-            <button class="preset-chip" type="button" data-preset="travel">Путешествия</button>
+            <span class="presets-label" data-i18n="words.examples">Примеры</span>
+            <button class="preset-chip" type="button" data-preset="verbs" data-i18n="preset.verbs">Глаголы</button>
+            <button class="preset-chip" type="button" data-preset="travel" data-i18n="preset.travel">Путешествия</button>
             <button class="preset-chip" type="button" data-preset="it">IT &amp; Dev</button>
-            <button class="preset-chip" type="button" data-preset="advanced">Продвинутые</button>
+            <button class="preset-chip" type="button" data-preset="advanced" data-i18n="preset.advanced">Продвинутые</button>
           </div>
 
-          <textarea id="input" spellcheck="false" placeholder="serendipity&#10;resilience&#10;to achieve&#10;apple - яблоко&#10;house : дом&#10;..."></textarea>
+          <textarea id="input" spellcheck="false" data-i18n-attr="placeholder:words.placeholder" placeholder="serendipity&#10;resilience&#10;to achieve&#10;apple - яблоко&#10;house : дом&#10;..."></textarea>
 
           <div class="input-meta">
             <span class="count-chip" id="inputStat">0 слов</span>
-            <span class="hint-text" id="inputStat2">по одному в строке, через запятую или готовые пары «слово — перевод»</span>
+            <span class="hint-text" id="inputStat2" data-i18n="words.hint">по одному в строке, через запятую или готовые пары «слово — перевод»</span>
           </div>
         </div>
 
         <div class="panel panel-session">
           <div class="panel-head">
-            <h2><span class="dot"></span>Настройки сессии</h2>
+            <h2><span class="dot"></span><span data-i18n="session.title">Настройки сессии</span></h2>
             <span class="status-indicator" id="statusIndicator">● Готов к работе</span>
           </div>
 
           <div class="lang-pair">
-            <label class="field"><span>Я изучаю</span><span class="select-wrap"><select id="sourceLang"></select></span></label>
-            <button class="swap-btn" id="btnSwapLang" type="button" title="Поменять языки местами (Alt+X)" aria-label="Поменять языки местами">
+            <label class="field"><span data-i18n="lang.learn">Я изучаю</span><span class="select-wrap"><select id="sourceLang"></select></span></label>
+            <button class="swap-btn" id="btnSwapLang" type="button" title="Поменять языки местами (Alt+X)" aria-label="Поменять языки местами" data-i18n-attr="title:lang.swap,aria-label:lang.swapAria">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4" /><path d="M20 7H4" /><path d="m8 21-4-4 4-4" /><path d="M4 17h16" /></svg>
             </button>
-            <label class="field"><span>Мой родной язык</span><span class="select-wrap"><select id="targetLang"></select></span></label>
+            <label class="field"><span data-i18n="lang.native">Мой родной язык</span><span class="select-wrap"><select id="targetLang"></select></span></label>
           </div>
 
           <div class="field">
-            <span>Направление карточек</span>
+            <span data-i18n="dir.label">Направление карточек</span>
             <div class="segmented" id="dirSeg">
-              <button type="button" data-dir="mixed" class="on">Смешанное</button>
-              <button type="button" data-dir="fwd">Слово → перевод</button>
-              <button type="button" data-dir="rev">Перевод → слово</button>
+              <button type="button" data-dir="mixed" class="on" data-i18n="dir.mixed">Смешанное</button>
+              <button type="button" data-dir="fwd" data-i18n="dir.fwd">Слово → перевод</button>
+              <button type="button" data-dir="rev" data-i18n="dir.rev">Перевод → слово</button>
             </div>
           </div>
 
-          <div class="field"><span>Как отвечать</span><div class="segmented" id="modeSeg"><button type="button" data-mode="flashcard" class="on">Карточки</button><button type="button" data-mode="typing">Написать ответ</button></div></div>
-          <div class="settings-switches"><label><input id="simpleMode" type="checkbox"> Только слово и перевод</label></div>
+          <div class="field"><span data-i18n="mode.label">Как отвечать</span><div class="segmented" id="modeSeg"><button type="button" data-mode="flashcard" class="on" data-i18n="mode.flashcard">Карточки</button><button type="button" data-mode="typing" data-i18n="mode.typing">Написать ответ</button></div></div>
+          <div class="settings-switches"><label><input id="simpleMode" type="checkbox"> <span data-i18n="mode.simple">Только слово и перевод</span></label></div>
 
           <details class="api-box" id="apiBox">
             <summary>
               <span class="api-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.2-8.2 3 3-2 2-2-2-1.5 1.5" /></svg>
-                ИИ-провайдер
+                <span data-i18n="api.title">ИИ-провайдер</span>
               </span>
-              <span class="api-summary-status" id="apiSummaryStatus">Авто-режим</span>
+              <span class="api-summary-status" id="apiSummaryStatus" data-i18n="api.auto">Авто-режим</span>
             </summary>
             <div class="api-body">
-              <p class="hint" id="apiHint">
+              <p class="hint" id="apiHint" data-i18n-html="api.hint">
                 <strong>Ключ можно дать позже.</strong> Без ключа работает встроенный бесплатный авто-переводчик. Для умных мнемоник и фильтрации подключи любой OpenAI-совместимый API — OpenAI, Groq, OpenRouter или DeepSeek.
               </p>
 
               <div class="provider-row">
-                <span class="provider-title">Быстрый выбор</span>
-                <button type="button" class="prov-chip active" data-prov="free">Без ключа</button>
+                <span class="provider-title" data-i18n="api.quick">Быстрый выбор</span>
+                <button type="button" class="prov-chip active" data-prov="free" data-i18n="api.free">Без ключа</button>
                 <button type="button" class="prov-chip" data-prov="openai">OpenAI</button>
                 <button type="button" class="prov-chip" data-prov="groq">Groq</button>
                 <button type="button" class="prov-chip" data-prov="openrouter">OpenRouter</button>
@@ -161,69 +162,69 @@
               </label>
 
               <label class="field">
-                <span>Модель</span>
+                <span data-i18n="api.model">Модель</span>
                 <input id="cfgModel" type="text" placeholder="gpt-4o-mini" />
               </label>
 
               <label class="field">
-                <span>API-ключ <em>хранится только локально в браузере</em></span>
-                <input id="cfgKey" type="password" placeholder="sk-... — оставь пустым для авто-режима" autocomplete="off" />
+                <span data-i18n-html="api.key">API-ключ <em>хранится только локально в браузере</em></span>
+                <input id="cfgKey" type="password" placeholder="sk-... — оставь пустым для авто-режима" data-i18n-attr="placeholder:api.keyPh" autocomplete="off" />
               </label>
 
               <div class="row-gap">
-                <button class="chip-btn" id="btnSaveCfg" type="button">Сохранить</button>
-                <button class="chip-btn" id="btnResetCfg" type="button">Сбросить</button>
+                <button class="chip-btn" id="btnSaveCfg" type="button" data-i18n="api.save">Сохранить</button>
+                <button class="chip-btn" id="btnResetCfg" type="button" data-i18n="api.reset">Сбросить</button>
               </div>
             </div>
           </details>
 
           <div class="actions">
             <button class="btn primary big" id="btnStart" type="button">
-              Создать тренировку
+              <span data-i18n="setup.start">Создать тренировку</span>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
             </button>
-            <button class="btn ghost block" id="btnDemo" type="button">Демо-колода на 14 слов</button>
+            <button class="btn ghost block" id="btnDemo" type="button" data-i18n="setup.demo">Демо-колода на 14 слов</button>
           </div>
-          <p class="mini resume" id="resumeBox" hidden>Продолжить прошлую сессию — <button class="link" id="btnResume" type="button">открыть сохранённую колоду</button></p>
+          <p class="mini resume" id="resumeBox" hidden><span data-i18n="setup.resume">Продолжить прошлую сессию — </span><button class="link" id="btnResume" type="button" data-i18n="setup.resumeLink">открыть сохранённую колоду</button></p>
         </div>
       </div>
 
-      <p class="foot-note">Прогресс хранится на этом устройстве. Слова для перевода отправляются выбранному сервису.</p>
-      <div class="welcome-copy"><h2>Welcome to Vocabulary Master AI!</h2><p>Master new vocabulary effortlessly! Add your own word lists, practice with smart flashcards or typing modes, and let built-in AI translation guide your learning. Our adaptive system automatically reshuffles tricky words back into your deck so you never forget them!</p></div>
+      <p class="foot-note" data-i18n="setup.foot">Прогресс хранится на этом устройстве. Слова для перевода отправляются выбранному сервису.</p>
+      <div class="welcome-copy"><h2 data-i18n="welcome.h">Welcome to Vocabulary Master AI!</h2><p data-i18n="welcome.p">Master new vocabulary effortlessly! Add your own word lists, practice with smart flashcards or typing modes, and let built-in AI translation guide your learning. Our adaptive system automatically reshuffles tricky words back into your deck so you never forget them!</p></div>
     </section>
 
     <!-- ============ LOADING ============ -->
     <section class="screen center" id="screen-loading">
       <div class="loader-card panel">
         <div class="loop-spinner" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-        <h2 id="loadTitle">ИИ разбирает твой список…</h2>
-        <p class="sub" id="loadStep">Фильтрую мусор и дубликаты</p>
+        <h2 id="loadTitle" data-i18n="load.title">ИИ разбирает твой список…</h2>
+        <p class="sub" id="loadStep" data-i18n="load.step">Фильтрую мусор и дубликаты</p>
         <div class="bar"><i id="loadBar"></i></div>
         <p class="mini" id="loadCount"></p>
-        <button class="btn ghost" id="btnCancel" type="button">Отмена</button>
+        <button class="btn ghost" id="btnCancel" type="button" data-i18n="load.cancel">Отмена</button>
       </div>
     </section>
 
     <!-- ============ TRAIN ============ -->
     <section class="screen" id="screen-train">
-      <div class="workspace-heading"><h2>Время вспомнить</h2><p id="sessionLanguage">Твоя ежедневная практика</p></div>
+      <div class="workspace-heading"><h2 data-i18n="train.heading">Время вспомнить</h2><p id="sessionLanguage">Твоя ежедневная практика</p></div>
       <div class="stats">
-        <div class="stat s-round"><b id="stRound">1</b><span>раунд</span></div>
-        <div class="stat s-known"><b id="stKnown">0</b><span>знал</span></div>
-        <div class="stat s-forgot"><b id="stForgot">0</b><span>забыл</span></div>
-        <div class="stat s-acc"><b id="stAcc">—</b><span>точность</span></div>
-        <div class="stat s-time"><b id="stTime">0:00</b><span>время</span></div>
-        <div class="stat s-left"><b id="stLeft">0</b><span>в очереди</span></div>
+        <div class="stat s-round"><b id="stRound">1</b><span data-i18n="st.round">раунд</span></div>
+        <div class="stat s-known"><b id="stKnown">0</b><span data-i18n="st.known">знал</span></div>
+        <div class="stat s-forgot"><b id="stForgot">0</b><span data-i18n="st.forgot">забыл</span></div>
+        <div class="stat s-acc"><b id="stAcc">—</b><span data-i18n="st.acc">точность</span></div>
+        <div class="stat s-time"><b id="stTime">0:00</b><span data-i18n="st.time">время</span></div>
+        <div class="stat s-left"><b id="stLeft">0</b><span data-i18n="st.left">в очереди</span></div>
       </div>
 
-      <div class="round-bar" title="Прогресс раунда"><i id="roundBar"></i></div>
+      <div class="round-bar" title="Прогресс раунда" data-i18n-attr="title:train.roundBar"><i id="roundBar"></i></div>
 
       <div class="stage">
         <div class="deck-stage">
-          <div class="deck-sheet sheet-far" aria-hidden="true"><span>Ещё одно открытие</span></div>
-          <div class="deck-sheet sheet-near" aria-hidden="true"><div class="card-face front"><div class="card-header"><span class="badge" id="nextCardBadge"></span><span class="speak-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></span></div><div class="card-word" id="nextCardWord"></div><div class="card-foot"><span class="card-sub" id="nextCardSub"></span><span class="flip-hint">пробел</span></div></div></div>
+          <div class="deck-sheet sheet-far" aria-hidden="true"><span data-i18n="train.sheet">Ещё одно открытие</span></div>
+          <div class="deck-sheet sheet-near" aria-hidden="true"><div class="card-face front"><div class="card-header"><span class="badge" id="nextCardBadge"></span><span class="speak-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></span></div><div class="card-word" id="nextCardWord"></div><div class="card-foot"><span class="card-sub" id="nextCardSub"></span><span class="flip-hint" data-i18n="train.space">пробел</span></div></div></div>
           <div class="card-verdict" id="cardVerdict" aria-hidden="true"></div>
-        <div class="card" id="card" tabindex="0" title="Нажми, чтобы перевернуть (Space)">
+        <div class="card" id="card" tabindex="0" title="Нажми, чтобы перевернуть (Space)" data-i18n-attr="title:card.title">
           <div class="card-tilt">
           <div class="card-inner" id="cardInner">
             <div class="card-face front">
@@ -231,14 +232,14 @@
               <span class="card-sheen" aria-hidden="true"></span>
               <div class="card-header">
                 <span class="badge" id="cardBadge">оригинал</span>
-                <button class="speak-btn" id="btnSpeakFront" type="button" title="Озвучить слово (S)" aria-label="Озвучить">
+                <button class="speak-btn" id="btnSpeakFront" type="button" title="Озвучить слово (S)" aria-label="Озвучить" data-i18n-attr="title:card.speakWord,aria-label:card.speak">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /></svg>
                 </button>
               </div>
               <div class="card-word" id="cardWord">—</div>
               <div class="card-foot">
                 <span class="card-sub" id="cardSub">вспомни перевод, потом переверни</span>
-                <span class="flip-hint">пробел</span>
+                <span class="flip-hint" data-i18n="train.space">пробел</span>
               </div>
             </div>
             <div class="card-face back">
@@ -246,14 +247,14 @@
               <span class="card-sheen" aria-hidden="true"></span>
               <div class="card-header">
                 <span class="badge alt" id="cardBadgeBack">перевод</span>
-                <button class="speak-btn" id="btnSpeakBack" type="button" title="Озвучить перевод (S)" aria-label="Озвучить">
+                <button class="speak-btn" id="btnSpeakBack" type="button" title="Озвучить перевод (S)" aria-label="Озвучить" data-i18n-attr="title:card.speakTrans,aria-label:card.speak">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /></svg>
                 </button>
               </div>
               <div class="card-word" id="cardTrans">—</div>
               <div class="card-hint" id="cardHint"></div>
               <div class="context-block" id="cardContext"></div>
-              <span class="swipe-hint">← повторить <span>свайп</span> знаю →</span>
+              <span class="swipe-hint" data-i18n-html="card.swipe">← повторить <span>свайп</span> знаю →</span>
             </div>
           </div>
           </div>
@@ -261,95 +262,96 @@
         </div>
 
         <div class="hint-keys">
-          <span><kbd>Space</kbd> перевернуть</span>
-          <span><kbd>1</kbd> не помню</span>
-          <span><kbd>2</kbd> знал</span>
-          <span><kbd>S</kbd> озвучить</span>
-          <span><kbd>Esc</kbd> ливнуть</span>
-          <span><kbd>H</kbd> подсказка</span>
+          <span><kbd>Space</kbd> <i data-i18n="keys.flip">перевернуть</i></span>
+          <span><kbd>1</kbd> <i data-i18n="keys.forgot">не помню</i></span>
+          <span><kbd>2</kbd> <i data-i18n="keys.knew">знал</i></span>
+          <span><kbd>S</kbd> <i data-i18n="keys.speak">озвучить</i></span>
+          <span><kbd>Esc</kbd> <i data-i18n="keys.exit">ливнуть</i></span>
+          <span><kbd>H</kbd> <i data-i18n="keys.hint">подсказка</i></span>
         </div>
 
         <div class="answer-row" id="rowHidden">
           <button class="btn reveal big" id="btnReveal" type="button">
-            Показать перевод
+            <span data-i18n="btn.reveal">Показать перевод</span>
             <kbd>Space</kbd>
           </button>
           <button class="btn success big" id="btnKnew" type="button">
-            Знал сразу
+            <span data-i18n="btn.knewNow">Знал сразу</span>
             <kbd>2</kbd>
           </button>
         </div>
 
-        <form class="typing-row" id="typingForm" hidden><input id="typedAnswer" placeholder="Твой перевод…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Твой перевод"><button type="button" class="btn" id="btnHintTyping" title="Показать первые буквы" aria-label="Подсказка">💡</button><button type="submit" class="btn primary">Проверить</button></form>
-        <div class="answer-feedback" id="answerFeedback" hidden role="status"><span id="answerFeedbackText"></span><button class="btn" id="btnNextAnswer" type="button">Дальше →</button></div>
+        <form class="typing-row" id="typingForm" hidden><input id="typedAnswer" placeholder="Твой перевод…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Твой перевод" data-i18n-attr="placeholder:typing.ph,aria-label:typing.ph"><button type="button" class="btn" id="btnHintTyping" title="Показать первые буквы" aria-label="Подсказка" data-i18n-attr="title:typing.hint,aria-label:typing.hint">💡</button><button type="submit" class="btn primary" data-i18n="typing.check">Проверить</button></form>
+        <div class="answer-feedback" id="answerFeedback" hidden role="status"><span id="answerFeedbackText"></span><button class="btn" id="btnNextAnswer" type="button" data-i18n="btn.next">Дальше →</button></div>
 
         <div class="answer-row" id="rowShown" hidden>
           <button class="btn danger big" id="btnForgot" type="button">
-            Не вспомнил — повторить
+            <span data-i18n="btn.forgot">Не вспомнил — повторить</span>
             <kbd>1</kbd>
           </button>
           <button class="btn success big" id="btnKnew2" type="button">
-            Запомнил
+            <span data-i18n="btn.remembered">Запомнил</span>
             <kbd>2</kbd>
           </button>
         </div>
 
         <div class="stage-tools">
-          <button class="chip-btn" id="btnSpeakCur" type="button" title="Озвучить (S)">
+          <button class="chip-btn" id="btnSpeakCur" type="button" title="Озвучить (S)" data-i18n-attr="title:tools.speakTitle">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.8 5.2a9 9 0 0 1 0 13.6" /></svg>
-            Озвучить
+            <span data-i18n="tools.speak">Озвучить</span>
           </button>
-          <button class="chip-btn" id="btnHint" type="button" title="Первые буквы ответа (H)">💡 Подсказка</button>
-          <button class="chip-btn" id="btnDirCycle" type="button">↻ Направление</button>
-          <button class="chip-btn" id="btnShuffle" type="button">⤨ Перемешать</button>
-          <button class="chip-btn" id="btnNewSetTrain" type="button" title="Выбрать новый набор слов">✦ Новый набор</button>
-          <button class="chip-btn chip-exit" id="btnExit" type="button" title="Завершить сессию">Ливнуть ✕</button>
+          <button class="chip-btn" id="btnHint" type="button" title="Первые буквы ответа (H)" data-i18n="tools.hint" data-i18n-attr="title:tools.hintTitle">💡 Подсказка</button>
+          <button class="chip-btn" id="btnDirCycle" type="button" data-i18n="tools.dir">↻ Направление</button>
+          <button class="chip-btn" id="btnShuffle" type="button" data-i18n="tools.shuffle">⤨ Перемешать</button>
+          <button class="chip-btn" id="btnNewSetTrain" type="button" title="Выбрать новый набор слов" data-i18n="tools.newSet" data-i18n-attr="title:tools.newSetTitle">✦ Новый набор</button>
+          <button class="chip-btn chip-exit" id="btnExit" type="button" title="Завершить сессию" data-i18n="tools.exit" data-i18n-attr="title:tools.exitTitle">Ливнуть ✕</button>
         </div>
       </div>
     </section>
     <section class="screen" id="screen-library">
-      <div class="library-intro"><div><span class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ ЗНАНИЙ</span><h1>Моя библиотека</h1><p>Всё, что ты уже знаешь. И то, что скоро запомнишь.</p></div><button class="btn primary" id="btnAddDeck" type="button">+ Новая колода</button></div>
-      <div class="daily-panel"><div><strong id="dailyTitle">Сегодня — новый шаг</strong><p id="dailyText">0 из 10 ответов</p><div class="daily-track"><i id="dailyBar"></i></div></div><label class="freeze-control"><input type="checkbox" id="freezeEnabled" checked> Streak Freeze <span id="freezeBalance">· 2 защиты</span></label><label class="freeze-control">Цель <input id="dailyGoal" type="number" min="1" max="200" value="10" aria-label="Дневная цель" style="width:55px;background:transparent;border:1px solid var(--stroke);border-radius:5px;padding:5px"></label></div>
+      <div class="library-intro"><div><span class="eyebrow" data-i18n="lib.eyebrow">ТВОЯ КОЛЛЕКЦИЯ ЗНАНИЙ</span><h1 data-i18n="lib.h1">Моя библиотека</h1><p data-i18n="lib.sub">Всё, что ты уже знаешь. И то, что скоро запомнишь.</p></div><button class="btn primary" id="btnAddDeck" type="button" data-i18n="lib.newDeck">+ Новая колода</button></div>
+      <div class="daily-panel"><div><strong id="dailyTitle" data-i18n="daily.title0">Сегодня — новый шаг</strong><p id="dailyText">0 из 10 ответов</p><div class="daily-track"><i id="dailyBar"></i></div></div><label class="freeze-control"><input type="checkbox" id="freezeEnabled" checked> Streak Freeze <span id="freezeBalance">· 2 защиты</span></label><label class="freeze-control"><span data-i18n="daily.goal">Цель</span> <input id="dailyGoal" type="number" min="1" max="200" value="10" aria-label="Дневная цель" data-i18n-attr="aria-label:daily.goalAria" style="width:55px;background:transparent;border:1px solid var(--stroke);border-radius:5px;padding:5px"></label></div>
       <div class="activity-panel">
-        <div class="activity-head"><strong>Активность</strong><span id="activityStats"></span></div>
-        <div class="activity-map" id="activityMap" role="img" aria-label="Ответы за последние 12 недель"></div>
-        <div class="activity-legend"><span>меньше</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>больше</span></div>
+        <div class="activity-head"><strong data-i18n="act.title">Активность</strong><span id="activityStats"></span></div>
+        <div class="activity-map" id="activityMap" role="img" aria-label="Ответы за последние 12 недель" data-i18n-attr="aria-label:act.aria"></div>
+        <div class="activity-legend"><span data-i18n="act.less">меньше</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span data-i18n="act.more">больше</span></div>
       </div>
       <div class="library-tools">
-        <label class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg><input id="librarySearch" type="search" placeholder="Найти слово или перевод…" autocomplete="off" aria-label="Поиск по библиотеке"></label>
-        <div class="actions"><button type="button" class="chip-btn" id="btnExportLibrary">Скачать резервную копию</button><label class="chip-btn" for="importLibrary" style="cursor:pointer">Восстановить из файла</label><input id="importLibrary" type="file" accept="application/json,.json" hidden></div>
+        <label class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg><input id="librarySearch" type="search" placeholder="Найти слово или перевод…" autocomplete="off" aria-label="Поиск по библиотеке" data-i18n-attr="placeholder:search.ph,aria-label:search.aria"></label>
+        <div class="actions"><button type="button" class="chip-btn" id="btnExportLibrary" data-i18n="lib.export">Скачать резервную копию</button><label class="chip-btn" for="importLibrary" style="cursor:pointer" data-i18n="lib.import">Восстановить из файла</label><input id="importLibrary" type="file" accept="application/json,.json" hidden></div>
       </div>
       <div class="search-results" id="searchResults" hidden></div>
       <div class="library-grid" id="libraryGrid"></div>
-      <details class="motion-details"><summary>За кулисами: Native motion / EffectCraft</summary><p>Спокойное движение интерфейса — CSS. Ниже — сохранённый рендер композиции из EffectCraft CLI; это отдельный motion-этюд, не стиль приложения.</p><div class="motion-comparison"><div class="motion-native"><b>Слово за словом.</b></div><video src="motion/streak-celebration.mp4" controls preload="none" playsinline aria-label="Композиция EffectCraft"></video></div></details>
+      <details class="motion-details"><summary data-i18n="motion.summary">За кулисами: Native motion / EffectCraft</summary><p data-i18n="motion.p">Спокойное движение интерфейса — CSS. Ниже — сохранённый рендер композиции из EffectCraft CLI; это отдельный motion-этюд, не стиль приложения.</p><div class="motion-comparison"><div class="motion-native"><b data-i18n="motion.native">Слово за словом.</b></div><video src="motion/streak-celebration.mp4" controls preload="none" playsinline aria-label="Композиция EffectCraft" data-i18n-attr="aria-label:motion.video"></video></div></details>
     </section>
-    <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1>Проверь глубину словаря</h1><p>Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span>Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button">Начать мини-тест →</button><p class="mini">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden>Дальше →</button></div></div></section>
+    <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1 data-i18n="test.h1">Проверь глубину словаря</h1><p data-i18n="test.sub">Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button" data-i18n="test.start">Начать мини-тест →</button><p class="mini" data-i18n="test.note">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden data-i18n="btn.next">Дальше →</button></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.4</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.5</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
     <div class="panel summary-card">
       <div id="summaryMotion" class="summary-motion" aria-hidden="true" hidden></div>
-      <div class="sum-ring" id="sumRing"><span id="sumAcc">0%</span><small>точность</small></div>
-      <h2>Сессия завершена</h2>
+      <div class="sum-ring" id="sumRing"><span id="sumAcc">0%</span><small data-i18n="st.acc">точность</small></div>
+      <h2 data-i18n="sum.title">Сессия завершена</h2>
       <div class="summary-grid" id="summaryGrid"></div>
       <p class="sub" id="summaryMsg"></p>
       <div class="actions">
-        <button class="btn primary" id="btnContinue" type="button">Продолжить цикл</button>
-        <button class="btn ghost" id="btnNewSet" type="button">Новый набор слов</button>
+        <button class="btn primary" id="btnContinue" type="button" data-i18n="sum.continue">Продолжить цикл</button>
+        <button class="btn ghost" id="btnNewSet" type="button" data-i18n="sum.newSet">Новый набор слов</button>
       </div>
-      <button class="link" id="btnCopyStats" type="button">Скопировать статистику</button>
+      <button class="link" id="btnCopyStats" type="button" data-i18n="sum.copy">Скопировать статистику</button>
     </div>
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong>Ещё один шаг вперёд.</strong><p>Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление">×</button></div>
+  <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <script src="vendor/lottie_light.min.js"></script>
   <script src="motion/editorial-achievement.js"></script>
-  <script src="motion.js?v=2.4"></script>
-  <script src="learning.js?v=2.4"></script>
-  <script src="app.js?v=2.4"></script>
+  <script src="i18n.js?v=2.5"></script>
+  <script src="motion.js?v=2.5"></script>
+  <script src="learning.js?v=2.5"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
