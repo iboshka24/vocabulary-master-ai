@@ -873,7 +873,7 @@
 
     show('screen-train');
     $('topPill').hidden = false;
-    $('topPill').textContent = state.cards.length + ' карточек';
+    $('topPill').textContent = state.cards.length + ' ' + plural(state.cards.length, ['карточка', 'карточки', 'карточек']);
     nextCard(true);
     startTimer();
     saveSession();
@@ -920,6 +920,7 @@
     if (!c) return;
     var fwd = state.curSide === 'fwd';
     if (L) pendingTypedAnswer = null;
+    state.hintLevel = 0;
     var target = langByCode(state.cfg.target);
 
     $('cardWord').textContent = fwd ? c.original : c.translation;
@@ -1478,6 +1479,88 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; });
   }
 
+  function swapLanguages() {
+    var s = state.cfg.source; state.cfg.source = state.cfg.target; state.cfg.target = s;
+    $('sourceLang').value = state.cfg.source; $('targetLang').value = state.cfg.target; saveCfg();
+    var input = $('input'), before = input.value, after = L.swapPairs(before);
+    if (after !== before) { input.value = after; updateInputStat(true); }
+    var b = $('btnSwapLang'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin');
+    toast(langByCode(state.cfg.source).label + ' → ' + langByCode(state.cfg.target).label + (after !== before ? ' · пары в списке развёрнуты' : ''), 'ok', 1800);
+  }
+  function showHint() {
+    var c = state.current;
+    if (!c || state.revealed || answerLocked) return;
+    state.hintLevel = (state.hintLevel || 0) + 1;
+    $('cardSub').textContent = '💡 ' + L.hint(state.curSide === 'fwd' ? c.translation : c.original, state.hintLevel);
+    if (state.cfg.mode === 'typing') $('typedAnswer').focus();
+  }
+  function practiceDeck(d, mode) {
+    state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
+    $('sourceLang').value = d.source; $('targetLang').value = d.target;
+    var cards = L.pick(d.cards, mode);
+    if (mode === 'due' && !cards.length) cards = L.pick(d.cards, 'all');
+    if (!cards.length) { toast(mode === 'hard' ? 'Сложных слов пока нет 🎉' : 'Сначала укажи переводы в списке слов.', mode === 'hard' ? 'ok' : 'err'); return; }
+    startTraining(cards);
+  }
+  function reverseDeck(d) {
+    var key = d.target + '-' + d.source;
+    var rev = library.decks[key] || { source: d.target, target: d.source, cards: [], created: Date.now() };
+    var added = 0;
+    L.reverseCards(d.cards).forEach(function (c) {
+      if (rev.cards.some(function (x) { return x.original.toLowerCase() === c.original.toLowerCase(); })) return;
+      rev.cards.push(c); added++;
+    });
+    library.decks[key] = rev; persistLibrary(); renderLibrary();
+    toast(added ? 'Готово: ' + langByCode(rev.source).label + ' → ' + langByCode(rev.target).label + ' · +' + added + ' слов' : 'Развёрнутая колода уже актуальна', 'ok');
+  }
+  async function copyDeck(d) {
+    var text = d.cards.map(function (c) { return c.original + ' - ' + c.translation; }).join('\n');
+    try { await navigator.clipboard.writeText(text); toast('Список скопирован 📋 — его можно вставить в новую колоду', 'ok'); }
+    catch (e) {
+      var link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      link.download = d.source + '-' + d.target + '.txt'; link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+    }
+  }
+  function highlight(text, q) {
+    var s = String(text || ''), i = s.toLocaleLowerCase().indexOf(q);
+    if (i < 0) return escapeHTML(s);
+    return escapeHTML(s.slice(0, i)) + '<mark>' + escapeHTML(s.slice(i, i + q.length)) + '</mark>' + escapeHTML(s.slice(i + q.length));
+  }
+  function renderSearch() {
+    var box = $('searchResults'), q = $('librarySearch').value.toLocaleLowerCase().trim();
+    $('libraryGrid').hidden = !!q; box.hidden = !q;
+    if (!q) { box.innerHTML = ''; return; }
+    var hits = [];
+    Object.keys(library.decks).forEach(function (key) {
+      var d = library.decks[key];
+      d.cards.forEach(function (c) { if ((c.original + '\n' + c.translation).toLocaleLowerCase().indexOf(q) >= 0) hits.push({ d: d, c: c }); });
+    });
+    box.innerHTML = '<p class="search-head">' + (hits.length ? 'Найдено: ' + hits.length : 'Ничего не нашлось по «' + escapeHTML(q) + '»') + '</p>' +
+      hits.slice(0, 100).map(function (h) {
+        return '<div class="saved-word"><strong>' + highlight(h.c.original, q) + '</strong><span>' + highlight(h.c.translation, q) + '</span><span class="deck-kicker">' +
+          escapeHTML(langByCode(h.d.source).label + ' → ' + langByCode(h.d.target).label) + (h.c.fails ? ' · ошибок: ' + h.c.fails : '') + '</span></div>';
+      }).join('');
+  }
+  function renderActivity() {
+    var days = L.activity(library.history, 84, L.day());
+    var p = days[0].date.split('-').map(Number);
+    var pad = (new Date(p[0], p[1] - 1, p[2]).getDay() + 6) % 7; // first column starts on Monday
+    var cells = [];
+    for (var i = 0; i < pad; i++) cells.push('<i class="pad"></i>');
+    days.forEach(function (d) {
+      var lvl = !d.answers ? 0 : d.answers >= library.goal ? 4 : Math.min(3, 1 + Math.floor(d.answers * 3 / library.goal));
+      cells.push('<i class="l' + lvl + '" title="' + d.date + ': ' + d.answers + ' ' + plural(d.answers, ['ответ', 'ответа', 'ответов']) + '"></i>');
+    });
+    $('activityMap').innerHTML = cells.join('');
+    var active = days.filter(function (d) { return d.answers; }).length;
+    var answers = days.reduce(function (n, d) { return n + d.answers; }, 0);
+    var words = 0, mastered = 0;
+    Object.keys(library.decks).forEach(function (k) { library.decks[k].cards.forEach(function (c) { words++; if (c.streak >= 2) mastered++; }); });
+    $('activityStats').textContent = active + ' ' + plural(active, ['активный день', 'активных дня', 'активных дней']) + ' · ' + answers + ' ' + plural(answers, ['ответ', 'ответа', 'ответов']) +
+      ' · ' + words + ' ' + plural(words, ['слово', 'слова', 'слов']) + ' · ' + mastered + ' закреплено';
+  }
+
   function toggleCard() {
     if (answerLocked || !state.current) return;
     if (!state.revealed || state.cfg.mode === 'typing') { reveal(); return; }
@@ -1553,6 +1636,7 @@
   }
   function renderLibrary() {
     var host = $('libraryGrid'); host.innerHTML = '';
+    renderActivity(); renderSearch();
     var keys = Object.keys(library.decks);
     if (!keys.length) {
       host.innerHTML = '<div class="empty-library"><h2>Место для твоих открытий</h2><p>Создай первую тренировку — её слова останутся здесь.</p><button class="btn primary" type="button" data-action="new">Добавить слова →</button></div>';
@@ -1562,9 +1646,12 @@
     keys.forEach(function (key) {
       var d = library.decks[key];
       var mastered = d.cards.filter(function (c) { return c.streak >= 2; }).length;
-      var due = d.cards.filter(function (c) { return !c.due || c.due <= Date.now(); }).length;
+      var due = L.pick(d.cards, 'due').length, hard = L.pick(d.cards, 'hard').length;
       var panel = document.createElement('article'); panel.className = 'deck-item';
-      panel.innerHTML = '<span class="deck-kicker">' + escapeHTML(langByCode(d.target).label) + ' / ' + d.cards.length + ' слов</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + mastered + ' закреплено · ' + due + ' к повторению</p><div class="daily-track" style="width:100%"><i style="width:' + Math.round(mastered / Math.max(1,d.cards.length) * 100) + '%"></i></div><div class="actions"><button class="btn primary" data-act="practice">Повторить →</button><button class="btn" data-act="add">+ Слова</button></div><details><summary>Все слова · редактировать</summary><div class="word-list"></div><button class="link" data-act="delete" style="margin-top:12px;color:var(--rose)">Удалить колоду</button></details>';
+      panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + d.cards.length + ' ' + plural(d.cards.length, ['слово','слова','слов']) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + mastered + ' закреплено · ' + due + ' к повторению · ' + hard + ' ' + plural(hard, ['сложное','сложных','сложных']) + '</p><div class="daily-track" style="width:100%"><i style="width:' + Math.round(mastered / Math.max(1,d.cards.length) * 100) + '%"></i></div>' +
+        '<div class="actions"><button class="btn primary" type="button" data-act="practice" title="Сначала слова, срок которых подошёл">' + (due ? 'Повторить · ' + due : 'Повторить всё') + ' →</button><button class="btn" type="button" data-act="hard"' + (hard ? '' : ' disabled') + ' title="Только слова с ошибками">Сложные · ' + hard + '</button><button class="btn" type="button" data-act="add">+ Слова</button></div>' +
+        '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="Создать колоду ' + escapeHTML(langByCode(d.target).label + ' → ' + langByCode(d.source).label) + '">⇄ Развернуть языки</button><button class="link" type="button" data-act="copy">Скопировать списком</button></div>' +
+        '<details><summary>Все слова · редактировать</summary><div class="word-list"></div><button class="link" type="button" data-act="delete" style="margin-top:12px;color:var(--rose)">Удалить колоду</button></details>';
       var list = panel.querySelector('.word-list');
       d.cards.forEach(function (c, i) {
         var row = document.createElement('div'); row.className = 'saved-word';
@@ -1578,13 +1665,12 @@
         list.appendChild(row);
       });
       panel.querySelector('[data-act="practice"]').onclick = function () {
-        state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
-        $('sourceLang').value = d.source; $('targetLang').value = d.target;
         if (!d.cards.length) { toast('Добавь слова в колоду.', 'err'); return; }
-        var ready = d.cards.filter(function (c) { return c.translation && c.translation !== '—'; });
-        if (!ready.length) { toast('Сначала укажи переводы в списке слов.', 'err'); return; }
-        startTraining(ready);
+        practiceDeck(d, 'due');
       };
+      panel.querySelector('[data-act="hard"]').onclick = function () { practiceDeck(d, 'hard'); };
+      panel.querySelector('[data-act="reverse"]').onclick = function () { reverseDeck(d); };
+      panel.querySelector('[data-act="copy"]').onclick = function () { copyDeck(d); };
       panel.querySelector('[data-act="add"]').onclick = function () {
         state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
         $('sourceLang').value = d.source; $('targetLang').value = d.target; $('input').value = '';
@@ -1657,7 +1743,13 @@
     L.reconcile(library.streak, L.day()); persistLibrary(); renderDaily();
     LANGS.forEach(function (l) { var opt = document.createElement('option'); opt.value = l.code; opt.textContent = l.label; $('sourceLang').appendChild(opt); });
     $('sourceLang').value = state.cfg.source;
-    $('sourceLang').onchange = function () { state.cfg.source = this.value; saveCfg(); };
+    $('sourceLang').onchange = function () {
+      var prev = state.cfg.source; state.cfg.source = this.value;
+      // Picking the same language on both sides means "swap them".
+      if (state.cfg.target === this.value) { state.cfg.target = prev; $('targetLang').value = prev; }
+      saveCfg();
+    };
+    $('btnSwapLang').onclick = swapLanguages;
     $('simpleMode').checked = state.cfg.simple;
     $('simpleMode').onchange = function () { state.cfg.simple = this.checked; saveCfg(); };
     document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === state.cfg.mode); b.onclick = function () {
@@ -1671,7 +1763,10 @@
     $('navLibrary').onclick = function () { navigateLearning('screen-library'); };
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
     $('btnAddDeck').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
-    $('freezeEnabled').onchange = function () { library.streak.enabled = this.checked; persistLibrary(); renderDaily(); };
+    $('librarySearch').oninput = renderSearch;
+    $('btnHint').onclick = showHint;
+    $('btnHintTyping').onclick = showHint;
+    $('freezeEnabled').onchange =function () { library.streak.enabled = this.checked; persistLibrary(); renderDaily(); };
     $('dailyGoal').onchange = function () { library.goal = Math.max(1, Math.min(200, Number(this.value) || 10)); persistLibrary(); renderDaily(); };
     $('btnExportLibrary').onclick = function () {
       // Library exports never include API keys or provider configuration.
@@ -1823,7 +1918,11 @@
       });
     });
 
-    sel.addEventListener('change', function () { state.cfg.target = sel.value; saveCfg(); });
+    sel.addEventListener('change', function () {
+      var prev = state.cfg.target; state.cfg.target = sel.value;
+      if (L && state.cfg.source === sel.value) { state.cfg.source = prev; $('sourceLang').value = prev; }
+      saveCfg();
+    });
     $('dirSeg').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-dir]');
       if (b) setDir(b.dataset.dir);
@@ -1959,6 +2058,8 @@
 
     /* Global keyboard shortcuts */
     document.addEventListener('keydown', function (e) {
+      // Alt+X swaps languages on the setup screen, even while typing the word list.
+      if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
       if (e.target.matches('input,textarea,select')) return;
       var k = e.key;
       if (L && answerLocked) return;
@@ -1986,6 +2087,10 @@
           e.preventDefault();
           pulseHint(3);
           speakCurrent();
+        } else if (L && (k === 'h' || k === 'H' || k === 'р' || k === 'Р')) {
+          e.preventDefault();
+          pulseHint(5);
+          showHint();
         } else if (k === 'm' || k === 'M' || k === 'ь' || k === 'Ь') {
           e.preventDefault();
           toggleSound();

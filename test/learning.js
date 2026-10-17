@@ -49,3 +49,29 @@ for (const q of qs) {
 assert(qs.find(q => q.card.original === 'apple').sentence.includes('_____'));
 assert.equal(L.quiz(words.slice(0,3), 5).length, 0);
 console.log('✓ Learning rules: typing, freeze/reload/calendar, SRS, unique lexical distractors');
+
+assert.equal(L.swapPairs('apple - яблоко\nhouse : дом\nserendipity'), 'яблоко - apple\nдом : house\nserendipity');
+assert.equal(L.swapPairs('run - бежать, мчаться'), 'бежать, мчаться - run', 'commas inside a translation stay together');
+assert.equal(L.swapPairs('cat - кошка, dog - собака'), 'кошка - cat, собака - dog');
+assert.equal(L.swapPairs('1. to go - идти'), '1. идти - to go');
+assert.equal(L.swapPairs(L.swapPairs('a - b\nc = d')), 'a - b\nc = d', 'swap twice is identity');
+
+const rev = L.reverseCards([{ original: 'cat', translation: 'кошка', box: 4, fails: 3, streak: 5, due: 99 }, { original: 'x', translation: '—' }]);
+assert.equal(rev.length, 1, 'untranslated cards are skipped');
+assert.equal(rev[0].original, 'кошка'); assert.equal(rev[0].translation, 'cat');
+assert.equal(rev[0].box, 0); assert.equal(rev[0].fails, 0);
+
+assert.equal(L.hint('to achieve', 1), 't· a······');
+assert.equal(L.hint('кошка', 2), 'ко···');
+assert.equal(L.hint('бежать, мчаться', 1), 'б·····', 'hint uses the first variant only');
+
+const pool = [{ original: 'a', translation: '1', fails: 1, due: 0 }, { original: 'b', translation: '2', fails: 3, due: 500 }, { original: 'c', translation: '3', fails: 0, due: 50 }, { original: 'd', translation: '—' }];
+assert.deepEqual(L.pick(pool, 'hard', 100).map(c => c.original), ['b', 'a']);
+assert.deepEqual(L.pick(pool, 'due', 100).map(c => c.original), ['a', 'c']);
+assert.equal(L.pick(pool, 'all').length, 3);
+
+const act = L.activity({ '2026-10-17': { answers: 4, correct: 3 }, '2026-09-30': { answers: 2 } }, 20, '2026-10-17');
+assert.equal(act.length, 20);
+assert.equal(act[19].date, '2026-10-17'); assert.equal(act[19].answers, 4);
+assert.equal(act[2].date, '2026-09-30'); assert.equal(act[2].answers, 2, 'crosses month boundary');
+console.log('✓ Swap pairs, reverse deck, hints, hard/due picks, activity calendar');

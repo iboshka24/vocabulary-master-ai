@@ -86,5 +86,48 @@
       return { card: c, sentence: sentence, options: shuffle([c.original].concat(others.map(function (o) { return o.original; }))) };
     }).filter(Boolean).slice(0, count || 5);
   }
-  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, quiz: quiz };
+  var PAIR = /^([^\s:=].*?)(\s*(?:[:=]|\s+[-—–]\s+|\t+)\s*)(.+)$/;
+  var MULTI = /,\s*(?=[^\s,]+(?:\s+[^\s,]+)*\s*(?:[:=]|\s+[-—–]\s+|\t+)\s*)/;
+  // Flip "word - перевод" into "перевод - word"; single words stay as they are.
+  function swapPairs(text) {
+    return String(text || '').split(/\r?\n/).map(function (line) {
+      var m = line.match(/^(\s*(?:[-*•–—]|\d+[.)])*\s*)(.*)$/);
+      return m[1] + m[2].split(MULTI).map(function (part) {
+        var p = part.match(PAIR);
+        return p ? p[3].trim() + p[2] + p[1].trim() : part;
+      }).join(', ');
+    }).join('\n');
+  }
+  // A reversed deck is a new skill: progress starts from zero.
+  function reverseCards(cards) {
+    return (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; }).map(function (c) {
+      return { original: c.translation, translation: c.original, hint: c.hint || '', definition: c.definition || '', examples: (c.examples || []).slice(), streak: 0, fails: 0, box: 0, due: 0 };
+    });
+  }
+  // level 1 shows the first letter of every word, each next level one more.
+  function hint(answer, level) {
+    var n = Math.max(1, level || 1);
+    return String(answer || '').split(/\s*[/,;]\s*/)[0].replace(/[\p{L}\p{N}]+/gu, function (w) {
+      var chars = Array.from(w);
+      return chars.map(function (ch, i) { return i < n ? ch : '·'; }).join('');
+    });
+  }
+  function pick(cards, mode, now) {
+    var t = now || Date.now();
+    var ready = (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; });
+    if (mode === 'hard') return ready.filter(function (c) { return (c.fails || 0) > 0; }).sort(function (a, b) { return (b.fails || 0) - (a.fails || 0); });
+    if (mode === 'due') return ready.filter(function (c) { return !c.due || c.due <= t; });
+    return ready;
+  }
+  // Last `days` calendar days ending today, oldest first.
+  function activity(history, days, today) {
+    var p = (today || day()).split('-').map(Number), out = [];
+    for (var i = days - 1; i >= 0; i--) {
+      var key = day(new Date(p[0], p[1] - 1, p[2] - i));
+      var h = (history || {})[key] || {};
+      out.push({ date: key, answers: h.answers || 0, correct: h.correct || 0 });
+    }
+    return out;
+  }
+  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, activity: activity };
 });
