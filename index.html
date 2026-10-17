@@ -15,9 +15,9 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" /></noscript>
-  <link rel="stylesheet" href="styles.css?v=2.8" />
-  <link rel="stylesheet" href="editorial.css?v=2.8" />
-  <link rel="stylesheet" href="motion.css?v=2.8" />
+  <link rel="stylesheet" href="styles.css?v=2.9" />
+  <link rel="stylesheet" href="editorial.css?v=2.9" />
+  <link rel="stylesheet" href="motion.css?v=2.9" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -345,7 +345,7 @@
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1 data-i18n="test.h1">Проверь глубину словаря</h1><p data-i18n="test.sub">Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button" data-i18n="test.start">Начать мини-тест →</button><p class="mini" data-i18n="test.note">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden data-i18n="btn.next">Дальше →</button></div></div><div class="panel match-panel"><div class="match-head"><div><span class="eyebrow" data-i18n="match.eyebrow">МИНИ-ИГРА</span><h2 data-i18n="match.title">Найди пару</h2><p class="mini" data-i18n="match.sub">Соедини слово с переводом как можно быстрее. Колода — та же, что выбрана выше.</p></div><button class="btn primary" id="btnMatchStart" type="button" data-i18n="match.start">Играть →</button></div><div class="match-stats" id="matchStats" hidden><span id="matchTime">0:00</span><span id="matchMistakes"></span><span id="matchBest"></span></div><div class="match-grid" id="matchGrid"></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.8</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.9</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -367,9 +367,10 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="i18n.js?v=2.8"></script>
-  <script defer src="motion.js?v=2.8"></script>
-  <script defer src="learning.js?v=2.8"></script>
-  <script defer src="app.js?v=2.8"></script>
+  <script defer src="i18n.js?v=2.9"></script>
+  <script defer src="motion.js?v=2.9"></script>
+  <script defer src="learning.js?v=2.9"></script>
+  <script defer src="ai-core.js?v=2.9"></script>
+  <script defer src="app.js?v=2.9"></script>
 </body>
 </html>

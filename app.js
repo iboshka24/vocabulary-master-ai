@@ -515,68 +515,9 @@
 
   /* ---------------- AI & Translation ---------------- */
 
-  function systemPrompt(targetEn) {
-    return 'You are the engine of Vocabulary Master AI vocabulary trainer.\n' +
-      'Input: list of words/phrases.\n' +
-      'Tasks:\n' +
-      '1. FILTER: drop junk, duplicates, numbers, urls, single letters. Keep useful words/phrases.\n' +
-      '2. TRANSLATE every item into ' + targetEn + '.\n' +
-      '3. If item is already in ' + targetEn + ', keep it unchanged.\n' +
-      '4. Add "hint": a short mnemonic or memory hook (3-8 words) in ' + targetEn + ' that makes it easy to remember.\n' +
-      '5. Add "definition": a concise definition in the source language (' + state.cfg.source + '), and "examples": 1-2 natural sentences in that source language containing the exact original word. Never include the translation inside an example.\n' +
-      'Answer STRICT JSON only:\n' +
-      '{"items":[{"original":"...","translation":"...","hint":"...","definition":"...","examples":["..."]}]}';
-  }
-
-  function numbered(items) {
-    return items.map(function (x, i) { return (i + 1) + '. ' + x.original; }).join('\n');
-  }
-
-  function parseItems(text) {
-    if (!text) return [];
-    var t = String(text).replace(/```(?:json)?/gi, '').trim();
-
-    function attempt(s) {
-      try {
-        var o = JSON.parse(s);
-        if (Array.isArray(o)) return o;
-        if (o && Array.isArray(o.items)) return o.items;
-        if (o && Array.isArray(o.results)) return o.results;
-        if (o && Array.isArray(o.data)) return o.data;
-      } catch (e) {}
-      return null;
-    }
-
-    var got = attempt(t);
-    if (!got) {
-      var i = t.indexOf('{'), j = t.lastIndexOf('}');
-      if (i >= 0 && j > i) got = attempt(t.slice(i, j + 1));
-    }
-    if (!got) {
-      var a = t.indexOf('['), b = t.lastIndexOf(']');
-      if (a >= 0 && b > a) got = attempt(t.slice(a, b + 1));
-    }
-    if (!got) return [];
-
-    return got
-      .map(function (o) {
-        if (typeof o === 'string') return { original: o, translation: '', hint: '' };
-        var orig = o.original || o.word || o.source || o.text || o.ru || '';
-        var trText = o.translation || o.translated || o.target || o.tr || o.en || '';
-        return { original: String(orig).trim(), translation: String(trText).trim(), hint: String(o.hint || o.note || '').trim(), definition: String(o.definition || ''), examples: Array.isArray(o.examples) ? o.examples.filter(function (x) { return typeof x === 'string'; }).slice(0, 2) : [] };
-      })
-      .filter(function (o) { return o.original; });
-  }
-
-  function pickText(json) {
-    if (json && json.text) return json.text;
-    if (json && json.choices && json.choices[0] && json.choices[0].message) return json.choices[0].message.content;
-    return '';
-  }
-
   async function checkServerStatus() {
     try {
-      var r = await fetch('/api/ai', { method: 'GET' });
+      var r = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"action":"status"}', signal: AbortSignal.timeout(8000) });
       if (r.ok) {
         var d = await r.json();
         state.serverHasKey = Boolean(d.serverKeyConfigured);
@@ -605,70 +546,68 @@
     }
   }
 
-  async function callAI(messages) {
-    var bodyObj = {
-      messages: messages,
-      model: state.cfg.model,
-      baseUrl: state.cfg.baseUrl,
-      apiKey: state.cfg.apiKey,
-      temperature: 0.2
-    };
+  function aiError(code, message) { var e = new Error(message || code); e.code = code; return e; }
 
-    /* 1) Прокси на Vercel (серверный ключ или проксирование браузерного ключа) */
+  // Translates up to 40 words through /api/ai (server key or the user's key) or,
+  // without a server, directly with the user's key. Returns validated items.
+  async function callAI(words) {
+    var AI = window.VMAICore;
+    var request = AI.validateRequest({ words: words, source: state.cfg.source, target: state.cfg.target });
+
     if (state.serverAvailable) {
       try {
         var headers = { 'Content-Type': 'application/json' };
-        if (state.cfg.apiKey) {
-          headers['Authorization'] = 'Bearer ' + state.cfg.apiKey;
-        }
+        if (state.cfg.apiKey) headers['Authorization'] = 'Bearer ' + state.cfg.apiKey;
         var r = await fetch('/api/ai', {
           method: 'POST',
           headers: headers,
-          body: JSON.stringify(bodyObj),
+          body: JSON.stringify({ words: request.words, source: request.source, target: request.target, model: state.cfg.model, baseUrl: state.cfg.baseUrl }),
           signal: AbortSignal.timeout(45000)
         });
-        if (r.ok) {
-          var j = await r.json();
-          var txt = pickText(j);
-          if (txt) return txt;
-          throw new Error(tr('err.emptyServer'));
-        }
-        var err = {};
-        try { err = await r.json(); } catch (e) {}
-        if (r.status === 404 || r.status === 501 || err.code === 'no-key') {
-          state.serverAvailable = false;
-        } else {
-          throw new Error(err.error || tr('err.serverStatus', { s: r.status }));
-        }
+        var j = {};
+        try { j = await r.json(); } catch (e) {}
+        if (r.ok && Array.isArray(j.items)) return j.items;
+        if (r.status === 404 || r.status === 405 || r.status === 501 || j.code === 'no-key') state.serverAvailable = false;
+        else throw aiError(j.code || 'provider-unavailable', j.error);
       } catch (e) {
         if (e instanceof TypeError) state.serverAvailable = false;
         else throw e;
       }
     }
 
-    /* 2) Напрямую по ключу пользователя в браузере (если прокси не доступен, e.g. локальный сервер) */
     var cfg = state.cfg;
     if (cfg.apiKey) {
       var url = String(cfg.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/chat/completions';
-      var res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
-        body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', messages: messages, temperature: 0.2 }),
-        signal: AbortSignal.timeout(45000)
-      });
-      if (!res.ok) {
-        var e2 = {};
-        try { e2 = await res.json(); } catch (e) {}
-        var msg = (e2.error && (e2.error.message || e2.error)) || tr('err.apiStatus', { s: res.status });
-        throw new Error(typeof msg === 'string' ? msg : tr('err.apiStatus', { s: res.status }));
-      }
-      var data = await res.json();
-      var out = pickText(data);
-      if (!out) throw new Error(tr('err.emptyModel'));
-      return out;
+      var res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+          body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', messages: AI.buildMessages(request), temperature: 0.2 }),
+          signal: AbortSignal.timeout(45000)
+        });
+      } catch (e) { throw aiError(e && e.name === 'TimeoutError' ? 'provider-timeout' : 'provider-unavailable'); }
+      if (!res.ok) throw aiError(res.status === 401 || res.status === 403 ? 'provider-auth' : res.status === 429 ? 'provider-rate-limit' : 'provider-unavailable');
+      var data = {};
+      try { data = await res.json(); } catch (e) {}
+      var content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      return AI.parseResponse(content, request); // throws code 'bad-model-response'
     }
 
-    throw new Error('no-key');
+    throw aiError('no-key');
+  }
+
+  // Chunks that respect the /api/ai limits; over-long phrases go to the free translator.
+  function aiChunks(items) {
+    var LIM = window.VMAICore.LIMITS, out = [], cur = [], chars = 0;
+    items.forEach(function (it) {
+      var n = it.original.length;
+      if (n > LIM.wordLength) return;
+      if (cur.length >= Math.min(CHUNK, LIM.words) || chars + n > LIM.totalChars - 200) { out.push(cur); cur = []; chars = 0; }
+      cur.push(it); chars += n;
+    });
+    if (cur.length) out.push(cur);
+    return out;
   }
 
   /* Free translation fallback engine (MyMemory API + Local dictionary) */
@@ -761,7 +700,6 @@
   }
 
   async function buildCards(parsedItems) {
-    var target = langByCode(state.cfg.target);
     var readyCards = [];
     var needTranslation = [];
 
@@ -781,8 +719,10 @@
     var canTryAI = state.serverHasKey || Boolean(state.cfg.apiKey);
     if (canTryAI) {
       try {
-        var parts = chunk(needTranslation, CHUNK);
+        var parts = aiChunks(needTranslation);
         var aiCards = [];
+        var aiWords = Object.create(null);
+        parts.forEach(function (part) { part.forEach(function (it) { aiWords[it.original] = true; }); });
         for (var i = 0; i < parts.length; i++) {
           if (state.cancelled) return null;
           setLoad(
@@ -791,11 +731,7 @@
             tr('load.processed', { a: aiCards.length, b: needTranslation.length })
           );
 
-          var text = await callAI([
-            { role: 'system', content: systemPrompt(target.en) },
-            { role: 'user', content: numbered(parts[i]) }
-          ]);
-          var parsed = parseItems(text);
+          var parsed = await callAI(parts[i].map(function (it) { return it.original; }));
           if (parsed && parsed.length > 0) {
             // Use AI filtered and translated items directly
             for (var pIdx = 0; pIdx < parsed.length; pIdx++) {
@@ -819,17 +755,24 @@
             }
           }
         }
+        // Phrases too long for the AI request still get a free translation.
+        for (var lIdx = 0; lIdx < needTranslation.length; lIdx++) {
+          if (aiWords[needTranslation[lIdx].original]) continue;
+          aiCards.push({ original: needTranslation[lIdx].original, translation: await translateSingleFree(needTranslation[lIdx].original, state.cfg.target), hint: '' });
+        }
         return readyCards.concat(aiCards);
       } catch (err) {
-        if (err.message !== 'no-key') {
-          aiFailed = true;
+        if (err.message !== 'no-key' && err.code !== 'no-key') {
+          aiFailed = err.code || true;
           console.warn('AI call failed, falling back to free translator:', err);
         }
       }
     }
 
     // Fallback: Free translation
-    toast(tr(aiFailed ? 'toast.aiFailed' : 'toast.freeTr'), aiFailed ? 'err' : 'ok', 4000);
+    var reason = typeof aiFailed === 'string' ? tr('aiErr.' + aiFailed) : '';
+    if (reason === 'aiErr.' + aiFailed) reason = '';
+    toast(aiFailed ? tr('toast.aiFailed') + (reason ? ' ' + reason : '') : tr('toast.freeTr'), aiFailed ? 'err' : 'ok', aiFailed ? 6000 : 4000);
     var freeCards = await translateBatchFree(needTranslation, state.cfg.target);
     if (!freeCards) return null;
     return readyCards.concat(freeCards);

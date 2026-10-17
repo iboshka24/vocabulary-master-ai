@@ -125,66 +125,12 @@ function mockRes() {
 }
 
 (async () => {
-  // GET probe
-  const rGet = mockRes();
-  await aiHandler({ method: 'GET' }, rGet);
-  assert.strictEqual(rGet.statusCode, 200);
-  assert.strictEqual(rGet.data.status, 'ok');
-  console.log('✓ /api/ai GET probe returns status 200 ok');
-
-  // POST without any key
-  const oldKey = process.env.OPENAI_API_KEY;
-  delete process.env.OPENAI_API_KEY;
-  const rNoKey = mockRes();
-  await aiHandler({ method: 'POST', headers: {}, body: {} }, rNoKey);
-  assert.strictEqual(rNoKey.statusCode, 501);
-  assert.strictEqual(rNoKey.data.code, 'no-key');
-  console.log('✓ /api/ai POST without key returns 501 no-key');
-
-  // POST with client Bearer key, bad request messages
-  const rClientKey = mockRes();
-  await aiHandler({ method: 'POST', headers: { authorization: 'Bearer custom-test-key' }, body: {} }, rClientKey);
-  assert.strictEqual(rClientKey.statusCode, 400);
-  assert.strictEqual(rClientKey.data.code, 'bad-request');
-  console.log('✓ /api/ai POST accepts client Bearer key and validates messages array');
-
-  // POST with body apiKey
-  const rBodyKey = mockRes();
-  await aiHandler({ method: 'POST', headers: {}, body: { apiKey: 'body-test-key' } }, rBodyKey);
-  assert.strictEqual(rBodyKey.statusCode, 400);
-  assert.strictEqual(rBodyKey.data.code, 'bad-request');
-  console.log('✓ /api/ai POST accepts body apiKey');
-
-  // A caller cannot redirect a server-owned secret to their own endpoint.
-  const oldFetch = global.fetch;
-  const oldBase = process.env.OPENAI_BASE_URL;
-  const oldModel = process.env.OPENAI_MODEL;
-  try {
-    process.env.OPENAI_API_KEY = 'server-test-key';
-    process.env.OPENAI_BASE_URL = 'https://trusted.example/v1';
-    process.env.OPENAI_MODEL = 'trusted-model';
-    global.fetch = async (url, options) => {
-      assert.strictEqual(url, 'https://trusted.example/v1/chat/completions');
-      assert.strictEqual(options.headers.Authorization, 'Bearer server-test-key');
-      assert.strictEqual(JSON.parse(options.body).model, 'trusted-model');
-      assert.strictEqual(options.redirect, 'error');
-      return { status:200, text:async () => '{"choices":[]}' };
-    };
-    const rPinned = mockRes();
-    await aiHandler({method:'POST',headers:{},body:{baseUrl:'https://attacker.example/v1',model:'untrusted',messages:[{role:'user',content:'hello'}]}},rPinned);
-    assert.strictEqual(rPinned.statusCode,200);
-    delete process.env.OPENAI_API_KEY;
-    const rHTTP = mockRes();
-    await aiHandler({method:'POST',headers:{authorization:'Bearer client-key'},body:{baseUrl:'http://insecure.example/v1',messages:[{role:'user',content:'hello'}]}},rHTTP);
-    assert.strictEqual(rHTTP.statusCode,400);
-    console.log('✓ Server keys are pinned to configured HTTPS endpoint/model; redirects and client HTTP rejected');
-  } finally {
-    global.fetch = oldFetch;
-    if (oldBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = oldBase;
-    if (oldModel === undefined) delete process.env.OPENAI_MODEL; else process.env.OPENAI_MODEL = oldModel;
-  }
-  // Restore env key if existed
-  if (oldKey) process.env.OPENAI_API_KEY = oldKey;
+  // The /api/ai contract (methods, origin, validation, provider errors, rate limit) is covered in test/api.js.
+  const rStatus = mockRes();
+  await aiHandler({ method: 'POST', headers: { host: 'localhost:3000', origin: 'http://localhost:3000', 'content-type': 'application/json' }, body: { action: 'status' } }, rStatus);
+  assert.strictEqual(rStatus.statusCode, 200);
+  assert.strictEqual(rStatus.data.status, 'ok');
+  console.log('✓ /api/ai status probe answers same-origin POST');
 
   // Test 10: detectScript safe edge cases
   assert.strictEqual(detectScript(null), null);

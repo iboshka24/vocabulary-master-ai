@@ -1,6 +1,6 @@
 /* Offline support: network first (so updates arrive immediately), cache as fallback. */
-const CACHE = 'vm-v2.8';
-const SHELL = ['./', 'index.html', 'styles.css', 'editorial.css', 'motion.css', 'i18n.js', 'learning.js', 'motion.js', 'app.js',
+const CACHE = 'vm-v2.9';
+const SHELL = ['./', 'index.html', 'styles.css', 'editorial.css', 'motion.css', 'i18n.js', 'learning.js', 'ai-core.js', 'motion.js', 'app.js',
   'vendor/lottie_light.min.js', 'motion/editorial-achievement.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
