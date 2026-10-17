@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="editorial.css" />
-  <link rel="stylesheet" href="motion.css?v=2.2" />
+  <link rel="stylesheet" href="motion.css?v=2.3" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -219,7 +219,7 @@
       <div class="stage">
         <div class="deck-stage">
           <div class="deck-sheet sheet-far" aria-hidden="true"><span>Ещё одно открытие</span></div>
-          <div class="deck-sheet sheet-near" aria-hidden="true"><span>Следующее слово</span></div>
+          <div class="deck-sheet sheet-near" aria-hidden="true"><div class="card-face front"><div class="card-header"><span class="badge" id="nextCardBadge"></span><span class="speak-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></span></div><div class="card-word" id="nextCardWord"></div><div class="card-foot"><span class="card-sub" id="nextCardSub"></span><span class="flip-hint">пробел</span></div></div></div>
           <div class="card-verdict" id="cardVerdict" aria-hidden="true"></div>
         <div class="card" id="card" tabindex="0" title="Нажми, чтобы перевернуть (Space)">
           <div class="card-tilt">
@@ -251,6 +251,7 @@
               <div class="card-word" id="cardTrans">—</div>
               <div class="card-hint" id="cardHint"></div>
               <div class="context-block" id="cardContext"></div>
+              <span class="swipe-hint">← повторить <span>свайп</span> знаю →</span>
             </div>
           </div>
           </div>
@@ -311,7 +312,7 @@
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1>Проверь глубину словаря</h1><p>Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span>Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button">Начать мини-тест →</button><p class="mini">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden>Дальше →</button></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.2</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.3</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -334,8 +335,8 @@
 
   <script src="vendor/lottie_light.min.js"></script>
   <script src="motion/editorial-achievement.js"></script>
-  <script src="motion.js?v=2.2"></script>
+  <script src="motion.js?v=2.3"></script>
   <script src="learning.js"></script>
-  <script src="app.js?v=2.2"></script>
+  <script src="app.js?v=2.3"></script>
 </body>
 </html>

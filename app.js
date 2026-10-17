@@ -858,6 +858,7 @@
     state.roundQueue = shuffle(state.cards.map(function (c) { return c.id; }));
     state.roundTotal = state.cards.length;
     state.current = null;
+    state.previewId = null; state.previewSide = null; state.nextRoundQueue = null;
     state.revealed = false;
     state.round = resume ? (resume.round || 1) : 1;
     state.known = 0; state.forgot = 0; state.answers = 0;
@@ -890,7 +891,8 @@
       var sorted = state.cards.slice().sort(function (a, b) {
         return (b.fails - a.fails) || (Math.random() - 0.5);
       });
-      state.roundQueue = sorted.map(function (c) { return c.id; });
+      state.roundQueue = state.nextRoundQueue || sorted.map(function (c) { return c.id; });
+      state.nextRoundQueue = null;
       state.roundTotal = state.cards.length;
       toast('Раунд ' + state.round + ' 🔁 Закрепляем: сложные слова в начале!', 'ok', 2600);
       playSuccessSound();
@@ -900,11 +902,11 @@
     state.revealed = false;
     answerLocked = false;
 
-    if (state.cfg.dir === 'mixed') state.curSide = Math.random() < 0.5 ? 'fwd' : 'rev';
+    if (state.cfg.dir === 'mixed') state.curSide = state.previewId === state.current.id && state.previewSide ? state.previewSide : (Math.random() < 0.5 ? 'fwd' : 'rev');
     else state.curSide = state.cfg.dir;
 
     renderCard();
-    if (!first) {
+    if (!first && !window.VMMotion) {
       var card = $('card');
       card.classList.remove('pop');
       void card.offsetWidth;
@@ -914,7 +916,6 @@
   }
 
   function renderCard() {
-    if (window.VMMotion) window.VMMotion.card();
     var c = state.current;
     if (!c) return;
     var fwd = state.curSide === 'fwd';
@@ -938,9 +939,27 @@
 
     var cardEl = $('card');
     cardEl.classList.remove('flipped');
-    cardEl.classList.remove('exit-ok', 'exit-no');
+    cardEl.classList.remove('exit-ok', 'exit-no', 'pop');
     if (cardEl.style) cardEl.style.transform = ''; /* сброс наклона за курсором */
     updateRows();
+    if (window.VMMotion) { cardEl.dataset.revealed = 'false'; cardEl.dataset.swipe = String(state.cfg.mode === 'flashcard'); updateNextPreview(); window.VMMotion.card(); }
+  }
+
+  function updateNextPreview() {
+    if (!window.VMMotion || !state.cards.length) return;
+    var queue = state.roundQueue;
+    if (!queue.length) {
+      if (!state.nextRoundQueue) state.nextRoundQueue = state.cards.slice().sort(function (a,b) { return (b.fails-a.fails) || (Math.random()-.5); }).map(function (c) { return c.id; });
+      queue = state.nextRoundQueue;
+    } else state.nextRoundQueue = null;
+    var id = queue[0], c = state.cards[id];
+    if (!c) return;
+    if (id !== state.previewId || !state.previewSide || state.cfg.dir !== 'mixed') state.previewSide = state.cfg.dir === 'mixed' ? (Math.random()<.5 ? 'fwd':'rev') : state.cfg.dir;
+    state.previewId = id;
+    var fwd = state.previewSide === 'fwd';
+    $('nextCardWord').textContent = fwd ? c.original : c.translation;
+    $('nextCardBadge').textContent = fwd ? 'оригинал' : langByCode(state.cfg.target).label;
+    $('nextCardSub').textContent = fwd ? 'вспомни перевод, потом переверни' : 'назови слово, потом переверни';
   }
 
   function updateRows() {
@@ -965,6 +984,7 @@
     if (state.revealed || !state.current || answerLocked) return;
     state.revealed = true;
     $('card').classList.add('flipped');
+    if (window.VMMotion) $('card').dataset.revealed = 'true';
     if (window.VMMotion) window.VMMotion.flip();
     playFlipSound();
     updateRows();
@@ -1129,10 +1149,10 @@
       state.known++;
       c.streak++;
       playSuccessSound();
-      burstSparkles();
-      flashCard('flash-ok');
-      if (!window.VMMotion) exitCard('exit-ok');
-      floatLabel(combo >= 3 ? '🔥 серия ×' + combo : '+1', 'ok');
+      if (!window.VMMotion) {
+        burstSparkles(); flashCard('flash-ok'); exitCard('exit-ok');
+        floatLabel(combo >= 3 ? '🔥 серия ×' + combo : '+1', 'ok');
+      }
       // Карточка успешно закреплена в этом раунде
     } else {
       combo = 0;
@@ -1140,9 +1160,7 @@
       c.streak = 0;
       c.fails++;
       playForgotSound();
-      flashCard('flash-no');
-      if (!window.VMMotion) exitCard('exit-no');
-      floatLabel('↺ вернётся в цикл', 'no');
+      if (!window.VMMotion) { flashCard('flash-no'); exitCard('exit-no'); floatLabel('↺ вернётся в цикл', 'no'); }
       // Повторяем забытое слово через 2-3 карточки в текущем раунде
       var insertPos = Math.min(state.roundQueue.length, 3);
       state.roundQueue.splice(insertPos, 0, c.id);
@@ -1157,6 +1175,7 @@
     // Keep the answer side visible throughout the departure. Reset only after
     // the card has left; otherwise the flip is cut off by the old 180ms timer.
     if (!window.VMMotion) $('card').classList.remove('flipped');
+    if (window.VMMotion) updateNextPreview();
     var departureMs = window.VMMotion ? window.VMMotion.depart(knew) : 180;
     clearTimeout(nextCardTimer);
     nextCardTimer = setTimeout(function () {
@@ -1464,7 +1483,7 @@
     if (!state.revealed || state.cfg.mode === 'typing') { reveal(); return; }
     state.revealed = false;
     $('card').classList.remove('flipped');
-    if (window.VMMotion) window.VMMotion.flip(false);
+    if (window.VMMotion) { $('card').dataset.revealed = 'false'; window.VMMotion.flip(false); }
     playFlipSound(); updateRows();
   }
   function readTranslationCache(word, source, target) {
@@ -1888,6 +1907,7 @@
     $('btnForgot').addEventListener('click', function () { answer(false); });
     $('btnKnew2').addEventListener('click', function () { answer(true); });
     $('card').addEventListener('click', toggleCard);
+    $('card').addEventListener('vm-swipe', function (e) { if (state.cfg.mode === 'flashcard' && state.revealed && !answerLocked) answer(e.detail.known); });
 
     /* Мягкий 3D-наклон карточки за курсором (только мышь + если нет reduced-motion) */
     try {
@@ -1910,6 +1930,7 @@
 
     $('btnShuffle').addEventListener('click', function () {
       shuffle(state.roundQueue);
+      if (window.VMMotion) updateNextPreview();
       toast('Очередь перемешана ⤨', 'ok', 1400);
       renderStats();
     });
@@ -1918,6 +1939,7 @@
       var order = ['mixed', 'fwd', 'rev'];
       var next = order[(order.indexOf(state.cfg.dir) + 1) % order.length];
       setDir(next); saveCfg();
+      if (window.VMMotion) { state.previewId = null; updateNextPreview(); }
       toast('Направление: ' + ({ mixed: 'смешанное', fwd: 'слово → перевод', rev: 'перевод → слово' })[next], 'ok', 1800);
     });
 

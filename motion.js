@@ -20,6 +20,7 @@
   updateMotionPreference();
   var active = new Set(), players = new Map(), goalTimer;
   var flipUntil = 0, heroTimers = [], cardAnimations = [], heroBack = false;
+  var handoff = false;
   var ease = 'cubic-bezier(.22, 1, .36, 1)';
   function animate(el, frames, opts) {
     if (!el || reduced.matches || !el.animate || document.hidden) return;
@@ -36,6 +37,8 @@
   function screen(id) {
     // Avoid accumulating entrance animations when navigation is clicked rapidly.
     active.forEach(function (a) { a.cancel(); }); active.clear();
+    cardAnimations.forEach(function (a) { if (a) a.cancel(); }); cardAnimations = []; handoff = false;
+    var deck = document.querySelector('.deck-stage'); if (deck) deck.classList.remove('is-swapping');
     heroTimers.forEach(clearTimeout); heroTimers = []; flipUntil = 0;
     resetTilt();
     var root = document.getElementById(id);
@@ -97,8 +100,12 @@
     var el = document.getElementById('card');
     if (!el) return;
     el.dataset.phase = 'ready';
+    var deck = document.querySelector('.deck-stage'); if (deck) deck.classList.remove('is-swapping');
     var verdict = document.getElementById('cardVerdict');
     if (verdict) verdict.className = 'card-verdict';
+    // The incoming face already occupies the exact final position. Commit its
+    // data to the interactive card without replaying an entrance or fading out.
+    if (handoff) { handoff = false; return; }
     cardAnimations.push(animate(el, [
       { opacity: 0, transform: 'translate3d(0,65px,-100px) rotateX(16deg) rotateY(-12deg) rotateZ(-7deg) scale(.86)', offset: 0 },
       { opacity: 1, transform: 'translate3d(0,-9px,0) rotateX(-2deg) rotateY(2deg) rotateZ(1deg) scale(1.015)', offset: .72 },
@@ -115,7 +122,7 @@
   }
   function flip(showBack) {
     resetTilt();
-    flipUntil = reduced.matches ? 0 : performance.now() + 920;
+    flipUntil = reduced.matches ? 0 : performance.now() + 640;
     var el = document.querySelector('#card .card-inner');
     var from = showBack === false ? 180 : 0, to = showBack === false ? 0 : 180;
     cardAnimations.push(animate(el, [
@@ -123,25 +130,27 @@
       { transform: 'rotateY(88deg) translateZ(55px) rotateZ(-4deg)', offset: .46 },
       { transform: 'rotateY(' + (to + (to ? 8 : -8)) + 'deg) translateZ(8px) rotateZ(1deg)', offset: .82 },
       { transform: 'rotateY(' + to + 'deg) translateZ(0) rotateZ(0deg)', offset: 1 }
-    ], { duration: 920, easing: 'cubic-bezier(.45,0,.2,1)' }));
+    ], { duration: 640, easing: 'cubic-bezier(.45,0,.2,1)' }));
   }
   function depart(ok) {
     var el = document.getElementById('card');
-    if (!el || reduced.matches || document.hidden) return 0;
+    if (!el || reduced.matches || document.hidden) { handoff = true; return 0; }
     el.dataset.phase = 'leaving'; resetTilt();
     var wait = Math.max(0, flipUntil - performance.now());
-    var distance = Math.min(el.offsetWidth * .38, 210);
-    var duration = ok ? 640 : 700;
-    // A correct card arcs into the learned pile. A mistake rolls under the deck.
+    var distance = Math.min(el.offsetWidth * .85, 470);
+    var duration = 480;
+    handoff = true;
+    document.querySelector('.deck-stage').classList.add('is-swapping');
+    var origin = el.style.transform || 'translate3d(0,0,0) rotate(0)';
+    // Both faces move in one compositor timeline; the next word is real data.
     var frames = ok ? [
-      { transform: 'translate3d(0,0,0) rotateZ(0) scale(1)', opacity: 1, offset: 0 },
-      { transform: 'translate3d(' + distance*.25 + 'px,-36px,40px) rotateZ(7deg) scale(1.03)', opacity: 1, offset: .32 },
-      { transform: 'translate3d(' + distance + 'px,-115px,-70px) rotateY(-24deg) rotateZ(22deg) scale(.75)', opacity: 0, offset: 1 }
+      { transform: origin, opacity: 1, offset: 0 },
+      { transform: 'translate3d(' + distance*.6 + 'px,-25px,0) rotate(12deg)', opacity: 1, offset: .65 },
+      { transform: 'translate3d(' + distance + 'px,-70px,0) rotate(21deg)', opacity: 0, offset: 1 }
     ] : [
-      { transform: 'translate3d(0,0,0) rotateZ(0) scale(1)', opacity: 1, offset: 0 },
-      { transform: 'translate3d(-32px,8px,15px) rotateZ(-7deg) scale(1.01)', opacity: 1, offset: .24 },
-      { transform: 'translate3d(-' + distance*.6 + 'px,75px,-130px) rotateX(24deg) rotateZ(-14deg) scale(.84)', opacity: .7, offset: .7 },
-      { transform: 'translate3d(0,36px,-220px) rotateX(16deg) rotateZ(-4deg) scale(.78)', opacity: 0, offset: 1 }
+      { transform: origin, opacity: 1, offset: 0 },
+      { transform: 'translate3d(-' + distance*.6 + 'px,24px,0) rotate(-12deg) scale(.98)', opacity: 1, offset: .65 },
+      { transform: 'translate3d(-' + distance + 'px,85px,0) rotate(-21deg) scale(.94)', opacity: 0, offset: 1 }
     ];
     cardAnimations.push(animate(el, frames, { duration: duration, delay: wait, fill: 'forwards', easing: 'cubic-bezier(.5,0,.25,1)' }));
     var verdict = document.getElementById('cardVerdict');
@@ -150,11 +159,11 @@
       verdict.className = 'card-verdict ' + (ok ? 'is-known' : 'is-repeat');
       animate(verdict, [{ opacity: 0, transform: 'translateY(12px) scale(.8)' }, { opacity: 1, transform: 'translateY(-16px) scale(1)', offset: .4 }, { opacity: 0, transform: 'translateY(-45px) scale(1)' }], { duration: duration, delay: wait });
     }
-    animate(document.querySelector('.sheet-near'), [
+    cardAnimations.push(animate(document.querySelector('.sheet-near'), [
       { transform: 'translateY(13px) rotate(2deg) scale(.98)' },
-      { transform: 'translateY(-5px) rotate(-1deg) scale(1)', offset: .65 },
-      { transform: 'translateY(13px) rotate(2deg) scale(.98)' }
-    ], { duration: duration + 250, delay: wait });
+      { transform: 'translateY(-4px) rotate(-.6deg) scale(1.005)', offset: .8 },
+      { transform: 'translateY(0) rotate(0) scale(1)' }
+    ], { duration: duration, delay: wait, fill:'forwards' }));
     return Math.ceil(wait + duration);
   }
   function heroFlip(force) {
@@ -213,14 +222,58 @@
     if (hero) hero.addEventListener('focus', function () { heroTimers.forEach(clearTimeout); heroTimers = []; });
     var cardEl = document.getElementById('card');
     if (cardEl) {
-      cardEl.addEventListener('pointermove', function (e) {
-        if (e.pointerType !== 'mouse' || reduced.matches || performance.now() < flipUntil || cardEl.dataset.phase === 'leaving') return;
-        var box = cardEl.getBoundingClientRect(), pose = cardEl.querySelector('.card-tilt');
-        if (!box.width || !pose) return;
-        pose.style.setProperty('--tilt-x', ((.5-(e.clientY-box.top)/box.height)*14).toFixed(2)+'deg');
-        pose.style.setProperty('--tilt-y', (((e.clientX-box.left)/box.width-.5)*22).toFixed(2)+'deg');
+      var gesture = null, pointerFrame = 0, rect = null, lastPoint, suppressClickUntil = 0;
+      function paintPointer() {
+        pointerFrame = 0;
+        if (!lastPoint || reduced.matches || cardEl.dataset.phase === 'leaving') return;
+        if (gesture && gesture.dragging) {
+          cardEl.style.transform = 'translate3d(' + gesture.dx + 'px,' + Math.abs(gesture.dx)*.07 + 'px,0) rotate(' + gesture.dx/22 + 'deg)';
+          return;
+        }
+        if (!rect || performance.now() < flipUntil) return;
+        var pose = cardEl.querySelector('.card-tilt');
+        pose.style.setProperty('--tilt-x', ((.5-(lastPoint.y-rect.top)/rect.height)*14).toFixed(2)+'deg');
+        pose.style.setProperty('--tilt-y', (((lastPoint.x-rect.left)/rect.width-.5)*22).toFixed(2)+'deg');
+      }
+      cardEl.addEventListener('pointerenter', function () { rect = cardEl.getBoundingClientRect(); });
+      cardEl.addEventListener('pointerdown', function (e) {
+        if (reduced.matches || e.button !== 0 || e.target.closest('button') || cardEl.dataset.swipe !== 'true' || cardEl.dataset.revealed !== 'true' || cardEl.dataset.phase !== 'ready' || performance.now() < flipUntil) return;
+        rect = cardEl.getBoundingClientRect();
+        gesture = { x:e.clientX, y:e.clientY, width:rect.width, dx:0, dragging:false, id:e.pointerId };
       });
+      cardEl.addEventListener('pointermove', function (e) {
+        if (gesture) {
+          var dx = e.clientX-gesture.x, dy = e.clientY-gesture.y;
+          if (!gesture.dragging && Math.abs(dy)>12 && Math.abs(dy)>Math.abs(dx)) { gesture=null; return; }
+          if (!gesture.dragging && Math.abs(dx)>10 && Math.abs(dx)>Math.abs(dy)*1.2) {
+            gesture.dragging=true; resetTilt(); cardEl.setPointerCapture(e.pointerId);
+          }
+          gesture.dx=dx;
+        }
+        if (e.pointerType !== 'mouse' && !(gesture && gesture.dragging)) return;
+        lastPoint = {x:e.clientX,y:e.clientY};
+        if (!pointerFrame) pointerFrame=requestAnimationFrame(paintPointer);
+      });
+      function release(e) {
+        if (!gesture) return;
+        var g=gesture; gesture=null;
+        if (cardEl.hasPointerCapture(g.id)) cardEl.releasePointerCapture(g.id);
+        if (!g.dragging) return;
+        suppressClickUntil=performance.now()+400;
+        if (pointerFrame) { cancelAnimationFrame(pointerFrame); pointerFrame=0; }
+        if (e.type!=='pointercancel' && Math.abs(g.dx)>Math.min(120,g.width*.23)) {
+          cardEl.dispatchEvent(new CustomEvent('vm-swipe',{detail:{known:g.dx>0}}));
+        } else {
+          var from=cardEl.style.transform;
+          cardEl.style.transform='';
+          cardAnimations.push(animate(cardEl,[{transform:from},{transform:'translate3d(0,0,0) rotate(0)'}],{duration:240}));
+        }
+      }
+      cardEl.addEventListener('pointerup',release);
+      cardEl.addEventListener('pointercancel',release);
+      cardEl.addEventListener('click',function(e) { if(performance.now()<suppressClickUntil) {e.preventDefault();e.stopImmediatePropagation();} },true);
       cardEl.addEventListener('pointerleave', resetTilt);
+      window.addEventListener('resize',function(){rect=null;});
     }
     var close = document.getElementById('closeGoalMotion');
     if (close) close.onclick = function () { clearTimeout(goalTimer); document.getElementById('goalCelebration').hidden = true; stop('goalMotion'); };
