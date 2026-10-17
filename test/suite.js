@@ -155,6 +155,34 @@ function mockRes() {
   assert.strictEqual(rBodyKey.data.code, 'bad-request');
   console.log('✓ /api/ai POST accepts body apiKey');
 
+  // A caller cannot redirect a server-owned secret to their own endpoint.
+  const oldFetch = global.fetch;
+  const oldBase = process.env.OPENAI_BASE_URL;
+  const oldModel = process.env.OPENAI_MODEL;
+  try {
+    process.env.OPENAI_API_KEY = 'server-test-key';
+    process.env.OPENAI_BASE_URL = 'https://trusted.example/v1';
+    process.env.OPENAI_MODEL = 'trusted-model';
+    global.fetch = async (url, options) => {
+      assert.strictEqual(url, 'https://trusted.example/v1/chat/completions');
+      assert.strictEqual(options.headers.Authorization, 'Bearer server-test-key');
+      assert.strictEqual(JSON.parse(options.body).model, 'trusted-model');
+      assert.strictEqual(options.redirect, 'error');
+      return { status:200, text:async () => '{"choices":[]}' };
+    };
+    const rPinned = mockRes();
+    await aiHandler({method:'POST',headers:{},body:{baseUrl:'https://attacker.example/v1',model:'untrusted',messages:[{role:'user',content:'hello'}]}},rPinned);
+    assert.strictEqual(rPinned.statusCode,200);
+    delete process.env.OPENAI_API_KEY;
+    const rHTTP = mockRes();
+    await aiHandler({method:'POST',headers:{authorization:'Bearer client-key'},body:{baseUrl:'http://insecure.example/v1',messages:[{role:'user',content:'hello'}]}},rHTTP);
+    assert.strictEqual(rHTTP.statusCode,400);
+    console.log('✓ Server keys are pinned to configured HTTPS endpoint/model; redirects and client HTTP rejected');
+  } finally {
+    global.fetch = oldFetch;
+    if (oldBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = oldBase;
+    if (oldModel === undefined) delete process.env.OPENAI_MODEL; else process.env.OPENAI_MODEL = oldModel;
+  }
   // Restore env key if existed
   if (oldKey) process.env.OPENAI_API_KEY = oldKey;
 

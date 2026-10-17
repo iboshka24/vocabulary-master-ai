@@ -1,5 +1,5 @@
 /**
- * Серверный прокси для WordLoop (Vercel Serverless Function).
+ * Серверный прокси для Vocabulary Master AI (Vercel Serverless Function).
  * Ключ хранится в переменных окружения Vercel и наружу в браузер не утекает:
  *   vercel env add OPENAI_API_KEY        (обязательно для серверного ИИ)
  *   vercel env add OPENAI_BASE_URL       (опционально, по умолчанию https://api.openai.com/v1)
@@ -54,9 +54,17 @@ module.exports = async (req, res) => {
     return res.status(400).json({ code: 'bad-request', error: 'Нужен массив messages.' });
   }
 
-  const base = (body.baseUrl || process.env.OPENAI_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
+  // Never send the server secret to a caller-controlled endpoint. Browser keys
+  // may use custom compatible providers; server keys only use operator config.
+  const serverKey = Boolean(process.env.OPENAI_API_KEY);
+  const base = String(serverKey ? (process.env.OPENAI_BASE_URL || DEFAULT_BASE) : (body.baseUrl || DEFAULT_BASE)).replace(/\/+$/, '');
+  let endpoint;
+  try { endpoint = new URL(base); } catch (_) { return res.status(400).json({ code: 'bad-request', error: 'Некорректный Base URL.' }); }
+  if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password) {
+    return res.status(400).json({ code: 'bad-request', error: 'Base URL должен использовать HTTPS без логина и пароля.' });
+  }
   const defaultModel = process.env.OPENAI_MODEL || (/tokenharbor/i.test(base) ? 'claude-sonnet-4.6' : 'gpt-4o-mini');
-  const model = (typeof body.model === 'string' && body.model.trim()) || defaultModel;
+  const model = serverKey ? defaultModel : ((typeof body.model === 'string' && body.model.trim()) || defaultModel);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -64,8 +72,7 @@ module.exports = async (req, res) => {
   };
 
   if (/openrouter\.ai/i.test(base)) {
-    headers['HTTP-Referer'] = 'https://wordloop.vercel.app';
-    headers['X-Title'] = 'WordLoop Flashcards';
+    headers['X-Title'] = 'Vocabulary Master AI';
   }
 
   try {
@@ -77,7 +84,8 @@ module.exports = async (req, res) => {
         messages,
         temperature: typeof body.temperature === 'number' ? body.temperature : 0.2
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
+      redirect: 'error'
     });
 
     const text = await upstream.text();

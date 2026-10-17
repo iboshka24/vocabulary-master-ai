@@ -1,8 +1,9 @@
-/* WordLoop — бесконечный тренажёр слов с ИИ. Чистый JS, без сборки. */
+/* Vocabulary Master AI — evolved from WordLoop. No build step. */
 (function () {
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
+  var L = window.VMLearning;
 
   var LANGS = [
     { code: 'ru', label: 'Русский', en: 'Russian', voice: 'ru-RU' },
@@ -90,7 +91,7 @@
   var CHUNK = 35;
 
   var state = {
-    cfg: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '', target: 'ru', dir: 'mixed' },
+    cfg: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '', target: 'ru', source: 'en', dir: 'mixed', mode: 'flashcard', simple: false },
     serverAvailable: true,
     serverHasKey: false,
     soundEnabled: true,
@@ -261,7 +262,7 @@
   function saveSession() {
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify({
-        cards: state.cards, dir: state.cfg.dir, round: state.round, at: Date.now()
+        cards: state.cards, dir: state.cfg.dir, source: state.cfg.source, target: state.cfg.target, round: state.round, at: Date.now()
       }));
       $('resumeBox').hidden = false;
     } catch (e) {}
@@ -507,15 +508,16 @@
   /* ---------------- AI & Translation ---------------- */
 
   function systemPrompt(targetEn) {
-    return 'You are the engine of WordLoop vocabulary trainer.\n' +
+    return 'You are the engine of Vocabulary Master AI vocabulary trainer.\n' +
       'Input: list of words/phrases.\n' +
       'Tasks:\n' +
       '1. FILTER: drop junk, duplicates, numbers, urls, single letters. Keep useful words/phrases.\n' +
       '2. TRANSLATE every item into ' + targetEn + '.\n' +
       '3. If item is already in ' + targetEn + ', keep it unchanged.\n' +
       '4. Add "hint": a short mnemonic or memory hook (3-8 words) in ' + targetEn + ' that makes it easy to remember.\n' +
+      '5. Add "definition": a concise definition in the source language (' + state.cfg.source + '), and "examples": 1-2 natural sentences in that source language containing the exact original word. Never include the translation inside an example.\n' +
       'Answer STRICT JSON only:\n' +
-      '{"items":[{"original":"...","translation":"...","hint":"..."}]}';
+      '{"items":[{"original":"...","translation":"...","hint":"...","definition":"...","examples":["..."]}]}';
   }
 
   function numbered(items) {
@@ -553,7 +555,7 @@
         if (typeof o === 'string') return { original: o, translation: '', hint: '' };
         var orig = o.original || o.word || o.source || o.text || o.ru || '';
         var tr = o.translation || o.translated || o.target || o.tr || o.en || '';
-        return { original: String(orig).trim(), translation: String(tr).trim(), hint: String(o.hint || o.note || '').trim() };
+        return { original: String(orig).trim(), translation: String(tr).trim(), hint: String(o.hint || o.note || '').trim(), definition: String(o.definition || ''), examples: Array.isArray(o.examples) ? o.examples.filter(function (x) { return typeof x === 'string'; }).slice(0, 2) : [] };
       })
       .filter(function (o) { return o.original; });
   }
@@ -662,15 +664,17 @@
   /* Free translation fallback engine (MyMemory API + Local dictionary) */
   async function translateSingleFree(word, targetCode) {
     var lower = word.toLowerCase().trim();
-    if (targetCode === 'ru' && BUILTIN_DICT[lower]) {
+    var cached = readTranslationCache(lower, state.cfg.source, targetCode);
+    if (cached) return cached;
+    if (targetCode === 'ru' && state.cfg.source === 'en' && BUILTIN_DICT[lower]) {
       return BUILTIN_DICT[lower];
     }
-    if (targetCode === 'en' && BUILTIN_DICT[lower]) {
+    if (targetCode === 'en' && state.cfg.source === 'ru' && BUILTIN_DICT[lower]) {
       return BUILTIN_DICT[lower];
     }
 
     var isCyrillic = /[а-яё]/i.test(word);
-    var srcCode = isCyrillic ? 'ru' : 'en';
+    var srcCode = state.cfg.source || (isCyrillic ? 'ru' : 'en');
     var tgtCode = targetCode || (isCyrillic ? 'en' : 'ru');
     if (srcCode === tgtCode) {
       tgtCode = isCyrillic ? 'en' : 'ru';
@@ -681,7 +685,7 @@
     for (var i = 0; i < pairsToTry.length; i++) {
       try {
         var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=' + pairsToTry[i];
-        var res = await fetch(url);
+        var res = await fetch(url, { signal: AbortSignal.timeout(8000) });
         if (res.ok) {
           var json = await res.json();
           if (json) {
@@ -701,13 +705,14 @@
               if (!t) continue;
               if (t.toLowerCase() === lower) continue;
               if (/PLEASE SELECT TWO|MYMEMORY WARNING|NO QUERY SPECIFIED|HTML tags/i.test(t)) continue;
+              writeTranslationCache(lower, srcCode, tgtCode, t);
               return t;
             }
           }
         }
       } catch (e) {}
     }
-    return BUILTIN_DICT[lower] || '—';
+    return '—';
   }
 
   async function translateBatchFree(items, targetCode) {
@@ -785,7 +790,7 @@
               aiCards.push({
                 original: pItem.original,
                 translation: tr || '—',
-                hint: pItem.hint || ''
+                hint: pItem.hint || '', definition: pItem.definition || '', examples: pItem.examples || []
               });
             }
           } else {
@@ -847,7 +852,7 @@
     nextCardTimer = null;
 
     state.cards = cards.map(function (c, i) {
-      return { id: i, original: c.original, translation: c.translation, hint: c.hint || '', streak: 0, fails: 0 };
+      return Object.assign({}, c, { id: i, hint: c.hint || '', streak: c.streak || 0, fails: c.fails || 0 });
     });
     state.roundQueue = shuffle(state.cards.map(function (c) { return c.id; }));
     state.roundTotal = state.cards.length;
@@ -857,6 +862,8 @@
     state.known = 0; state.forgot = 0; state.answers = 0;
     state.startedAt = Date.now(); state.elapsed = 0;
     combo = 0;
+    answerLocked = false; summaryRecorded = false;
+    if (L) { enrichLocalContext(state.cards); archiveCards(); }
 
     try {
       window.history.pushState({ screen: 'train' }, '');
@@ -890,6 +897,7 @@
 
     state.current = state.cards[state.roundQueue.shift()];
     state.revealed = false;
+    answerLocked = false;
 
     if (state.cfg.dir === 'mixed') state.curSide = Math.random() < 0.5 ? 'fwd' : 'rev';
     else state.curSide = state.cfg.dir;
@@ -908,6 +916,7 @@
     var c = state.current;
     if (!c) return;
     var fwd = state.curSide === 'fwd';
+    if (L) pendingTypedAnswer = null;
     var target = langByCode(state.cfg.target);
 
     $('cardWord').textContent = fwd ? c.original : c.translation;
@@ -915,7 +924,13 @@
     $('cardSub').textContent = fwd
       ? 'вспомни перевод, потом переверни'
       : 'назови слово, потом переверни';
-    $('cardHint').textContent = c.hint ? ('💡 ' + c.hint) : '';
+    $('cardHint').textContent = state.cfg.simple ? '' : (c.hint || '');
+    if (L) {
+      $('cardContext').textContent = state.cfg.simple ? '' : [c.definition].concat(c.examples || []).filter(Boolean).join(' · ');
+      $('sessionLanguage').textContent = langByCode(state.cfg.source).label + ' → ' + target.label;
+      $('typedAnswer').value = '';
+      $('answerFeedback').hidden = true;
+    }
     $('cardBadge').textContent = fwd ? 'оригинал' : target.label;
     $('cardBadgeBack').textContent = fwd ? target.label : 'оригинал';
 
@@ -937,6 +952,11 @@
       rowS.hidden = !state.revealed;
       rowS.style.display = !state.revealed ? 'none' : '';
     }
+    if (L && state.cfg.mode === 'typing') {
+      rowH.hidden = true; rowS.hidden = true;
+      $('typingForm').hidden = state.revealed;
+      if (!state.revealed) setTimeout(function () { if ($('screen-train').classList.contains('active')) $('typedAnswer').focus(); }, 200);
+    } else if (L) $('typingForm').hidden = true;
   }
 
   function reveal() {
@@ -945,15 +965,19 @@
     $('card').classList.add('flipped');
     playFlipSound();
     updateRows();
+    if (L && state.cfg.mode === 'typing') {
+      pendingTypedAnswer = false;
+      showAnswerFeedback('Правильный ответ: ' + $('cardTrans').textContent, true);
+    }
   }
 
   function speakCurrent() {
     if (!state.current) return;
     var fwd = state.curSide === 'fwd';
     if (!state.revealed) {
-      speakText(fwd ? state.current.original : state.current.translation, fwd ? 'en' : state.cfg.target);
+      speakText(fwd ? state.current.original : state.current.translation, fwd ? state.cfg.source : state.cfg.target);
     } else {
-      speakText(fwd ? state.current.translation : state.current.original, fwd ? state.cfg.target : 'en');
+      speakText(fwd ? state.current.translation : state.current.original, fwd ? state.cfg.target : state.cfg.source);
     }
   }
 
@@ -1084,9 +1108,17 @@
     } catch (e) {}
   }
 
+  var answerLocked = false, summaryRecorded = false;
   function answer(knew) {
     var c = state.current;
-    if (!c) return;
+    if (!c || answerLocked) return;
+    // Even self-assessment must show the correct answer before advancing.
+    if (L && !state.revealed) {
+      reveal();
+      showAnswerFeedback('Правильный ответ: ' + $('cardTrans').textContent, false);
+      return;
+    }
+    answerLocked = true;
 
     state.answers++;
     if (knew) {
@@ -1113,6 +1145,11 @@
       state.roundQueue.splice(insertPos, 0, c.id);
     }
 
+    if (L) {
+      c.box = knew ? Math.min(5, (c.box || 0) + 1) : 0;
+      c.due = Date.now() + [0,14400000,86400000,259200000,604800000,1814400000][c.box];
+      recordAnswer(knew); archiveCards(); saveSession();
+    }
     state.revealed = false;
     $('card').classList.remove('flipped');
     clearTimeout(nextCardTimer);
@@ -1216,6 +1253,7 @@
     }
 
     state.elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+    if (L && state.answers > 0 && !summaryRecorded) { L.complete(library.streak, L.day()); summaryRecorded = true; persistLibrary(); renderDaily(); }
     var acc = state.answers ? Math.round((state.known / state.answers) * 100) : 0;
     var mastered = state.cards.filter(function (c) { return c.streak >= 2 && c.fails === 0; }).length;
 
@@ -1348,13 +1386,14 @@
 
   function statsText() {
     var acc = state.answers ? Math.round((state.known / state.answers) * 100) : 0;
-    return 'WordLoop 🔁: ' + state.cards.length + ' карточек · ' + state.answers + ' ответов · ' +
+    return 'Vocabulary Master AI: ' + state.cards.length + ' карточек · ' + state.answers + ' ответов · ' +
       acc + '% точность · раунд ' + state.round + ' · время ' + fmtTime(state.elapsed);
   }
 
   /* ---------------- pipeline ---------------- */
 
   async function start() {
+    if (L && state.cfg.source === state.cfg.target) { toast('Выбери разные языки для изучения и перевода.', 'err'); return; }
     var raw = $('input').value;
     var parsed = parseInput(raw);
     if (!parsed.items.length) {
@@ -1382,14 +1421,288 @@
     }
   }
 
+  /* ---------------- Library, daily practice and lexical resource ---------------- */
+  var LIBRARY_KEY = 'vocabulary-master.library.v2';
+  var library = { decks: {}, history: {}, goal: 10, streak: { count: 0, last: null, freezes: 2, enabled: true } };
+  var pendingTypedAnswer = null, lexical = null;
+  var CONTEXT = {
+    serendipity: ['The chance occurrence of a happy discovery.', 'Finding this little bookshop was pure serendipity.'],
+    'to remember': ['To keep something in your memory.', 'I try to remember one new word every day.'],
+    journey: ['An act of travelling from one place to another.', 'Our journey across the country took three days.'],
+    brave: ['Ready to face danger or difficulty.', 'It was brave of her to speak honestly.'],
+    quiet: ['Making little or no noise.', 'We found a quiet place to read.'],
+    'to achieve': ['To succeed in reaching a goal through effort.', 'Practice helps us achieve our goals.'],
+    weather: ['The conditions of the atmosphere at a given time.', 'The weather changed during the afternoon.'],
+    'to borrow': ['To take something with permission and return it later.', 'May I borrow your dictionary?'],
+    narrow: ['Having a small distance between two sides.', 'A narrow path leads to the garden.'],
+    'to explain': ['To make something clear or easy to understand.', 'Can you explain the rule again?'],
+    resilience: ['The ability to recover after difficulties.', 'Her resilience helped her overcome the setback.'],
+    'to waste': ['To use something carelessly or without purpose.', 'We should not waste clean water.'],
+    deep: ['Extending a long way down from the surface.', 'The lake is surprisingly deep.'],
+    'to notice': ['To become aware of something.', 'Did you notice the change in her voice?'],
+    apple: ['A round fruit with crisp flesh.', 'She put an apple in her bag.'],
+    house: ['A building in which people live.', 'Their house stands beside the river.'],
+    water: ['A clear liquid essential for life.', 'Please bring a glass of water.'],
+    book: ['Written pages bound together.', 'This book changed my perspective.'],
+    cat: ['A small domesticated feline.', 'The cat slept beside the window.'],
+    dog: ['A domesticated animal often kept as a companion.', 'The dog waited patiently by the door.']
+  };
+  function escapeHTML(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; });
+  }
+  function readTranslationCache(word, source, target) {
+    try { return JSON.parse(localStorage.getItem('vm.translation-cache') || '{}')[source + ':' + target + ':' + word] || null; } catch(e) { return null; }
+  }
+  function writeTranslationCache(word, source, target, text) {
+    try {
+      var cache = JSON.parse(localStorage.getItem('vm.translation-cache') || '{}');
+      if (Object.keys(cache).length > 1000) cache = {};
+      cache[source + ':' + target + ':' + word] = text;
+      localStorage.setItem('vm.translation-cache', JSON.stringify(cache));
+    } catch(e) {}
+  }
+  function persistLibrary() {
+    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(library)); }
+    catch(e) { toast('Не удалось сохранить прогресс. Проверь свободное место в браузере.', 'err'); }
+  }
+  function enrichLocalContext(cards) {
+    if (state.cfg.source !== 'en') return;
+    cards.forEach(function (c) {
+      var ctx = CONTEXT[c.original.toLowerCase()];
+      if (ctx) { if (!c.definition) c.definition = ctx[0]; if (!(c.examples || []).length) c.examples = [ctx[1]]; }
+    });
+  }
+  function archiveCards() {
+    var key = state.cfg.source + '-' + state.cfg.target;
+    var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
+    state.cards.forEach(function (card) {
+      var idx = d.cards.findIndex(function (c) { return L.validate(c.original, card.original) && c.original.toLowerCase() === card.original.toLowerCase(); });
+      if (idx < 0) d.cards.push(Object.assign({}, card)); else d.cards[idx] = Object.assign({}, card);
+    });
+    library.decks[key] = d;
+    persistLibrary();
+  }
+  function recordAnswer(ok) {
+    var key = L.day();
+    var h = library.history[key] || { answers: 0, correct: 0 };
+    h.answers++; if (ok) h.correct++;
+    library.history[key] = h;
+    if (h.answers >= library.goal && !h.celebrated) {
+      h.celebrated = true;
+      burstConfetti(35);
+      toast('Дневная цель достигнута. Хорошая работа!', 'ok');
+    }
+    persistLibrary(); renderDaily();
+  }
+  function renderDaily() {
+    var h = library.history[L.day()] || { answers: 0 };
+    $('streakCount').textContent = library.streak.count + ' ' + plural(library.streak.count, ['день','дня','дней']);
+    $('dailyTitle').textContent = h.answers >= library.goal ? 'На сегодня — отлично.' : 'Ещё немного — и это привычка.';
+    $('dailyText').textContent = h.answers + ' из ' + library.goal + ' ответов сегодня';
+    $('dailyBar').style.width = Math.min(100, h.answers / library.goal * 100) + '%';
+    $('freezeEnabled').checked = library.streak.enabled;
+    $('freezeBalance').textContent = '· осталось ' + library.streak.freezes;
+    $('dailyGoal').value = library.goal;
+  }
+  function navigateLearning(id) {
+    clearTimeout(nextCardTimer); nextCardTimer = null;
+    clearInterval(state.timer);
+    if (state.answers && !summaryRecorded) { L.complete(library.streak, L.day()); summaryRecorded = true; persistLibrary(); }
+    hideSummary();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    show(id); renderDaily();
+    document.querySelectorAll('.nav-link').forEach(function (b) { b.classList.toggle('active', b.id === ({'screen-setup':'navStudy','screen-library':'navLibrary','screen-test':'navTest'})[id]); });
+    if (id === 'screen-library') renderLibrary();
+    if (id === 'screen-test') fillQuizDecks();
+  }
+  function renderLibrary() {
+    var host = $('libraryGrid'); host.innerHTML = '';
+    var keys = Object.keys(library.decks);
+    if (!keys.length) {
+      host.innerHTML = '<div class="empty-library"><h2>Место для твоих открытий</h2><p>Создай первую тренировку — её слова останутся здесь.</p><button class="btn primary" type="button" data-action="new">Добавить слова →</button></div>';
+      host.querySelector('button').onclick = function () { navigateLearning('screen-setup'); };
+      return;
+    }
+    keys.forEach(function (key) {
+      var d = library.decks[key];
+      var mastered = d.cards.filter(function (c) { return c.streak >= 2; }).length;
+      var due = d.cards.filter(function (c) { return !c.due || c.due <= Date.now(); }).length;
+      var panel = document.createElement('article'); panel.className = 'deck-item';
+      panel.innerHTML = '<span class="deck-kicker">' + escapeHTML(langByCode(d.target).label) + ' / ' + d.cards.length + ' слов</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + mastered + ' закреплено · ' + due + ' к повторению</p><div class="daily-track" style="width:100%"><i style="width:' + Math.round(mastered / Math.max(1,d.cards.length) * 100) + '%"></i></div><div class="actions"><button class="btn primary" data-act="practice">Повторить →</button><button class="btn" data-act="add">+ Слова</button></div><details><summary>Все слова · редактировать</summary><div class="word-list"></div><button class="link" data-act="delete" style="margin-top:12px;color:var(--rose)">Удалить колоду</button></details>';
+      var list = panel.querySelector('.word-list');
+      d.cards.forEach(function (c, i) {
+        var row = document.createElement('div'); row.className = 'saved-word';
+        row.innerHTML = '<strong>' + escapeHTML(c.original) + '</strong><span>' + escapeHTML(c.translation) + '</span><div class="word-actions"><button class="link" data-act="edit">Изменить</button><button class="link" data-act="remove">Убрать</button></div>';
+        row.querySelector('[data-act="edit"]').onclick = function () {
+          var value = window.prompt('Перевод для «' + c.original + '»', c.translation);
+          if (value === null || !value.trim()) return;
+          c.translation = value.trim(); persistLibrary(); renderLibrary();
+        };
+        row.querySelector('[data-act="remove"]').onclick = function () { d.cards.splice(i,1); persistLibrary(); renderLibrary(); };
+        list.appendChild(row);
+      });
+      panel.querySelector('[data-act="practice"]').onclick = function () {
+        state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
+        $('sourceLang').value = d.source; $('targetLang').value = d.target;
+        if (!d.cards.length) { toast('Добавь слова в колоду.', 'err'); return; }
+        var ready = d.cards.filter(function (c) { return c.translation && c.translation !== '—'; });
+        if (!ready.length) { toast('Сначала укажи переводы в списке слов.', 'err'); return; }
+        startTraining(ready);
+      };
+      panel.querySelector('[data-act="add"]').onclick = function () {
+        state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
+        $('sourceLang').value = d.source; $('targetLang').value = d.target; $('input').value = '';
+        navigateLearning('screen-setup'); $('input').focus(); updateInputStat(true);
+      };
+      panel.querySelector('[data-act="delete"]').onclick = function () {
+        if (!window.confirm('Удалить эту колоду и её прогресс?')) return;
+        delete library.decks[key]; persistLibrary(); renderLibrary();
+      };
+      host.appendChild(panel);
+    });
+  }
+  function showAnswerFeedback(text, wrong) {
+    $('answerFeedbackText').textContent = text;
+    $('answerFeedback').classList.toggle('wrong', !!wrong);
+    $('answerFeedback').hidden = false;
+    $('rowHidden').hidden = true; $('rowShown').hidden = true;
+  }
+  function checkTypedAnswer(e) {
+    e.preventDefault();
+    if (!state.current || state.revealed || answerLocked) return;
+    var text = $('typedAnswer').value.trim();
+    if (!text) { $('typedAnswer').focus(); return; }
+    var expected = state.curSide === 'fwd' ? state.current.translation : state.current.original;
+    var ok = L.validate(text, expected);
+    reveal(); pendingTypedAnswer = ok;
+    showAnswerFeedback((ok ? 'Верно. ' : 'Почти. Правильный ответ: ') + expected, !ok);
+    $('btnNextAnswer').focus();
+  }
+  function fillQuizDecks() {
+    lexical = null; $('quizBody').hidden = true; $('btnQuizStart').hidden = false;
+    var sel = $('quizDeck'); sel.innerHTML = '';
+    Object.keys(library.decks).forEach(function (key) {
+      var d = library.decks[key]; var opt = document.createElement('option');
+      opt.value = key; opt.textContent = langByCode(d.source).label + ' → ' + langByCode(d.target).label + ' · ' + d.cards.length;
+      sel.appendChild(opt);
+    });
+  }
+  function renderQuiz() {
+    var q = lexical.questions[lexical.index];
+    $('quizProgress').textContent = 'ВОПРОС ' + (lexical.index + 1) + ' / ' + lexical.questions.length;
+    $('quizQuestion').textContent = q.sentence || 'Какое слово означает «' + q.card.translation + '»?';
+    $('quizAnswer').textContent = ''; $('btnQuizNext').hidden = true;
+    var host = $('quizOptions'); host.innerHTML = '';
+    q.options.forEach(function (opt, i) {
+      var button = document.createElement('button'); button.className = 'quiz-option';
+      button.textContent = 'ABCD'[i] + '.  ' + opt;
+      button.onclick = function () {
+        if (lexical.answered) return;
+        lexical.answered = true;
+        var ok = opt === q.card.original;
+        if (ok) lexical.correct++;
+        host.querySelectorAll('button').forEach(function (b, idx) { b.disabled = true; if (q.options[idx] === q.card.original) b.classList.add('correct'); });
+        if (!ok) button.classList.add('wrong');
+        L.grade(q.card, ok); recordAnswer(ok);
+        $('quizAnswer').textContent = (ok ? 'Верно. ' : 'Правильный ответ: ') + q.card.original + ' — ' + q.card.translation + (q.card.definition ? '. ' + q.card.definition : '');
+        $('btnQuizNext').hidden = false; persistLibrary();
+      };
+      host.appendChild(button);
+    });
+  }
+  function initLearningUI() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(LIBRARY_KEY) || 'null');
+      if (raw && raw.decks && raw.streak && raw.history) library = raw;
+    } catch(e) {}
+    L.reconcile(library.streak, L.day()); persistLibrary(); renderDaily();
+    LANGS.forEach(function (l) { var opt = document.createElement('option'); opt.value = l.code; opt.textContent = l.label; $('sourceLang').appendChild(opt); });
+    $('sourceLang').value = state.cfg.source;
+    $('sourceLang').onchange = function () { state.cfg.source = this.value; saveCfg(); };
+    $('simpleMode').checked = state.cfg.simple;
+    $('simpleMode').onchange = function () { state.cfg.simple = this.checked; saveCfg(); };
+    document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === state.cfg.mode); b.onclick = function () {
+      state.cfg.mode = b.dataset.mode; saveCfg(); document.querySelectorAll('#modeSeg button').forEach(function (btn) { btn.classList.toggle('on', btn === b); });
+    }; });
+    $('btnTheme').onclick = function () {
+      var root = document.documentElement; root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('vm.theme', root.dataset.theme); } catch(e) {}
+    };
+    $('navStudy').onclick = function () { navigateLearning('screen-setup'); };
+    $('navLibrary').onclick = function () { navigateLearning('screen-library'); };
+    $('navTest').onclick = function () { navigateLearning('screen-test'); };
+    $('btnAddDeck').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
+    $('freezeEnabled').onchange = function () { library.streak.enabled = this.checked; persistLibrary(); renderDaily(); };
+    $('dailyGoal').onchange = function () { library.goal = Math.max(1, Math.min(200, Number(this.value) || 10)); persistLibrary(); renderDaily(); };
+    $('btnExportLibrary').onclick = function () {
+      // Library exports never include API keys or provider configuration.
+      var blob = new Blob([JSON.stringify({ version: 2, library: library }, null, 2)], { type: 'application/json' });
+      var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'vocabulary-master-' + L.day() + '.json'; link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+    };
+    $('importLibrary').onchange = async function () {
+      var file = this.files[0]; if (!file) return;
+      try {
+        if (file.size > 5000000) throw new Error('Файл слишком большой (максимум 5 МБ).');
+        var data = JSON.parse(await file.text()); var incoming = data.library;
+        if (!incoming || !incoming.decks || !incoming.history || !incoming.streak || data.version !== 2) throw new Error('Это не резервная копия Vocabulary Master AI.');
+        var safeDecks = {};
+        Object.keys(incoming.decks).forEach(function (key) {
+          var d = incoming.decks[key];
+          if (!LANGS.some(function (l) { return l.code === d.source; }) || !LANGS.some(function (l) { return l.code === d.target; }) || !Array.isArray(d.cards) || d.cards.length > 5000) throw new Error('Некорректная колода.');
+          var cards = d.cards.map(function (c) {
+            if (typeof c.original !== 'string' || typeof c.translation !== 'string' || !c.original.trim() || c.original.length > 500 || c.translation.length > 1000) throw new Error('Некорректное слово.');
+            return { original:c.original, translation:c.translation, hint:String(c.hint || '').slice(0,1000), definition:String(c.definition || '').slice(0,2000), examples:Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0,2).map(function (x) { return x.slice(0,1000); }) : [], streak:Math.max(0,Number(c.streak)||0), fails:Math.max(0,Number(c.fails)||0), box:Math.max(0,Math.min(5,Number(c.box)||0)), due:Math.max(0,Number(c.due)||0) };
+          });
+          safeDecks[d.source + '-' + d.target] = { source:d.source, target:d.target, cards:cards, created:Date.now() };
+        });
+        if (!window.confirm('Заменить текущую библиотеку резервной копией?')) return;
+        // Import vocabulary and history, but do not trust arbitrary runtime fields.
+        var safeHistory = {};
+        Object.keys(incoming.history).filter(function (k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }).forEach(function (k) {
+          var h = incoming.history[k] || {}; safeHistory[k] = { answers:Math.max(0,Number(h.answers)||0), correct:Math.max(0,Number(h.correct)||0), celebrated:!!h.celebrated };
+        });
+        var safeStreak = { count:Math.max(0,Number(incoming.streak.count)||0), last:/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak.last || '') ? incoming.streak.last : null, freezes:Math.max(0,Math.min(2,Number(incoming.streak.freezes)||0)), enabled:incoming.streak.enabled !== false };
+        ['checked','protectedThrough'].forEach(function (key) { if (/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak[key] || '')) safeStreak[key] = incoming.streak[key]; });
+        library = { decks:safeDecks, history:safeHistory, goal:Math.max(1,Math.min(200,Number(incoming.goal)||10)), streak:safeStreak };
+        L.reconcile(library.streak,L.day()); persistLibrary(); renderLibrary(); renderDaily(); toast('Библиотека восстановлена.', 'ok');
+      } catch(err) { toast(err.message || 'Не удалось прочитать файл.', 'err'); }
+      this.value = '';
+    };
+    $('typingForm').onsubmit = checkTypedAnswer;
+    $('btnNextAnswer').onclick = function () {
+      $('answerFeedback').hidden = true;
+      if (pendingTypedAnswer !== null) { var ok = pendingTypedAnswer; pendingTypedAnswer = null; answer(ok); }
+      else { updateRows(); }
+    };
+    $('btnQuizStart').onclick = function () {
+      var d = library.decks[$('quizDeck').value];
+      if (!d) { toast('Сначала создай колоду.', 'err'); return; }
+      var questions = L.quiz(d.cards, 5);
+      if (!questions.length) { toast('Нужны минимум 4 слова с разными значениями.', 'err'); return; }
+      lexical = { questions: questions, index: 0, correct: 0, answered: false };
+      $('quizBody').hidden = false; $('btnQuizStart').hidden = true; renderQuiz();
+    };
+    $('btnQuizNext').onclick = function () {
+      if (!lexical || !lexical.answered) return;
+      lexical.index++; lexical.answered = false;
+      if (lexical.index < lexical.questions.length) { renderQuiz(); return; }
+      L.complete(library.streak, L.day()); persistLibrary(); renderDaily();
+      $('quizProgress').textContent = 'ТЕСТ ЗАВЕРШЁН';
+      $('quizQuestion').textContent = lexical.correct + ' из ' + lexical.questions.length + ' — так держать.';
+      $('quizOptions').innerHTML = ''; $('quizAnswer').textContent = 'Ошибки сохранены: сложные слова вернутся в практику.';
+      $('btnQuizNext').hidden = true; $('btnQuizStart').hidden = false;
+    };
+  }
+
   /* ---------------- init ---------------- */
 
   function init() {
     loadCfg();
     updateSoundUI();
     checkServerStatus();
-    initFX();
-    initParallax();
+    // Editorial edition deliberately has no ambient particle or parallax loop.
+    if (L) initLearningUI();
 
     var sel = $('targetLang');
     LANGS.forEach(function (l) {
@@ -1498,7 +1811,7 @@
 
     $('btnStart').addEventListener('click', start);
     $('btnDemo').addEventListener('click', function () {
-      state.cfg.target = 'ru'; $('targetLang').value = 'ru'; saveCfg();
+      state.cfg.target = 'ru'; state.cfg.source = 'en'; $('targetLang').value = 'ru'; if (L) $('sourceLang').value = 'en'; saveCfg();
       toast('Демо-колода загружена!', 'ok');
       startTraining(demoCards());
     });
@@ -1507,6 +1820,8 @@
       try {
         var s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
         if (s && s.cards && s.cards.length) {
+          if (s.source) state.cfg.source = s.source;
+          if (s.target) { state.cfg.target = s.target; $('targetLang').value = s.target; }
           if (s.dir) setDir(s.dir);
           startTraining(s.cards, s);
         }
@@ -1539,11 +1854,11 @@
     /* Card face speak buttons */
     $('btnSpeakFront').addEventListener('click', function (e) {
       e.stopPropagation();
-      if (state.current) speakText($('cardWord').textContent, state.curSide === 'fwd' ? 'en' : state.cfg.target);
+      if (state.current) speakText($('cardWord').textContent, state.curSide === 'fwd' ? state.cfg.source : state.cfg.target);
     });
     $('btnSpeakBack').addEventListener('click', function (e) {
       e.stopPropagation();
-      if (state.current) speakText($('cardTrans').textContent, state.curSide === 'fwd' ? state.cfg.target : 'en');
+      if (state.current) speakText($('cardTrans').textContent, state.curSide === 'fwd' ? state.cfg.target : state.cfg.source);
     });
     $('btnSpeakCur').addEventListener('click', speakCurrent);
 
@@ -1556,7 +1871,7 @@
 
     /* Мягкий 3D-наклон карточки за курсором (только мышь + если нет reduced-motion) */
     try {
-      var canTilt = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      var canTilt = !L && window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
         !(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
       if (canTilt) {
         var cardEl = $('card');
@@ -1604,6 +1919,12 @@
     document.addEventListener('keydown', function (e) {
       if (e.target.matches('input,textarea,select')) return;
       var k = e.key;
+      if (L && answerLocked) return;
+      if (L && !$('answerFeedback').hidden && k === 'Enter') { e.preventDefault(); $('btnNextAnswer').click(); return; }
+      if (L && state.cfg.mode === 'typing' && $('screen-train').classList.contains('active') && $('summary').hidden) {
+        if (k === 'Escape') showSummary();
+        return;
+      }
 
       if ($('screen-train').classList.contains('active') && $('summary').hidden) {
         if (k === ' ' || k === 'Enter' || k === 'ArrowDown') {
@@ -1659,6 +1980,8 @@
       $('inputStat').textContent = p.items.length + ' ' + plural(p.items.length, ['слово', 'слова', 'слов']) +
         (p.dropped ? ' · отброшено ' + p.dropped : '');
 
+      // Legacy auto-detection is retained for old embeds, not explicit language selectors.
+      if (L) return;
       // Smart target language switch on Cyrillic/Latin script detection
       var scr = detectScript(val);
       var sel = $('targetLang');
