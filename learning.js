@@ -116,8 +116,20 @@
     var t = now || Date.now();
     var ready = (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; });
     if (mode === 'hard') return ready.filter(function (c) { return (c.fails || 0) > 0; }).sort(function (a, b) { return (b.fails || 0) - (a.fails || 0); });
-    if (mode === 'due') return ready.filter(function (c) { return !c.due || c.due <= t; });
+    if (mode === 'due') return ready.filter(function (c) { return !c.due || c.due <= t; }).sort(function (a, b) { return (a.due || 0) - (b.due || 0); });
     return ready;
+  }
+  // Up to n cards for the matching game; no two tiles may share a text.
+  function pairs(cards, n, random) {
+    var rand = random || Math.random, list = (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; }).slice();
+    for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var x = list[i]; list[i] = list[j]; list[j] = x; }
+    var seen = {}, out = [];
+    list.forEach(function (c) {
+      var a = normalize(c.original), b = normalize(c.translation);
+      if (out.length >= n || seen[a] || seen[b] || a === b) return;
+      seen[a] = seen[b] = true; out.push(c);
+    });
+    return out;
   }
   // Last `days` calendar days ending today, oldest first.
   function activity(history, days, today) {
@@ -129,5 +141,5 @@
     }
     return out;
   }
-  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, activity: activity };
+  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
 });

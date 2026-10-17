@@ -75,3 +75,13 @@ assert.equal(act.length, 20);
 assert.equal(act[19].date, '2026-10-17'); assert.equal(act[19].answers, 4);
 assert.equal(act[2].date, '2026-09-30'); assert.equal(act[2].answers, 2, 'crosses month boundary');
 console.log('✓ Swap pairs, reverse deck, hints, hard/due picks, activity calendar');
+
+const deck = [['cat','кошка'],['dog','собака'],['cat','кот'],['house','дом'],['home','дом'],['x','—'],['same','same']].map(([original, translation]) => ({ original, translation }));
+const mp = L.pairs(deck, 6, () => 0.5);
+const texts = mp.flatMap(c => [c.original, c.translation]);
+assert.equal(new Set(texts).size, texts.length, 'matching tiles never repeat a text');
+assert(!mp.some(c => c.translation === '—' || c.original === 'same'));
+assert.equal(mp.length, 3, 'duplicate words or translations are skipped');
+assert.equal(L.pairs(deck, 2).length, 2);
+assert.deepEqual(L.pick([{ original: 'a', translation: '1', due: 90 }, { original: 'b', translation: '2', due: 10 }], 'due', 100).map(c => c.original), ['b', 'a'], 'most overdue first');
+console.log('✓ Matching pairs are unique; due words come most-overdue first');

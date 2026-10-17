@@ -273,3 +273,25 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .nav-link,.logo-text { white-space:nowrap; }
 .logo-text em { white-space:nowrap; }
 @media(max-width:720px) { .ui-lang { height:32px; padding:0 8px; } .ui-lang svg { display:none; } }
+
+/* v2.6 — matching game, undo, batch size */
+.chip-btn[disabled] { opacity:.4; cursor:not-allowed; }
+.mini-select { background:transparent; border:1px solid var(--stroke); border-radius:5px; padding:5px 6px; color:var(--text); font:11px var(--font-ui); }
+.mini-select option { background:var(--surface); color:var(--text); }
+.match-panel { max-width:720px; margin:0 auto 30px; }
+.match-head { display:flex; justify-content:space-between; align-items:flex-end; gap:15px; flex-wrap:wrap; }
+.match-head h2 { font-size:28px; margin:6px 0 4px; }
+.match-head .mini { margin:0; font-size:12px; max-width:440px; }
+.match-stats { display:flex; gap:18px; flex-wrap:wrap; margin:20px 0 4px; font:12px var(--font-mono); color:var(--muted); }
+.match-stats #matchTime { color:var(--text); }
+.match-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+.match-grid:empty { display:none; }
+.match-tile { min-height:74px; padding:12px; border:1px solid var(--stroke); border-radius:8px; background:var(--bg); color:var(--text); font:15px var(--font-ui); cursor:pointer; overflow-wrap:break-word; hyphens:auto; transition:border-color .15s,background .15s,opacity .3s,transform .15s; }
+.match-tile.b { font-family:var(--font-display); font-style:italic; }
+.match-tile:hover { border-color:var(--amber); }
+.match-tile.sel { border-color:var(--amber); background:var(--surface); box-shadow:0 0 0 3px #b78a4b22; transform:translateY(-2px); }
+.match-tile.done { opacity:.25; border-color:var(--emerald); color:var(--emerald); cursor:default; transform:scale(.97); }
+.match-tile.wrong { border-color:var(--rose); color:var(--rose); animation:matchShake .4s; }
+@keyframes matchShake { 20%,60% { translate:-5px 0; } 40%,80% { translate:5px 0; } }
+@media(max-width:720px) { .match-grid { grid-template-columns:repeat(3,1fr); gap:7px; } .match-tile { min-height:62px; font-size:13px; padding:8px; } }
+@media(max-width:420px) { .match-grid { grid-template-columns:repeat(2,1fr); } }

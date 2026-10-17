@@ -866,7 +866,7 @@
     state.round = resume ? (resume.round || 1) : 1;
     state.known = 0; state.forgot = 0; state.answers = 0;
     state.startedAt = Date.now(); state.elapsed = 0;
-    combo = 0;
+    combo = 0; undoSnap = null;
     answerLocked = false; summaryRecorded = false;
     if (L) { enrichLocalContext(state.cards); archiveCards(); }
 
@@ -880,7 +880,9 @@
     nextCard(true);
     startTimer();
     saveSession();
-    if (!resume) toast(trn('toast.deckReady', state.cards.length), 'ok');
+    updateUndo();
+    if (isListen() && (!state.soundEnabled || !('speechSynthesis' in window))) toast(tr('listen.noSound'), 'err', 4000);
+    else if (!resume) toast(trn('toast.deckReady', state.cards.length), 'ok');
   }
 
   function nextCard(first) {
@@ -905,7 +907,8 @@
     state.revealed = false;
     answerLocked = false;
 
-    if (state.cfg.dir === 'mixed') state.curSide = state.previewId === state.current.id && state.previewSide ? state.previewSide : (Math.random() < 0.5 ? 'fwd' : 'rev');
+    if (isListen()) state.curSide = 'fwd';
+    else if (state.cfg.dir === 'mixed') state.curSide = state.previewId === state.current.id && state.previewSide ? state.previewSide : (Math.random() < 0.5 ? 'fwd' : 'rev');
     else state.curSide = state.cfg.dir;
 
     renderCard();
@@ -938,6 +941,16 @@
     }
     $('cardBadge').textContent = fwd ? tr('card.original') : target.label;
     $('cardBadgeBack').textContent = fwd ? target.label : tr('card.original');
+    if (isListen()) {
+      $('cardWord').textContent = '🎧';
+      $('cardTrans').textContent = c.original;
+      $('cardSub').textContent = tr('listen.sub');
+      $('cardHint').textContent = c.translation;
+      $('cardBadge').textContent = tr('listen.badge');
+      $('cardBadgeBack').textContent = tr('card.original');
+      setTimeout(function () { if (state.current === c && !state.revealed) speakText(c.original, state.cfg.source); }, 380);
+    }
+    if (L) $('typedAnswer').placeholder = tr(isListen() ? 'listen.ph' : 'typing.ph');
 
     var cardEl = $('card');
     cardEl.classList.remove('flipped');
@@ -962,6 +975,14 @@
     $('nextCardWord').textContent = fwd ? c.original : c.translation;
     $('nextCardBadge').textContent = fwd ? tr('card.original') : langByCode(state.cfg.target).label;
     $('nextCardSub').textContent = tr(fwd ? 'card.subFwd' : 'card.subRev');
+    if (isListen()) { $('nextCardWord').textContent = '🎧'; $('nextCardBadge').textContent = tr('listen.badge'); $('nextCardSub').textContent = tr('listen.sub'); }
+  }
+
+  function isListen() { return !!L && state.cfg.mode === 'listen'; }
+  function isTyping() { return !!L && (state.cfg.mode === 'typing' || state.cfg.mode === 'listen'); }
+  function expectedAnswer() {
+    var c = state.current;
+    return isListen() || state.curSide !== 'fwd' ? c.original : c.translation;
   }
 
   function updateRows() {
@@ -975,7 +996,7 @@
       rowS.hidden = !state.revealed;
       rowS.style.display = !state.revealed ? 'none' : '';
     }
-    if (L && state.cfg.mode === 'typing') {
+    if (isTyping()) {
       rowH.hidden = true; rowS.hidden = true;
       $('typingForm').hidden = state.revealed;
       if (!state.revealed) setTimeout(function () { if ($('screen-train').classList.contains('active')) $('typedAnswer').focus(); }, 200);
@@ -990,7 +1011,7 @@
     if (window.VMMotion) window.VMMotion.flip();
     playFlipSound();
     updateRows();
-    if (L && state.cfg.mode === 'typing') {
+    if (isTyping()) {
       pendingTypedAnswer = false;
       showAnswerFeedback(tr('feedback.answer', { a: $('cardTrans').textContent }), true);
     }
@@ -998,6 +1019,7 @@
 
   function speakCurrent() {
     if (!state.current) return;
+    if (isListen()) { speakText(state.current.original, state.cfg.source); return; }
     var fwd = state.curSide === 'fwd';
     if (!state.revealed) {
       speakText(fwd ? state.current.original : state.current.translation, fwd ? state.cfg.source : state.cfg.target);
@@ -1144,6 +1166,9 @@
       return;
     }
     answerLocked = true;
+    undoSnap = { card: c, fields: { streak: c.streak, fails: c.fails, box: c.box, due: c.due }, queue: state.roundQueue.slice(), side: state.curSide,
+      known: state.known, forgot: state.forgot, answers: state.answers, combo: combo, round: state.round, roundTotal: state.roundTotal,
+      nextRoundQueue: state.nextRoundQueue ? state.nextRoundQueue.slice() : null, day: L ? L.day() : null, knew: knew };
 
     state.answers++;
     if (knew) {
@@ -1185,6 +1210,25 @@
       nextCard(false);
     }, departureMs);
     renderStats();
+    updateUndo();
+  }
+
+  var undoSnap = null;
+  function updateUndo() { var b = $('btnUndo'); if (b) b.disabled = !undoSnap; }
+  function undoAnswer() {
+    var s = undoSnap;
+    if (!s || !L || !$('screen-train').classList.contains('active')) return;
+    clearTimeout(nextCardTimer); nextCardTimer = null;
+    Object.assign(s.card, s.fields);
+    state.roundQueue = s.queue; state.nextRoundQueue = s.nextRoundQueue; state.round = s.round; state.roundTotal = s.roundTotal;
+    state.known = s.known; state.forgot = s.forgot; state.answers = s.answers; combo = s.combo;
+    state.current = s.card; state.curSide = s.side; state.revealed = false; answerLocked = false;
+    var h = library.history[s.day];
+    if (h) { h.answers = Math.max(0, h.answers - 1); if (s.knew) h.correct = Math.max(0, h.correct - 1); }
+    undoSnap = null;
+    archiveCards(); saveSession(); persistLibrary(); renderDaily();
+    renderCard(); renderStats(); updateUndo();
+    toast(tr('toast.undone'), 'ok', 1400);
   }
 
   var lastStats = {};
@@ -1351,6 +1395,7 @@
     state.startedAt = 0;
     state.elapsed = 0;
     state.cancelled = true;
+    undoSnap = null;
 
     // 4. Остановка озвучки речи при смене набора
     if ('speechSynthesis' in window) {
@@ -1491,14 +1536,16 @@
     var c = state.current;
     if (!c || state.revealed || answerLocked) return;
     state.hintLevel = (state.hintLevel || 0) + 1;
-    $('cardSub').textContent = '💡 ' + L.hint(state.curSide === 'fwd' ? c.translation : c.original, state.hintLevel);
-    if (state.cfg.mode === 'typing') $('typedAnswer').focus();
+    $('cardSub').textContent = '💡 ' + L.hint(expectedAnswer(), state.hintLevel);
+    if (isTyping()) $('typedAnswer').focus();
   }
   function practiceDeck(d, mode) {
     state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
     $('sourceLang').value = d.source; $('targetLang').value = d.target;
-    var cards = L.pick(d.cards, mode);
-    if (mode === 'due' && !cards.length) cards = L.pick(d.cards, 'all');
+    var cards = L.pick(d.cards, mode), all = mode === 'all';
+    if (mode === 'due' && !cards.length) { cards = L.pick(d.cards, 'all'); all = true; }
+    // A capped session takes the most overdue / hardest words, or a random slice of the whole deck.
+    if (library.batch && cards.length > library.batch) cards = (all ? shuffle(cards.slice()) : cards).slice(0, library.batch);
     if (!cards.length) { toast(tr(mode === 'hard' ? 'toast.noHard' : 'toast.needTr'), mode === 'hard' ? 'ok' : 'err'); return; }
     startTraining(cards);
   }
@@ -1560,9 +1607,61 @@
     $('activityStats').textContent = trn('act.days', active) + ' · ' + trn('act.answers', answers) + ' · ' + trn('words.count', words) + ' · ' + tr('act.mastered', { n: mastered });
   }
 
+  var match = null;
+  function stopMatch() { if (match && match.timer) { clearInterval(match.timer); match.timer = null; } }
+  function matchBest() { try { return JSON.parse(localStorage.getItem('vm.match-best') || '{}'); } catch (e) { return {}; } }
+  function renderMatchStats() {
+    if (!match) return;
+    $('matchTime').textContent = '⏱ ' + fmtTime(Math.floor(((match.end || Date.now()) - match.start) / 1000));
+    $('matchMistakes').textContent = trn('match.mistakes', match.mistakes);
+    var best = matchBest()[match.key];
+    $('matchBest').textContent = best ? tr('match.best', { t: fmtTime(Math.round(best / 1000)) }) : '';
+  }
+  function startMatch() {
+    var key = $('quizDeck').value, d = library.decks[key];
+    if (!d) { toast(tr('toast.createDeck'), 'err'); return; }
+    var picked = L.pairs(d.cards, 6);
+    if (picked.length < 3) { toast(tr('toast.needMatch'), 'err'); return; }
+    stopMatch();
+    var tiles = [];
+    picked.forEach(function (c, i) { tiles.push({ i: i, side: 'a', text: c.original }, { i: i, side: 'b', text: c.translation }); });
+    shuffle(tiles);
+    match = { key: key, left: picked.length, mistakes: 0, start: Date.now(), end: 0, pick: null };
+    var grid = $('matchGrid'); grid.innerHTML = '';
+    tiles.forEach(function (tile) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'match-tile ' + tile.side; b.textContent = tile.text; b.lang = tile.side === 'a' ? d.source : d.target;
+      b.onclick = function () { pickTile(tile, b); };
+      grid.appendChild(b);
+    });
+    $('matchStats').hidden = false; $('btnMatchStart').textContent = tr('match.restart');
+    match.timer = setInterval(renderMatchStats, 500); renderMatchStats();
+  }
+  function pickTile(tile, b) {
+    if (!match || match.end || b.disabled) return;
+    var p = match.pick;
+    if (p) p.b.classList.remove('sel');
+    if (!p || p.tile.side === tile.side) { if (!p || p.b !== b) { match.pick = { tile: tile, b: b }; b.classList.add('sel'); } else match.pick = null; return; }
+    match.pick = null;
+    if (p.tile.i === tile.i) {
+      p.b.classList.add('done'); b.classList.add('done'); p.b.disabled = b.disabled = true; playSuccessSound();
+      if (--match.left === 0) finishMatch();
+      return;
+    }
+    match.mistakes++; playForgotSound(); renderMatchStats();
+    [p.b, b].forEach(function (el) { el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); setTimeout(function () { el.classList.remove('wrong'); }, 450); });
+  }
+  function finishMatch() {
+    match.end = Date.now(); stopMatch();
+    var ms = match.end - match.start, best = matchBest(), record = !best[match.key] || ms < best[match.key];
+    if (record) { best[match.key] = ms; try { localStorage.setItem('vm.match-best', JSON.stringify(best)); } catch (e) {} }
+    renderMatchStats();
+    toast(tr(record ? 'match.record' : 'match.done', { t: fmtTime(Math.round(ms / 1000)) }), 'ok', 3200);
+    L.complete(library.streak, L.day()); persistLibrary(); renderDaily();
+  }
+
   function toggleCard() {
     if (answerLocked || !state.current) return;
-    if (!state.revealed || state.cfg.mode === 'typing') { reveal(); return; }
+    if (!state.revealed || isTyping()) { reveal(); return; }
     state.revealed = false;
     $('card').classList.remove('flipped');
     if (window.VMMotion) { $('card').dataset.revealed = 'false'; window.VMMotion.flip(false); }
@@ -1621,8 +1720,10 @@
     $('freezeEnabled').checked = library.streak.enabled;
     $('freezeBalance').textContent = tr('freeze.left', { n: library.streak.freezes });
     $('dailyGoal').value = library.goal;
+    $('batchSize').value = String(library.batch || 0);
   }
   function navigateLearning(id) {
+    stopMatch();
     clearTimeout(nextCardTimer); nextCardTimer = null;
     clearInterval(state.timer);
     if (state.answers && !summaryRecorded) { L.complete(library.streak, L.day()); summaryRecorded = true; persistLibrary(); }
@@ -1695,7 +1796,7 @@
     if (!state.current || state.revealed || answerLocked) return;
     var text = $('typedAnswer').value.trim();
     if (!text) { $('typedAnswer').focus(); return; }
-    var expected = state.curSide === 'fwd' ? state.current.translation : state.current.original;
+    var expected = expectedAnswer();
     var ok = L.validate(text, expected);
     reveal(); pendingTypedAnswer = ok;
     showAnswerFeedback(tr(ok ? 'feedback.right' : 'feedback.almost', { a: expected }), !ok);
@@ -1763,6 +1864,9 @@
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
     $('btnAddDeck').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
     $('librarySearch').oninput = renderSearch;
+    $('batchSize').onchange = function () { library.batch = Number(this.value) || 0; persistLibrary(); };
+    $('btnUndo').onclick = undoAnswer;
+    $('btnMatchStart').onclick = startMatch;
     $('btnHint').onclick = showHint;
     $('btnHintTyping').onclick = showHint;
     $('freezeEnabled').onchange =function () { library.streak.enabled = this.checked; persistLibrary(); renderDaily(); };
@@ -1797,7 +1901,7 @@
         });
         var safeStreak = { count:Math.max(0,Number(incoming.streak.count)||0), last:/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak.last || '') ? incoming.streak.last : null, freezes:Math.max(0,Math.min(2,Number(incoming.streak.freezes)||0)), enabled:incoming.streak.enabled !== false };
         ['checked','protectedThrough'].forEach(function (key) { if (/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak[key] || '')) safeStreak[key] = incoming.streak[key]; });
-        library = { decks:safeDecks, history:safeHistory, goal:Math.max(1,Math.min(200,Number(incoming.goal)||10)), streak:safeStreak };
+        library = { decks:safeDecks, history:safeHistory, goal:Math.max(1,Math.min(200,Number(incoming.goal)||10)), batch:[10,20,30].indexOf(Number(incoming.batch)) >= 0 ? Number(incoming.batch) : 0, streak:safeStreak };
         L.reconcile(library.streak,L.day()); persistLibrary(); renderLibrary(); renderDaily(); toast(tr('toast.restored'), 'ok');
       } catch(err) { toast(err.message || tr('err.readFile'), 'err'); }
       this.value = '';
@@ -1843,6 +1947,19 @@
 
   function init() {
     loadCfg();
+    if (L) {
+      // Offline support and "install app"; plain http (except localhost) cannot register workers.
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(function () {});
+      var installEvt = null;
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
+      window.addEventListener('appinstalled', function () { $('btnInstall').hidden = true; });
+      $('btnInstall').addEventListener('click', async function () {
+        if (!installEvt) return;
+        installEvt.prompt();
+        try { await installEvt.userChoice; } catch (e) {}
+        installEvt = null; $('btnInstall').hidden = true;
+      });
+    }
     if (I18N) {
       I18N.apply();
       var uiSel = $('uiLang');
@@ -2009,7 +2126,8 @@
     /* Card face speak buttons */
     $('btnSpeakFront').addEventListener('click', function (e) {
       e.stopPropagation();
-      if (state.current) speakText($('cardWord').textContent, state.curSide === 'fwd' ? state.cfg.source : state.cfg.target);
+      if (isListen()) speakCurrent();
+      else if (state.current) speakText($('cardWord').textContent, state.curSide === 'fwd' ? state.cfg.source : state.cfg.target);
     });
     $('btnSpeakBack').addEventListener('click', function (e) {
       e.stopPropagation();
@@ -2081,8 +2199,9 @@
       var k = e.key;
       if (L && answerLocked) return;
       if (L && !$('answerFeedback').hidden && k === 'Enter') { e.preventDefault(); $('btnNextAnswer').click(); return; }
-      if (L && state.cfg.mode === 'typing' && $('screen-train').classList.contains('active') && $('summary').hidden) {
+      if (isTyping() && $('screen-train').classList.contains('active') && $('summary').hidden) {
         if (k === 'Escape') showSummary();
+        else if (k === 'u' || k === 'U' || k === 'г' || k === 'Г') undoAnswer();
         return;
       }
 
@@ -2108,6 +2227,10 @@
           e.preventDefault();
           pulseHint(5);
           showHint();
+        } else if (L && (k === 'u' || k === 'U' || k === 'г' || k === 'Г' || ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ'))) {
+          e.preventDefault();
+          pulseHint(6);
+          undoAnswer();
         } else if (k === 'm' || k === 'M' || k === 'ь' || k === 'Ь') {
           e.preventDefault();
           toggleSound();
