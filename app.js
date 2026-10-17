@@ -158,11 +158,17 @@
     if (state.soundEnabled) playSuccessSound();
   }
 
+  var ICON_SOUND_ON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9 9 0 0 1 0 13.6"/></svg>';
+  var ICON_SOUND_OFF = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>';
+
   function updateSoundUI() {
     var b = $('btnSound');
     if (b) {
-      b.textContent = state.soundEnabled ? '🔊' : '🔇';
+      b.innerHTML = state.soundEnabled ? ICON_SOUND_ON : ICON_SOUND_OFF;
       b.classList.toggle('active', state.soundEnabled);
+      if (typeof b.setAttribute === 'function') {
+        b.setAttribute('aria-label', state.soundEnabled ? 'Выключить звук' : 'Включить звук');
+      }
     }
   }
 
@@ -757,6 +763,30 @@
     }
   }
 
+  /* Искры при верном ответе — лёгкий акцент без оверкилла */
+  function burstSparkles() {
+    try {
+      var card = $('card');
+      if (!card || typeof document.createElement !== 'function') return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var count = 10;
+      for (var i = 0; i < count; i++) {
+        var s = document.createElement('span');
+        s.className = 'sparkle';
+        if (s.style && typeof s.style.setProperty === 'function') {
+          var a = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+          var dist = 70 + Math.random() * 70;
+          s.style.setProperty('--tx', (Math.cos(a) * dist).toFixed(1) + 'px');
+          s.style.setProperty('--ty', (Math.sin(a) * dist * 0.8).toFixed(1) + 'px');
+        }
+        card.appendChild(s);
+        (function (el) {
+          setTimeout(function () { if (el && typeof el.remove === 'function') el.remove(); }, 820);
+        })(s);
+      }
+    } catch (e) {}
+  }
+
   function answer(knew) {
     var c = state.current;
     if (!c) return;
@@ -766,6 +796,7 @@
       state.known++;
       c.streak++;
       playSuccessSound();
+      burstSparkles();
       // Карточка успешно закреплена в этом раунде
     } else {
       state.forgot++;
@@ -793,6 +824,14 @@
     $('stForgot').textContent = state.forgot;
     $('stAcc').textContent = state.answers ? Math.round((state.known / state.answers) * 100) + '%' : '—';
     $('stLeft').textContent = state.roundQueue.length + (state.current ? 1 : 0);
+
+    /* Прогресс-бар раунда: сколько карточек уже закрыто в этом круге */
+    var rb = $('roundBar');
+    if (rb && rb.style) {
+      var left = state.roundQueue.length + (state.current ? 1 : 0);
+      var done = Math.max(0, state.roundTotal - left);
+      rb.style.width = (state.roundTotal ? Math.round((done / state.roundTotal) * 100) : 0) + '%';
+    }
   }
 
   function fmtTime(sec) {
@@ -826,12 +865,20 @@
     var acc = state.answers ? Math.round((state.known / state.answers) * 100) : 0;
     var mastered = state.cards.filter(function (c) { return c.streak >= 2 && c.fails === 0; }).length;
 
+    /* Кольцо точности */
+    var ring = $('sumRing');
+    if (ring && ring.style && typeof ring.style.setProperty === 'function') {
+      ring.style.setProperty('--acc', acc + '%');
+    }
+    var accEl = $('sumAcc');
+    if (accEl) accEl.textContent = acc + '%';
+
     $('summaryGrid').innerHTML =
+      '<div><b>' + state.cards.length + '</b><span>карточек</span></div>' +
       '<div><b>' + state.answers + '</b><span>ответов</span></div>' +
-      '<div><b>' + acc + '%</b><span>точность</span></div>' +
-      '<div><b>' + state.round + '</b><span>раунд</span></div>' +
       '<div><b>' + state.known + '</b><span>знал</span></div>' +
       '<div><b>' + state.forgot + '</b><span>забыл</span></div>' +
+      '<div><b>' + state.round + '</b><span>раунд</span></div>' +
       '<div><b>' + fmtTime(state.elapsed) + '</b><span>время</span></div>';
 
     var msg;
@@ -1151,6 +1198,24 @@
     $('btnForgot').addEventListener('click', function () { answer(false); });
     $('btnKnew2').addEventListener('click', function () { answer(true); });
     $('card').addEventListener('click', reveal);
+
+    /* Мягкий 3D-наклон карточки за курсором (только мышь + если нет reduced-motion) */
+    try {
+      var canTilt = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+        !(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      if (canTilt) {
+        var cardEl = $('card');
+        cardEl.addEventListener('pointermove', function (e) {
+          var r = cardEl.getBoundingClientRect();
+          if (!r.width || !r.height) return;
+          var px = (e.clientX - r.left) / r.width - 0.5;
+          var py = (e.clientY - r.top) / r.height - 0.5;
+          cardEl.style.transform = 'perspective(1200px) rotateX(' + (-py * 6).toFixed(2) +
+            'deg) rotateY(' + (px * 7).toFixed(2) + 'deg)';
+        });
+        cardEl.addEventListener('pointerleave', function () { cardEl.style.transform = ''; });
+      }
+    } catch (e) {}
     $('btnExit').addEventListener('click', showSummary);
 
     $('btnShuffle').addEventListener('click', function () {

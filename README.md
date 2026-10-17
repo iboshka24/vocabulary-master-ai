@@ -82,7 +82,7 @@ python3 -m http.server 3000
 ```
 wordloop/
 ├── index.html        # Разметка приложения: экран ввода, тренировка, модалка
-├── styles.css        # Неоновый кибер-дизайн, 3D flip card, адаптив под смартфоны
+├── styles.css        # Тёплый «ночной» дизайн: чернила + янтарь, serif-дисплей, 3D flip card, адаптив
 ├── app.js            # Логика тренажёра, spaced repetition loop, TTS, Web Audio, API
 ├── api/
 │   └── ai.js         # Vercel Serverless Function — безопасный прокси к LLM
