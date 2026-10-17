@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="editorial.css" />
-  <link rel="stylesheet" href="motion.css" />
+  <link rel="stylesheet" href="motion.css?v=2.2" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -44,6 +44,7 @@
     <div class="topbar-right">
       <span class="streak-indicator" title="Дни с завершённой тренировкой"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
       <button class="icon-btn" id="btnTheme" type="button" title="Сменить тему" aria-label="Сменить тему">◐</button>
+      <button class="icon-btn motion-toggle" id="btnMotion" type="button" title="3D-анимации" aria-label="Настроить анимации" aria-pressed="true">3D</button>
       <span class="pill" id="topPill" hidden></span>
       <button class="icon-btn" id="btnSound" type="button" title="Звуки и озвучка (M)" aria-label="Выключить звук">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.8 5.2a9 9 0 0 1 0 13.6" /></svg>
@@ -69,11 +70,12 @@
           <p class="sub">Собирай слова, которые нужны именно тебе. Вспоминай, ошибайся и пробуй снова — мы вернём сложное в нужный момент.</p>
           <div class="hero-note"><span>Твой темп</span><span>Умные повторения</span><span>Без регистрации</span></div>
         </div>
-        <div class="paper-scene" aria-hidden="true">
+        <div class="paper-scene">
           <div class="paper-grid"></div>
-          <div class="sample-card behind"></div>
-          <div class="sample-card"><div class="sample-top"><span>English · 014</span><span>↗</span></div><strong>serendipity</strong><p>находить прекрасное случайно</p><footer>Слово за словом. Каждый день.</footer></div>
-          <span class="scene-caption">Всё начинается с одного слова.</span>
+          <div class="sample-card behind far" aria-hidden="true"></div>
+          <div class="sample-card behind" aria-hidden="true"></div>
+          <button class="sample-card hero-main" id="heroFlip" type="button" aria-label="Перевернуть пример карточки" aria-pressed="false"><span class="hero-turner"><span class="hero-face hero-front"><span class="sample-top"><span>English · 014</span><span>↗</span></span><strong>serendipity</strong><span class="sample-description">Сначала вспомни. Потом переверни.</span><span class="sample-footer">Нажми, чтобы узнать перевод ↗</span></span><span class="hero-face hero-back"><span class="sample-top"><span>Русский · перевод</span><span>✓</span></span><strong>счастливая<br>случайность</strong><span class="sample-description">Найти прекрасное, когда не искал.</span><span class="sample-footer">Так слово становится твоим.</span></span></span></button>
+          <span class="scene-caption">Нажми. Переверни. Запомни.</span>
         </div>
       </div>
       <div class="workspace-heading"><h2>Начнём с твоих слов</h2><p>01 / Собери свою колоду</p></div>
@@ -215,7 +217,12 @@
       <div class="round-bar" title="Прогресс раунда"><i id="roundBar"></i></div>
 
       <div class="stage">
+        <div class="deck-stage">
+          <div class="deck-sheet sheet-far" aria-hidden="true"><span>Ещё одно открытие</span></div>
+          <div class="deck-sheet sheet-near" aria-hidden="true"><span>Следующее слово</span></div>
+          <div class="card-verdict" id="cardVerdict" aria-hidden="true"></div>
         <div class="card" id="card" tabindex="0" title="Нажми, чтобы перевернуть (Space)">
+          <div class="card-tilt">
           <div class="card-inner" id="cardInner">
             <div class="card-face front">
               <span class="card-ring" aria-hidden="true"></span>
@@ -246,6 +253,8 @@
               <div class="context-block" id="cardContext"></div>
             </div>
           </div>
+          </div>
+        </div>
         </div>
 
         <div class="hint-keys">
@@ -302,7 +311,7 @@
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1>Проверь глубину словаря</h1><p>Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span>Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button">Начать мини-тест →</button><p class="mini">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden>Дальше →</button></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.1</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.2</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -325,8 +334,8 @@
 
   <script src="vendor/lottie_light.min.js"></script>
   <script src="motion/editorial-achievement.js"></script>
-  <script src="motion.js"></script>
+  <script src="motion.js?v=2.2"></script>
   <script src="learning.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>

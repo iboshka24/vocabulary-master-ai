@@ -1,5 +1,37 @@
 /* Motion language: readable paper, weighted cards, short and purposeful responses. */
 :root { --motion-out:cubic-bezier(.22,1,.36,1); }
+/* Separate travel / pointer tilt / face rotation: no competing transforms. */
+.deck-stage { position:relative; width:min(660px,100%); margin:14px 0 28px; perspective:1400px; isolation:isolate; }
+.deck-stage > .card { width:100%; z-index:3; animation:none; perspective:1400px; }
+.card-tilt { width:100%; height:100%; transform-style:preserve-3d; transform:rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)); transition:transform .32s var(--motion-out); }
+:root[data-motion="on"] .card-tilt { transform:rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)); transition:transform .32s var(--motion-out)!important; }
+.motion-toggle { font:600 10px var(--font-mono); }
+.deck-stage .card-inner { transform-style:preserve-3d; transition:none; }
+.deck-stage .card-face { border-radius:18px; box-shadow:0 22px 45px -22px #30261545,inset 0 1px 0 #ffffff60; }
+.deck-stage .card-face.front { transform:translateZ(1px); }
+.deck-stage .card-face.back { transform:rotateY(180deg) translateZ(1px); border-color:var(--emerald); }
+.deck-stage .card-face::after { display:block; background:linear-gradient(115deg,transparent 30%,#ffffff15 48%,transparent 67%); pointer-events:none; }
+.deck-sheet { position:absolute; inset:0; border:1px solid var(--stroke); border-radius:18px; background:var(--surface); box-shadow:0 12px 24px #3026150a; pointer-events:none; }
+.sheet-near { z-index:2; transform:translateY(13px) rotate(2deg) scale(.98); }
+.sheet-far { z-index:1; transform:translateY(25px) rotate(-3deg) scale(.955); background:var(--bg); }
+.deck-sheet span { position:absolute; bottom:16px; left:24px; font:10px var(--font-ui); color:var(--muted); }
+.card-verdict { position:absolute; z-index:5; top:30px; left:50%; translate:-50% 0; opacity:0; padding:10px 18px; border:1px solid; border-radius:7px; white-space:nowrap; font:600 13px var(--font-ui); pointer-events:none; rotate:-7deg; background:var(--surface); }
+.card-verdict.is-known { color:var(--emerald); border-color:var(--emerald); }
+.card-verdict.is-repeat { color:var(--amber); border-color:var(--amber); rotate:6deg; }
+#screen-train { overflow:clip; }
+.paper-scene { perspective:1100px; }
+.paper-scene .hero-main { padding:0; min-height:0; height:205px; background:none; border:0; box-shadow:none; text-align:left; color:var(--text); font-family:var(--font-ui); cursor:pointer; z-index:3; transform-style:preserve-3d; }
+.hero-turner { display:block; position:relative; width:100%; height:100%; transform-style:preserve-3d; }
+.hero-main.is-flipped .hero-turner { transform:rotateY(180deg); }
+.hero-face { position:absolute; inset:0; display:block; padding:24px 26px; border:1px solid var(--stroke); border-radius:10px; background:var(--surface); box-shadow:0 18px 32px #332b1b15; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+.hero-front { transform:translateZ(1px); }
+.hero-back { transform:rotateY(180deg) translateZ(1px); border-color:var(--emerald); }
+.sample-card .hero-back strong { font-size:28px; line-height:1.1; color:var(--emerald); margin:16px 0 9px; }
+.sample-description { font-size:11px; color:var(--muted); }
+.sample-footer { display:block; margin-top:18px; padding-top:9px; border-top:1px solid var(--stroke-soft); font-size:9px; color:var(--emerald); }
+.paper-scene .behind { z-index:2; transform:rotate(10deg) translate(25px,13px); }
+.paper-scene .behind.far { z-index:1; transform:rotate(-16deg) translate(-28px,8px); background:var(--bg); }
+.scene-caption { bottom:-14px; }
 @media (prefers-reduced-motion:no-preference) {
   .btn,.chip-btn,.preset-chip,.icon-btn,.nav-link,.quiz-option {
     transition:background-color .18s,border-color .18s,color .18s,box-shadow .25s,translate .25s var(--motion-out),scale .18s var(--motion-out);
@@ -12,7 +44,7 @@
   .quiz-option:hover:not(:disabled) { border-color:var(--amber); translate:0 -2px; }
   .quiz-option.correct { animation:correctSettle .35s var(--motion-out); }
   .answer-row:not([hidden]),.typing-row:not([hidden]) { animation:answerIn .24s var(--motion-out); }
-  .card-inner { transition:transform .56s cubic-bezier(.4,0,.2,1); }
+  .card-inner { transition:none; }
   .card.pop .card-inner { animation:none; }
   .card.exit-ok { animation:cardKnown .18s ease-in forwards; }
   .card.exit-no { animation:cardRepeat .18s ease-in forwards; }
@@ -23,7 +55,8 @@
   .daily-track i { transition:width .75s var(--motion-out); }
   .stat b { font-variant-numeric:tabular-nums; }
   @media(hover:hover) {
-    .deck-item:hover { translate:0 -4px; border-color:var(--amber); box-shadow:0 12px 24px #30261509; }
+    .deck-item { transition:transform .45s var(--motion-out),box-shadow .45s,border-color .3s; }
+    .deck-item:hover { transform:perspective(900px) translateY(-8px) rotateX(4deg) rotateY(-3deg); border-color:var(--amber); box-shadow:9px 18px 26px #30261514; }
     .chip-btn:hover { translate:0 -2px; }
   }
 }
@@ -40,6 +73,17 @@
 .goal-celebration p { margin:4px 0 0; font-size:11px; color:var(--muted); }
 .goal-celebration > button { position:absolute; top:4px; right:5px; padding:4px 7px; border:0; background:none; color:var(--muted); font-size:18px; }
 @media(max-width:720px) { .goal-celebration { right:16px; bottom:16px; } .summary-motion { width:120px; height:90px; margin-top:-14px; } }
+@media(max-width:720px) {
+  .deck-stage { margin-top:8px; margin-bottom:25px; }
+  .paper-scene .hero-main { height:190px; }
+  .hero-face { padding:18px 21px; }
+  .sample-card .hero-back strong { font-size:25px; }
+  .sample-footer { margin-top:13px; }
+  .scene-caption { font-size:12px; bottom:-12px; }
+}
 @media(prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+  .card-tilt { transform:none; }
 }
+:root[data-motion="off"] *,:root[data-motion="off"] *::before,:root[data-motion="off"] *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+:root[data-motion="off"] .card-tilt { transform:none; }

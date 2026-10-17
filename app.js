@@ -962,9 +962,10 @@
   }
 
   function reveal() {
-    if (state.revealed || !state.current) return;
+    if (state.revealed || !state.current || answerLocked) return;
     state.revealed = true;
     $('card').classList.add('flipped');
+    if (window.VMMotion) window.VMMotion.flip();
     playFlipSound();
     updateRows();
     if (L && state.cfg.mode === 'typing') {
@@ -1130,7 +1131,7 @@
       playSuccessSound();
       burstSparkles();
       flashCard('flash-ok');
-      exitCard('exit-ok');
+      if (!window.VMMotion) exitCard('exit-ok');
       floatLabel(combo >= 3 ? '🔥 серия ×' + combo : '+1', 'ok');
       // Карточка успешно закреплена в этом раунде
     } else {
@@ -1140,7 +1141,7 @@
       c.fails++;
       playForgotSound();
       flashCard('flash-no');
-      exitCard('exit-no');
+      if (!window.VMMotion) exitCard('exit-no');
       floatLabel('↺ вернётся в цикл', 'no');
       // Повторяем забытое слово через 2-3 карточки в текущем раунде
       var insertPos = Math.min(state.roundQueue.length, 3);
@@ -1153,12 +1154,15 @@
       recordAnswer(knew); archiveCards(); saveSession();
     }
     state.revealed = false;
-    $('card').classList.remove('flipped');
+    // Keep the answer side visible throughout the departure. Reset only after
+    // the card has left; otherwise the flip is cut off by the old 180ms timer.
+    if (!window.VMMotion) $('card').classList.remove('flipped');
+    var departureMs = window.VMMotion ? window.VMMotion.depart(knew) : 180;
     clearTimeout(nextCardTimer);
     nextCardTimer = setTimeout(function () {
       nextCardTimer = null;
       nextCard(false);
-    }, 180);
+    }, departureMs);
     renderStats();
   }
 
@@ -1454,6 +1458,15 @@
   function escapeHTML(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; });
   }
+
+  function toggleCard() {
+    if (answerLocked || !state.current) return;
+    if (!state.revealed || state.cfg.mode === 'typing') { reveal(); return; }
+    state.revealed = false;
+    $('card').classList.remove('flipped');
+    if (window.VMMotion) window.VMMotion.flip(false);
+    playFlipSound(); updateRows();
+  }
   function readTranslationCache(word, source, target) {
     try { return JSON.parse(localStorage.getItem('vm.translation-cache') || '{}')[source + ':' + target + ':' + word] || null; } catch(e) { return null; }
   }
@@ -1615,6 +1628,7 @@
       };
       host.appendChild(button);
     });
+    if (window.VMMotion) window.VMMotion.quiz();
   }
   function initLearningUI() {
     try {
@@ -1873,7 +1887,7 @@
     $('btnKnew').addEventListener('click', function () { answer(true); });
     $('btnForgot').addEventListener('click', function () { answer(false); });
     $('btnKnew2').addEventListener('click', function () { answer(true); });
-    $('card').addEventListener('click', reveal);
+    $('card').addEventListener('click', toggleCard);
 
     /* Мягкий 3D-наклон карточки за курсором (только мышь + если нет reduced-motion) */
     try {
@@ -1936,7 +1950,8 @@
         if (k === ' ' || k === 'Enter' || k === 'ArrowDown') {
           e.preventDefault();
           pulseHint(0);
-          state.revealed ? answer(true) : reveal();
+          if (k === ' ') toggleCard();
+          else state.revealed ? answer(true) : reveal();
         } else if (k === '1' || k === 'ArrowLeft') {
           e.preventDefault();
           pulseHint(1);
