@@ -239,12 +239,6 @@
     return a;
   }
 
-  function chunk(arr, n) {
-    var out = [];
-    for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-    return out;
-  }
-
   function langByCode(code) {
     for (var i = 0; i < LANGS.length; i++) if (LANGS[i].code === code) return LANGS[i];
     return LANGS[0];
@@ -2336,12 +2330,6 @@
     }
   }
 
-  function plural(n, forms) {
-    var n10 = n % 10, n100 = n % 100;
-    if (n10 === 1 && n100 !== 11) return forms[0];
-    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return forms[1];
-    return forms[2];
-  }
 
   document.addEventListener('DOMContentLoaded', init);
 })();

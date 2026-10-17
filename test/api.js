@@ -31,7 +31,7 @@ const GOOD = JSON.stringify({ items: [
 ] });
 
 const logs = [];
-const origWarn = console.warn, origError = console.error, origLog = console.log;
+const origWarn = console.warn, origError = console.error;
 let provider = null, lastCall = null;
 global.fetch = async (url, options) => { lastCall = { url, options, body: JSON.parse(options.body) }; return provider(url, options); };
 
@@ -201,5 +201,4 @@ function noSecrets(res) {
   delete process.env.AI_RATE_LIMIT; delete process.env.AI_RATE_WINDOW_MS; delete process.env.OPENAI_API_KEY;
   console.log('✓ /api/ai: per-IP sliding-window rate limit with Retry-After');
 
-  console.log = origLog;
 })().catch(err => { console.error(err); process.exitCode = 1; });
