@@ -199,7 +199,8 @@
   }
   function heroIntro() {
     document.querySelectorAll('.paper-scene .behind').forEach(function (el, i) {
-      animate(el, [{ transform:'translate(0,30px) rotate(0deg) scale(.85)', opacity:0 }, { transform:getComputedStyle(el).transform, opacity:1 }], { duration:1000, delay:200+i*130, fill:'backwards' });
+      // One keyframe: the end state is the element's own CSS transform, so no style read (and no forced reflow) at startup.
+      animate(el, [{ transform:'translate(0,30px) rotate(0deg) scale(.85)', opacity:0, offset:0 }], { duration:1000, delay:200+i*130, fill:'backwards' });
     });
     if (reduced.matches) return;
     // The demo flip waits for the page to finish loading so it never competes with startup work.

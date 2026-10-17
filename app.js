@@ -210,9 +210,13 @@
 
   var toastTimer = null;
   var toastHideTimer = null;
+  var importantUntil = 0;
   function toast(msg, type, ms) {
     var t = $('toast');
     if (!t) return;
+    // A long error message (storage full, offline...) is not replaced by routine confirmations.
+    if (type !== 'err' && Date.now() < importantUntil) return;
+    importantUntil = type === 'err' && (ms || 0) >= 6000 ? Date.now() + ms : 0;
     t.textContent = msg;
     t.className = 'toast ' + (type || '');
     t.hidden = false;
@@ -620,7 +624,8 @@
         var r = await fetch('/api/ai', {
           method: 'POST',
           headers: headers,
-          body: JSON.stringify(bodyObj)
+          body: JSON.stringify(bodyObj),
+          signal: AbortSignal.timeout(45000)
         });
         if (r.ok) {
           var j = await r.json();
@@ -648,7 +653,8 @@
       var res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
-        body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', messages: messages, temperature: 0.2 })
+        body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', messages: messages, temperature: 0.2 }),
+        signal: AbortSignal.timeout(45000)
       });
       if (!res.ok) {
         var e2 = {};
@@ -666,6 +672,9 @@
   }
 
   /* Free translation fallback engine (MyMemory API + Local dictionary) */
+  // After two failed requests in a row the free API is treated as down for the
+  // rest of the batch, so an outage costs seconds, not a timeout per word.
+  var apiFailures = 0;
   async function translateSingleFree(word, targetCode, sourceCode) {
     var source = sourceCode || state.cfg.source;
     var lower = word.toLowerCase().trim();
@@ -688,9 +697,11 @@
     var pairsToTry = [srcCode + '|' + tgtCode, 'autodetect|' + tgtCode];
 
     for (var i = 0; i < pairsToTry.length; i++) {
+      if (apiFailures >= 2) break;
       try {
         var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=' + pairsToTry[i];
         var res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        apiFailures = res.ok ? 0 : apiFailures + 1;
         if (res.ok) {
           var json = await res.json();
           if (json) {
@@ -715,7 +726,7 @@
             }
           }
         }
-      } catch (e) {}
+      } catch (e) { apiFailures++; }
     }
     return '—';
   }
@@ -766,6 +777,7 @@
     }
 
     // Try AI first if key exists
+    var aiFailed = false;
     var canTryAI = state.serverHasKey || Boolean(state.cfg.apiKey);
     if (canTryAI) {
       try {
@@ -810,13 +822,14 @@
         return readyCards.concat(aiCards);
       } catch (err) {
         if (err.message !== 'no-key') {
+          aiFailed = true;
           console.warn('AI call failed, falling back to free translator:', err);
         }
       }
     }
 
     // Fallback: Free translation
-    toast(tr('toast.freeTr'), 'ok', 3000);
+    toast(tr(aiFailed ? 'toast.aiFailed' : 'toast.freeTr'), aiFailed ? 'err' : 'ok', 4000);
     var freeCards = await translateBatchFree(needTranslation, state.cfg.target);
     if (!freeCards) return null;
     return readyCards.concat(freeCards);
@@ -1488,6 +1501,7 @@
     }
 
     state.cancelled = false;
+    apiFailures = 0;
     show('screen-loading');
     $('loadTitle').textContent = tr('load.processing');
     setLoad(8, tr('load.analyzing'), tr('load.selected', { n: parsed.items.length }) + (parsed.dropped ? tr('load.droppedN', { n: parsed.dropped }) : ''));
@@ -1496,9 +1510,19 @@
       var cards = await buildCards(parsed.items);
       if (state.cancelled) { show('screen-setup'); return; }
       if (!cards || !cards.length) throw new Error(tr('err.noCards'));
-      setLoad(100, tr('load.done'), tr('load.cards', { n: cards.length }));
+      var ready = cards.filter(function (c) { return c.translation && c.translation !== '—'; });
+      var missing = cards.filter(function (c) { return ready.indexOf(c) < 0; });
+      // Untranslated words go to the library and are retried when the network is back.
+      if (L && missing.length) saveUntranslated(missing);
+      if (L && !ready.length) {
+        show('screen-setup');
+        toast(tr(navigator.onLine === false ? 'toast.allOffline' : 'toast.allFailed'), 'err', 8000);
+        return;
+      }
+      setLoad(100, tr('load.done'), tr('load.cards', { n: ready.length }));
       await new Promise(function (r) { setTimeout(r, 350); });
-      startTraining(cards);
+      startTraining(L ? ready : cards);
+      if (L && missing.length) toast(trn('toast.someMissing', missing.length), 'err', 6000);
     } catch (e) {
       show('screen-setup');
       toast(e.message || tr('err.generic'), 'err', 5000);
@@ -1619,11 +1643,22 @@
     $('activityStats').textContent = trn('act.days', active) + ' · ' + trn('act.answers', answers) + ' · ' + trn('words.count', words) + ' · ' + tr('act.mastered', { n: mastered });
   }
 
+  function saveUntranslated(cards) {
+    var key = state.cfg.source + '-' + state.cfg.target;
+    var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
+    cards.forEach(function (card) {
+      var known = d.cards.some(function (c) { return c.original.toLowerCase() === card.original.toLowerCase(); });
+      if (!known) d.cards.push({ original: card.original, translation: '—', hint: '', definition: '', examples: [], streak: 0, fails: 0 });
+    });
+    library.decks[key] = d;
+    persistLibrary();
+  }
+
   // Words added offline end up as "—"; translate them once the network is back.
   var retrying = false, retried = Object.create(null);
   async function retryMissingTranslations() {
     if (retrying || navigator.onLine === false) return;
-    retrying = true;
+    retrying = true; apiFailures = 0;
     var fixed = 0, budget = 30;
     try {
       for (var key in library.decks) {
@@ -1716,9 +1751,24 @@
       localStorage.setItem('vm.translation-cache', JSON.stringify(cache));
     } catch(e) {}
   }
+  // The library always stays in memory; if storage is full we free the disposable
+  // translation cache, retry once, and otherwise warn once (backup export still works).
+  var storageWarned = false;
+  function isQuotaError(e) { return !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014); }
   function persistLibrary() {
-    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(library)); }
-    catch(e) { toast(tr('toast.saveFail'), 'err'); }
+    var json = JSON.stringify(library);
+    try { localStorage.setItem(LIBRARY_KEY, json); storageWarned = false; return true; }
+    catch (e) {
+      try {
+        if (localStorage.getItem('vm.translation-cache') === null) throw e;
+        localStorage.removeItem('vm.translation-cache');
+        localStorage.setItem(LIBRARY_KEY, json);
+        toast(tr('toast.cacheFreed'), 'ok', 3500);
+        return true;
+      } catch (e2) {}
+      if (!storageWarned) { storageWarned = true; toast(tr(isQuotaError(e) ? 'toast.quota' : 'toast.saveFail'), 'err', 8000); }
+      return false;
+    }
   }
   function enrichLocalContext(cards) {
     if (state.cfg.source !== 'en') return;
@@ -1919,15 +1969,19 @@
       var file = this.files[0]; if (!file) return;
       try {
         if (file.size > 5000000) throw new Error(tr('err.fileBig'));
-        var data = JSON.parse(await file.text()); var incoming = data.library;
+        var data;
+        try { data = JSON.parse(await file.text()); } catch (parseErr) { throw new Error(tr('err.badJson')); }
+        var incoming = data && data.library;
         if (!incoming || !incoming.decks || !incoming.history || !incoming.streak || data.version !== 2) throw new Error(tr('err.notBackup'));
+        // Scheduling fields are clamped but never invented, so a backup round-trips exactly.
+        var opt = function (v, min, max) { return v == null || isNaN(Number(v)) ? undefined : Math.max(min, Math.min(max, Number(v))); };
         var safeDecks = {};
         Object.keys(incoming.decks).forEach(function (key) {
           var d = incoming.decks[key];
           if (!LANGS.some(function (l) { return l.code === d.source; }) || !LANGS.some(function (l) { return l.code === d.target; }) || !Array.isArray(d.cards) || d.cards.length > 5000) throw new Error(tr('err.badDeck'));
           var cards = d.cards.map(function (c) {
             if (typeof c.original !== 'string' || typeof c.translation !== 'string' || !c.original.trim() || c.original.length > 500 || c.translation.length > 1000) throw new Error(tr('err.badWord'));
-            return { original:c.original, translation:c.translation, hint:String(c.hint || '').slice(0,1000), definition:String(c.definition || '').slice(0,2000), examples:Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0,2).map(function (x) { return x.slice(0,1000); }) : [], streak:Math.max(0,Number(c.streak)||0), fails:Math.max(0,Number(c.fails)||0), box:Math.max(0,Math.min(5,Number(c.box)||0)), due:Math.max(0,Number(c.due)||0), ease:Math.max(1.3,Math.min(5,Number(c.ease)||2.5)), interval:c.interval == null ? undefined : Math.max(0,Math.min(3650,Number(c.interval)||0)), reps:Math.max(0,Number(c.reps)||0), lapses:Math.max(0,Number(c.lapses)||0) };
+            return { original:c.original, translation:c.translation, hint:String(c.hint || '').slice(0,1000), definition:String(c.definition || '').slice(0,2000), examples:Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0,2).map(function (x) { return x.slice(0,1000); }) : [], streak:Math.max(0,Number(c.streak)||0), fails:Math.max(0,Number(c.fails)||0), box:opt(c.box, 0, 5), due:opt(c.due, 0, 1e14), ease:opt(c.ease, 1.3, 5), interval:opt(c.interval, 0, 3650), reps:opt(c.reps, 0, 1e6), lapses:opt(c.lapses, 0, 1e6) };
           });
           safeDecks[d.source + '-' + d.target] = { source:d.source, target:d.target, cards:cards, created:Date.now() };
         });
@@ -1935,7 +1989,7 @@
         // Import vocabulary and history, but do not trust arbitrary runtime fields.
         var safeHistory = {};
         Object.keys(incoming.history).filter(function (k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }).forEach(function (k) {
-          var h = incoming.history[k] || {}; safeHistory[k] = { answers:Math.max(0,Number(h.answers)||0), correct:Math.max(0,Number(h.correct)||0), celebrated:!!h.celebrated };
+          var h = incoming.history[k] || {}; safeHistory[k] = { answers:Math.max(0,Number(h.answers)||0), correct:Math.max(0,Number(h.correct)||0) }; if (h.celebrated) safeHistory[k].celebrated = true;
         });
         var safeStreak = { count:Math.max(0,Number(incoming.streak.count)||0), last:/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak.last || '') ? incoming.streak.last : null, freezes:Math.max(0,Math.min(2,Number(incoming.streak.freezes)||0)), enabled:incoming.streak.enabled !== false };
         ['checked','protectedThrough'].forEach(function (key) { if (/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak[key] || '')) safeStreak[key] = incoming.streak[key]; });
@@ -1989,12 +2043,12 @@
     loadCfg();
     if (L) {
       // Offline support and "install app"; plain http (except localhost) cannot register workers.
-      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(function () {});
+      if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(function () {});
       var installEvt = null;
       window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
       window.addEventListener('appinstalled', function () { $('btnInstall').hidden = true; });
       window.addEventListener('offline', function () { toast(tr('toast.offline'), 'err', 4000); });
-      window.addEventListener('online', function () { toast(tr('toast.online'), 'ok', 2000); retryMissingTranslations(); });
+      window.addEventListener('online', function () { importantUntil = 0; toast(tr('toast.online'), 'ok', 2000); retryMissingTranslations(); });
       setTimeout(retryMissingTranslations, 4000);
       $('btnInstall').addEventListener('click', async function () {
         if (!installEvt) return;

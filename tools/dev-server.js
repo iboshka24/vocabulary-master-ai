@@ -1,0 +1,42 @@
+/* Local server that behaves like the Vercel deployment: static files with the
+   same cache headers as vercel.json, plus the real /api/ai serverless function.
+   Usage: npm run dev   (PORT=3000 by default; OPENAI_API_KEY etc. are read from the environment) */
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const aiHandler = require('../api/ai.js');
+
+const root = path.resolve(__dirname, '..');
+const port = Number(process.env.PORT) || 3000;
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp4': 'video/mp4' };
+
+function apiResponse(res) {
+  return Object.assign(res, {
+    status(code) { res.statusCode = code; return res; },
+    json(data) { if (!res.getHeader('Content-Type')) res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify(data)); return res; }
+  });
+}
+
+http.createServer((req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/api/ai') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; if (body.length > 1e6) req.destroy(); });
+    req.on('end', () => {
+      req.body = body ? (() => { try { return JSON.parse(body); } catch (e) { return body; } })() : {};
+      Promise.resolve(aiHandler(req, apiResponse(res))).catch(err => { res.statusCode = 500; res.end(String(err)); });
+    });
+    return;
+  }
+  const rel = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+  const file = path.resolve(root, '.' + rel);
+  if (!file.startsWith(root + path.sep) || rel.split('/').some(seg => seg.startsWith('.') || seg === 'node_modules')) { res.writeHead(403); res.end(); return; }
+  fs.readFile(file, (err, data) => {
+    if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
+    res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
+    if (rel === '/sw.js') res.setHeader('Cache-Control', 'no-cache');
+    else if (/^\/(vendor|icons)\//.test(rel)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.end(data);
+  });
+}).listen(port, () => console.log('Vocabulary Master AI → http://localhost:' + port));

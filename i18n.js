@@ -224,7 +224,7 @@
     'quiz.saved': ['Ошибки сохранены: сложные слова вернутся в практику.', 'Mistakes are saved: hard words will come back to practice.', "Xatolar saqlandi: qiyin so'zlar mashqqa qaytadi."],
 
     'footer.tag': ['Меньше шума. Больше смысла.', 'Less noise. More meaning.', "Kamroq shovqin. Ko'proq ma'no."],
-    'footer.made': ['Сделано для ежедневной практики · v2.7', 'Made for daily practice · v2.7', 'Kundalik mashq uchun yaratilgan · v2.7'],
+    'footer.made': ['Сделано для ежедневной практики · v2.8', 'Made for daily practice · v2.8', 'Kundalik mashq uchun yaratilgan · v2.8'],
     'sum.title': ['Сессия завершена', 'Session complete', 'Sessiya yakunlandi'],
     'sum.continue': ['Продолжить цикл', 'Keep looping', 'Siklni davom ettirish'],
     'sum.newSet': ['Новый набор слов', 'New word set', "Yangi so'zlar to'plami"],
@@ -312,6 +312,13 @@
     'a11y.cardBack': ['Карточка: {w} — {a}. Оцени, насколько легко вспомнил.', 'Card: {w} — {a}. Rate how easily you recalled it.', 'Karta: {w} — {a}. Qanchalik oson eslaganingni bahola.'],
     'a11y.revealed': ['Ответ: {a}', 'Answer: {a}', 'Javob: {a}'],
     'a11y.keys': ['Пробел — перевернуть, 1 — не помню, 2 — знал, 3 — трудно, 4 — легко, S — озвучить, H — подсказка, U — отменить.', 'Space flips, 1 don\'t know, 2 knew it, 3 hard, 4 easy, S speak, H hint, U undo.', "Probel — aylantirish, 1 — eslay olmadim, 2 — bildim, 3 — qiyin, 4 — oson, S — o'qish, H — yordam, U — bekor qilish."],
+    'toast.cacheFreed': ['Память браузера была заполнена — очистили кэш переводов, прогресс сохранён.', 'Browser storage was full — cleared the translation cache, progress saved.', "Brauzer xotirasi to'lgan edi — tarjima keshi tozalandi, natija saqlandi."],
+    'toast.quota': ['Память браузера заполнена: прогресс пока хранится только в этой вкладке. Скачай резервную копию в Библиотеке, чтобы ничего не потерять.', 'Browser storage is full: progress is kept only in this tab for now. Download a backup in the Library so nothing is lost.', "Brauzer xotirasi to'ldi: natija hozircha faqat shu oynada. Hech narsa yo'qolmasligi uchun Kutubxonada zaxira nusxani yuklab ol."],
+    'err.badJson': ['Файл повреждён или это не JSON — библиотека не изменилась.', 'The file is damaged or not JSON — your library was not changed.', "Fayl buzilgan yoki JSON emas — kutubxona o'zgarmadi."],
+    'toast.allOffline': ['Нет сети — перевести слова не получилось. Они сохранены в библиотеке и переведутся, когда интернет вернётся.', 'Offline — the words could not be translated. They are saved in the library and will be translated when you are back online.', "Internet yo'q — so'zlarni tarjima qilib bo'lmadi. Ular kutubxonada saqlandi va internet qaytganda tarjima qilinadi."],
+    'toast.allFailed': ['Сервис перевода не ответил. Слова сохранены в библиотеке — попробуем ещё раз позже, или впиши переводы сам («слово - перевод»).', 'The translation service did not respond. The words are saved in the library — we will retry later, or type pairs yourself ("word - translation").', "Tarjima xizmati javob bermadi. So'zlar kutubxonada saqlandi — keyinroq yana urinamiz yoki juftliklarni o'zing yoz («so'z - tarjima»)."],
+    'toast.someMissing': [['{n} слово пока без перевода — оно в библиотеке, догрузим позже.', '{n} слова пока без перевода — они в библиотеке, догрузим позже.', '{n} слов пока без перевода — они в библиотеке, догрузим позже.'], ['{n} word has no translation yet — it is in the library and will load later.', '{n} words have no translation yet — they are in the library and will load later.'], ["{n} ta so'z hozircha tarjimasiz — kutubxonada, keyinroq yuklaymiz."]],
+    'toast.aiFailed': ['ИИ не ответил — перевожу бесплатным переводчиком.', 'The AI did not respond — using the free translator instead.', 'AI javob bermadi — bepul tarjimon bilan tarjima qilyapman.'],
     'mode.listen': ['🎧 На слух', '🎧 Listening', '🎧 Eshitib'],
     'listen.sub': ['слушай и напиши слово', 'listen and type the word', "tingla va so'zni yoz"],
     'listen.badge': ['аудирование', 'listening', 'tinglash'],
@@ -391,11 +398,14 @@
       doc.title = t('meta.title');
       var meta = doc.querySelector('meta[name="description"]'); if (meta) meta.setAttribute('content', t('meta.desc'));
     }
-    doc.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
-    doc.querySelectorAll('[data-i18n-html]').forEach(function (el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+    // Only touch nodes whose text actually changes: rewriting identical markup would
+    // recreate the hero heading after load and push back Largest Contentful Paint.
+    doc.querySelectorAll('[data-i18n]').forEach(function (el) { var v = t(el.getAttribute('data-i18n')); if (el.textContent !== v) el.textContent = v; });
+    doc.querySelectorAll('[data-i18n-html]').forEach(function (el) { var v = t(el.getAttribute('data-i18n-html')); if (el.innerHTML !== v) el.innerHTML = v; });
     doc.querySelectorAll('[data-i18n-attr]').forEach(function (el) {
       el.getAttribute('data-i18n-attr').split(',').forEach(function (pair) {
-        var p = pair.split(':'); el.setAttribute(p[0].trim(), t(p[1].trim()));
+        var p = pair.split(':'), name = p[0].trim(), v = t(p[1].trim());
+        if (el.getAttribute(name) !== v) el.setAttribute(name, v);
       });
     });
   }
