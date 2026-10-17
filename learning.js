@@ -58,11 +58,39 @@
       return a === b || (b.length >= 6 && distance(a, b) <= 1);
     });
   }
+  var DAY = 86400000, RELEARN = 600000, MAX_DAYS = 3650;
+  var QUALITY = { again: 1, hard: 3, good: 4, easy: 5 };
+  // Days per old Leitner box, so cards saved before v2.7 keep their progress.
+  var LEGACY = [0, 0, 1, 3, 7, 21];
+  // SM-2 (Wozniak) with Anki-style hard/easy multipliers. Changes only the
+  // scheduling fields: ease, interval (days), reps, lapses, due, box.
+  function schedule(card, rating, now) {
+    var q = QUALITY[rating];
+    if (!q) throw new Error('Unknown rating: ' + rating);
+    var t = now == null ? Date.now() : now;
+    if (card.interval == null && card.box) { card.interval = LEGACY[Math.min(5, card.box)]; card.reps = card.box; }
+    var prev = card.interval || 0;
+    var ef = Math.max(1.3, (card.ease || 2.5) + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+    var days;
+    if (q < 3) {
+      card.reps = 0; card.lapses = (card.lapses || 0) + 1; days = 0;
+    } else {
+      card.reps = (card.reps || 0) + 1;
+      if (card.reps === 1) days = rating === 'easy' ? 4 : 1;
+      else if (card.reps === 2) days = rating === 'hard' ? 3 : rating === 'easy' ? 8 : 6;
+      else days = Math.round(prev * (rating === 'hard' ? 1.2 : rating === 'easy' ? ef * 1.3 : ef));
+      days = Math.min(MAX_DAYS, Math.max(days, prev + 1)); // a pass always pushes the card further out
+    }
+    card.ease = Math.round(ef * 100) / 100;
+    card.interval = days;
+    card.due = t + (days ? days * DAY : RELEARN);
+    card.box = !days ? 0 : days < 3 ? 1 : days < 7 ? 2 : days < 21 ? 3 : days < 60 ? 4 : 5;
+    return card;
+  }
   function grade(card, ok, now) {
     card.streak = ok ? (card.streak || 0) + 1 : 0;
     card.fails = (card.fails || 0) + (ok ? 0 : 1);
-    card.box = ok ? Math.min(5, (card.box || 0) + 1) : 0;
-    card.due = (now || Date.now()) + [0, 14400000, 86400000, 259200000, 604800000, 1814400000][card.box];
+    return schedule(card, ok ? 'good' : 'again', now);
   }
   function quiz(cards, count, random) {
     var rand = random || Math.random;
@@ -141,5 +169,5 @@
     }
     return out;
   }
-  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
+  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
 });

@@ -6,7 +6,10 @@
   var systemMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var motionChoice = 'system';
   try { motionChoice = localStorage.getItem('vm.motion') || 'system'; } catch (e) {}
-  var reduced = { get matches() { return motionChoice === 'off' || (motionChoice !== 'on' && systemMotion.matches); } };
+  // Weak phones (<=2 GB RAM, <=2 cores) and data-saver mode start with 3D off; the 3D button still turns it on.
+  var nav = window.navigator || {};
+  var lowEnd = (nav.deviceMemory && nav.deviceMemory <= 2) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 2) || !!(nav.connection && nav.connection.saveData);
+  var reduced = { get matches() { return motionChoice === 'off' || (motionChoice !== 'on' && (systemMotion.matches || lowEnd)); } };
   function tr(key) { return window.VMI18n ? window.VMI18n.t(key) : key; }
   if (window.VMI18n) window.VMI18n.onChange(function () { updateMotionPreference(); });
   function updateMotionPreference() {
@@ -37,6 +40,7 @@
     });
   }
   function screen(id) {
+    if (id === 'screen-train') loadLottie();
     // Avoid accumulating entrance animations when navigation is clicked rapidly.
     active.forEach(function (a) { a.cancel(); }); active.clear();
     cardAnimations.forEach(function (a) { if (a) a.cancel(); }); cardAnimations = []; handoff = false;
@@ -65,9 +69,20 @@
     observer.disconnect();
     root.querySelectorAll('.setup-grid > .panel, .deck-item, .welcome-copy, .motion-details').forEach(function (el) { observer.observe(el); });
   }
-  function play(id) {
+  // lottie (~170 KB) is only needed for celebrations: fetch it when a session starts, not on page load.
+  var lottieReady = null;
+  function loadLottie() {
+    if (!lottieReady) lottieReady = ['vendor/lottie_light.min.js', 'motion/editorial-achievement.js'].reduce(function (chain, src) {
+      return chain.then(function () { return new Promise(function (ok, fail) {
+        var s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+      }); });
+    }, Promise.resolve()).catch(function () { lottieReady = null; });
+    return lottieReady;
+  }
+  function play(id, loaded) {
     var host = document.getElementById(id);
-    if (!host || !window.lottie || !window.VM_EDITORIAL_MOTION) return;
+    if (!host) return;
+    if (!window.lottie || !window.VM_EDITORIAL_MOTION) { if (!loaded) loadLottie().then(function () { play(id, true); }); return; }
     var player = players.get(id);
     if (!player) {
       // Lottie normalizes animationData in place: each player gets its own copy.
@@ -187,8 +202,14 @@
       animate(el, [{ transform:'translate(0,30px) rotate(0deg) scale(.85)', opacity:0 }, { transform:getComputedStyle(el).transform, opacity:1 }], { duration:1000, delay:200+i*130, fill:'backwards' });
     });
     if (reduced.matches) return;
-    heroTimers.push(setTimeout(function () { heroFlip(true); }, 1100));
-    heroTimers.push(setTimeout(function () { heroFlip(false); }, 3800));
+    // The demo flip waits for the page to finish loading so it never competes with startup work.
+    var schedule = function () {
+      var setup = document.getElementById('screen-setup');
+      if (!setup || !setup.classList.contains('active')) return;
+      heroTimers.push(setTimeout(function () { heroFlip(true); }, 1100));
+      heroTimers.push(setTimeout(function () { heroFlip(false); }, 3800));
+    };
+    if (document.readyState === 'complete') schedule(); else window.addEventListener('load', schedule, { once: true });
   }
   function feedback(ok) {
     var host = document.getElementById('answerFeedback');

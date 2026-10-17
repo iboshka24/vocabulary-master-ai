@@ -11,10 +11,13 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="editorial.css?v=2.6" />
-  <link rel="stylesheet" href="motion.css?v=2.6" />
+  <!-- Fonts load without blocking the first paint; text shows in fallback fonts until they arrive. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" /></noscript>
+  <link rel="stylesheet" href="styles.css?v=2.7" />
+  <link rel="stylesheet" href="editorial.css?v=2.7" />
+  <link rel="stylesheet" href="motion.css?v=2.7" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -78,7 +81,7 @@
           <div class="paper-grid"></div>
           <div class="sample-card behind far" aria-hidden="true"></div>
           <div class="sample-card behind" aria-hidden="true"></div>
-          <button class="sample-card hero-main" id="heroFlip" type="button" aria-label="Перевернуть пример карточки" data-i18n-attr="aria-label:hero.flip" aria-pressed="false"><span class="hero-turner"><span class="hero-face hero-front"><span class="sample-top"><span>English · 014</span><span>↗</span></span><strong>serendipity</strong><span class="sample-description" data-i18n="hero.frontDesc">Сначала вспомни. Потом переверни.</span><span class="sample-footer" data-i18n="hero.frontFoot">Нажми, чтобы узнать перевод ↗</span></span><span class="hero-face hero-back"><span class="sample-top"><span data-i18n="hero.backTop">Русский · перевод</span><span>✓</span></span><strong data-i18n-html="hero.backWord">счастливая<br>случайность</strong><span class="sample-description" data-i18n="hero.backDesc">Найти прекрасное, когда не искал.</span><span class="sample-footer" data-i18n="hero.backFoot">Так слово становится твоим.</span></span></span></button>
+          <button class="sample-card hero-main" id="heroFlip" type="button" aria-pressed="false"><span class="hero-turner"><span class="hero-face hero-front"><span class="sample-top"><span>English · 014</span><span>↗</span></span><strong>serendipity</strong><span class="sample-description" data-i18n="hero.frontDesc">Сначала вспомни. Потом переверни.</span><span class="sample-footer" data-i18n="hero.frontFoot">Нажми, чтобы узнать перевод ↗</span></span><span class="hero-face hero-back"><span class="sample-top"><span data-i18n="hero.backTop">Русский · перевод</span><span>✓</span></span><strong data-i18n-html="hero.backWord">счастливая<br>случайность</strong><span class="sample-description" data-i18n="hero.backDesc">Найти прекрасное, когда не искал.</span><span class="sample-footer" data-i18n="hero.backFoot">Так слово становится твоим.</span></span></span></button>
           <span class="scene-caption" data-i18n="hero.caption">Нажми. Переверни. Запомни.</span>
         </div>
       </div>
@@ -227,7 +230,7 @@
           <div class="deck-sheet sheet-far" aria-hidden="true"><span data-i18n="train.sheet">Ещё одно открытие</span></div>
           <div class="deck-sheet sheet-near" aria-hidden="true"><div class="card-face front"><div class="card-header"><span class="badge" id="nextCardBadge"></span><span class="speak-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></span></div><div class="card-word" id="nextCardWord"></div><div class="card-foot"><span class="card-sub" id="nextCardSub"></span><span class="flip-hint" data-i18n="train.space">пробел</span></div></div></div>
           <div class="card-verdict" id="cardVerdict" aria-hidden="true"></div>
-        <div class="card" id="card" tabindex="0" title="Нажми, чтобы перевернуть (Space)" data-i18n-attr="title:card.title">
+        <div class="card" id="card" tabindex="0" role="button" aria-describedby="cardKeysHint" title="Нажми, чтобы перевернуть (Space)" data-i18n-attr="title:card.title">
           <div class="card-tilt">
           <div class="card-inner" id="cardInner">
             <div class="card-face front">
@@ -257,17 +260,20 @@
               <div class="card-word" id="cardTrans">—</div>
               <div class="card-hint" id="cardHint"></div>
               <div class="context-block" id="cardContext"></div>
-              <span class="swipe-hint" data-i18n-html="card.swipe">← повторить <span>свайп</span> знаю →</span>
+              <span class="swipe-hint" aria-hidden="true" data-i18n-html="card.swipe">← повторить <span>свайп</span> знаю →</span>
             </div>
           </div>
           </div>
         </div>
         </div>
 
-        <div class="hint-keys">
+        <p class="sr-only" id="cardKeysHint" data-i18n="a11y.keys">Пробел — перевернуть, 1 — не помню, 2 — знал, 3 — трудно, 4 — легко.</p>
+        <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
+        <div class="hint-keys" aria-hidden="true">
           <span><kbd>Space</kbd> <i data-i18n="keys.flip">перевернуть</i></span>
           <span><kbd>1</kbd> <i data-i18n="keys.forgot">не помню</i></span>
           <span><kbd>2</kbd> <i data-i18n="keys.knew">знал</i></span>
+          <span><kbd>3</kbd>/<kbd>4</kbd> <i data-i18n="keys.grade">трудно / легко</i></span>
           <span><kbd>S</kbd> <i data-i18n="keys.speak">озвучить</i></span>
           <span><kbd>Esc</kbd> <i data-i18n="keys.exit">ливнуть</i></span>
           <span><kbd>H</kbd> <i data-i18n="keys.hint">подсказка</i></span>
@@ -293,9 +299,17 @@
             <span data-i18n="btn.forgot">Не вспомнил — повторить</span>
             <kbd>1</kbd>
           </button>
+          <button class="btn big grade-hard" id="btnHard" type="button" title="Вспомнил с трудом — вернётся раньше" data-i18n-attr="title:btn.hardTitle">
+            <span data-i18n="btn.hard">Трудно</span>
+            <kbd>3</kbd>
+          </button>
           <button class="btn success big" id="btnKnew2" type="button">
             <span data-i18n="btn.remembered">Запомнил</span>
             <kbd>2</kbd>
+          </button>
+          <button class="btn big grade-easy" id="btnEasy" type="button" title="Слишком легко — покажем намного позже" data-i18n-attr="title:btn.easyTitle">
+            <span data-i18n="btn.easy">Легко</span>
+            <kbd>4</kbd>
           </button>
         </div>
 
@@ -331,7 +345,7 @@
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1 data-i18n="test.h1">Проверь глубину словаря</h1><p data-i18n="test.sub">Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button" data-i18n="test.start">Начать мини-тест →</button><p class="mini" data-i18n="test.note">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden data-i18n="btn.next">Дальше →</button></div></div><div class="panel match-panel"><div class="match-head"><div><span class="eyebrow" data-i18n="match.eyebrow">МИНИ-ИГРА</span><h2 data-i18n="match.title">Найди пару</h2><p class="mini" data-i18n="match.sub">Соедини слово с переводом как можно быстрее. Колода — та же, что выбрана выше.</p></div><button class="btn primary" id="btnMatchStart" type="button" data-i18n="match.start">Играть →</button></div><div class="match-stats" id="matchStats" hidden><span id="matchTime">0:00</span><span id="matchMistakes"></span><span id="matchBest"></span></div><div class="match-grid" id="matchGrid"></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.6</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.7</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -352,11 +366,10 @@
   <div class="toast" id="toast" hidden></div>
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
-  <script src="vendor/lottie_light.min.js"></script>
-  <script src="motion/editorial-achievement.js"></script>
-  <script src="i18n.js?v=2.6"></script>
-  <script src="motion.js?v=2.6"></script>
-  <script src="learning.js?v=2.6"></script>
-  <script src="app.js?v=2.6"></script>
+  <!-- lottie + the achievement animation are loaded on demand by motion.js -->
+  <script defer src="i18n.js?v=2.7"></script>
+  <script defer src="motion.js?v=2.7"></script>
+  <script defer src="learning.js?v=2.7"></script>
+  <script defer src="app.js?v=2.7"></script>
 </body>
 </html>
