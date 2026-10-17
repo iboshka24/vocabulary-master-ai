@@ -192,11 +192,12 @@
     var apply = function () {
       document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (window.VMMotion) window.VMMotion.screen(id);
     };
     /* Прогрессивное улучшение: нативный cross-fade между экранами, где поддерживается */
     try {
       var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!reduced && typeof document.startViewTransition === 'function') {
+      if (!window.VMMotion && !reduced && typeof document.startViewTransition === 'function') {
         document.startViewTransition(apply);
         return;
       }
@@ -913,6 +914,7 @@
   }
 
   function renderCard() {
+    if (window.VMMotion) window.VMMotion.card();
     var c = state.current;
     if (!c) return;
     var fwd = state.curSide === 'fwd';
@@ -1276,17 +1278,19 @@
     $('summaryMsg').textContent = msg;
 
     /* Кинематографичный финал: confetti для уверенной сессии */
-    if (state.answers >= 5 && acc >= 60) burstConfetti(acc >= 85 ? 70 : 46);
+    if (!window.VMMotion && state.answers >= 5 && acc >= 60) burstConfetti(acc >= 85 ? 70 : 46);
     countUpGrid();
 
     var summ = $('summary');
     if (summ) {
       summ.hidden = false;
       summ.style.display = '';
+      if (window.VMMotion) window.VMMotion.summary(state.answers > 0);
     }
   }
 
   function hideSummary() {
+    if (window.VMMotion) window.VMMotion.stop('summaryMotion');
     var summ = $('summary');
     if (summ) {
       summ.hidden = true;
@@ -1489,8 +1493,8 @@
     library.history[key] = h;
     if (h.answers >= library.goal && !h.celebrated) {
       h.celebrated = true;
-      burstConfetti(35);
-      toast('Дневная цель достигнута. Хорошая работа!', 'ok');
+      if (window.VMMotion) window.VMMotion.goal();
+      else { burstConfetti(35); toast('Дневная цель достигнута. Хорошая работа!', 'ok'); }
     }
     persistLibrary(); renderDaily();
   }
@@ -1560,12 +1564,14 @@
       };
       host.appendChild(panel);
     });
+    if (window.VMMotion) window.VMMotion.library();
   }
   function showAnswerFeedback(text, wrong) {
     $('answerFeedbackText').textContent = text;
     $('answerFeedback').classList.toggle('wrong', !!wrong);
     $('answerFeedback').hidden = false;
     $('rowHidden').hidden = true; $('rowShown').hidden = true;
+    if (window.VMMotion) window.VMMotion.feedback(!wrong);
   }
   function checkTypedAnswer(e) {
     e.preventDefault();

@@ -1,0 +1,45 @@
+/* Motion language: readable paper, weighted cards, short and purposeful responses. */
+:root { --motion-out:cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion:no-preference) {
+  .btn,.chip-btn,.preset-chip,.icon-btn,.nav-link,.quiz-option {
+    transition:background-color .18s,border-color .18s,color .18s,box-shadow .25s,translate .25s var(--motion-out),scale .18s var(--motion-out);
+  }
+  .btn:active,.chip-btn:active,.preset-chip:active,.icon-btn:active { scale:.96; }
+  .nav-link::after { transition:scale .3s var(--motion-out); transform-origin:left; }
+  .nav-link:not(.active)::after { content:''; position:absolute; bottom:2px; left:0; right:0; height:2px; background:var(--amber); scale:0 1; }
+  .nav-link:hover::after { scale:1; }
+  .deck-item { transition:translate .35s var(--motion-out),box-shadow .35s,border-color .35s; }
+  .quiz-option:hover:not(:disabled) { border-color:var(--amber); translate:0 -2px; }
+  .quiz-option.correct { animation:correctSettle .35s var(--motion-out); }
+  .answer-row:not([hidden]),.typing-row:not([hidden]) { animation:answerIn .24s var(--motion-out); }
+  .card-inner { transition:transform .56s cubic-bezier(.4,0,.2,1); }
+  .card.pop .card-inner { animation:none; }
+  .card.exit-ok { animation:cardKnown .18s ease-in forwards; }
+  .card.exit-no { animation:cardRepeat .18s ease-in forwards; }
+  .overlay { animation:overlayIn .22s ease-out; }
+  .sample-card { animation:none; }
+  .sample-card footer::before { content:''; width:5px; height:5px; display:inline-block; vertical-align:middle; margin-right:7px; border-radius:50%; background:var(--emerald); }
+  .motion-native b { animation:paperIn 1.2s var(--ease) 2 alternate; }
+  .daily-track i { transition:width .75s var(--motion-out); }
+  .stat b { font-variant-numeric:tabular-nums; }
+  @media(hover:hover) {
+    .deck-item:hover { translate:0 -4px; border-color:var(--amber); box-shadow:0 12px 24px #30261509; }
+    .chip-btn:hover { translate:0 -2px; }
+  }
+}
+@keyframes cardKnown { to { opacity:0; translate:22px -6px; rotate:2deg; } }
+@keyframes cardRepeat { to { opacity:0; translate:-18px 8px; rotate:-2deg; } }
+@keyframes answerIn { from { opacity:0; translate:0 6px; } to { opacity:1; translate:0 0; } }
+@keyframes correctSettle { 40% { scale:1.025; } to { scale:1; } }
+@keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+.summary-motion { width:144px; height:108px; margin:-24px auto -4px; }
+.summary-motion svg,.goal-motion svg { width:100%; height:100%; }
+.goal-celebration { position:fixed; z-index:85; bottom:24px; right:24px; display:flex; align-items:center; gap:10px; max-width:calc(100vw - 32px); padding:13px 35px 13px 8px; border:1px solid var(--stroke); border-radius:12px; background:var(--surface); color:var(--text); box-shadow:0 12px 40px #30261516; }
+.goal-motion { width:80px; height:60px; flex:none; }
+.goal-celebration strong { font:500 17px var(--font-display); }
+.goal-celebration p { margin:4px 0 0; font-size:11px; color:var(--muted); }
+.goal-celebration > button { position:absolute; top:4px; right:5px; padding:4px 7px; border:0; background:none; color:var(--muted); font-size:18px; }
+@media(max-width:720px) { .goal-celebration { right:16px; bottom:16px; } .summary-motion { width:120px; height:90px; margin-top:-14px; } }
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+}

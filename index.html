@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="editorial.css" />
+  <link rel="stylesheet" href="motion.css" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -301,11 +302,12 @@
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow">LEXICAL RESOURCE</span><h1>Проверь глубину словаря</h1><p>Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><label class="field"><span>Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button">Начать мини-тест →</button><p class="mini">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden>Дальше →</button></div></div></section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.0</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span>Меньше шума. Больше смысла.</span><span>Сделано для ежедневной практики · v2.1</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
     <div class="panel summary-card">
+      <div id="summaryMotion" class="summary-motion" aria-hidden="true" hidden></div>
       <div class="sum-ring" id="sumRing"><span id="sumAcc">0%</span><small>точность</small></div>
       <h2>Сессия завершена</h2>
       <div class="summary-grid" id="summaryGrid"></div>
@@ -319,7 +321,11 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
+  <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong>Ещё один шаг вперёд.</strong><p>Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление">×</button></div>
 
+  <script src="vendor/lottie_light.min.js"></script>
+  <script src="motion/editorial-achievement.js"></script>
+  <script src="motion.js"></script>
   <script src="learning.js"></script>
   <script src="app.js"></script>
 </body>

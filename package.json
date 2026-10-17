@@ -1,6 +1,6 @@
 {
   "name": "vocabulary-master-ai",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Bilingual AI flashcard loop: paste words → AI filters & translates → infinite recall loop.",
   "scripts": {
@@ -12,5 +12,8 @@
   "license": "MIT",
   "devDependencies": {
     "playwright": "^1.64.1"
+  },
+  "dependencies": {
+    "lottie-web": "5.13.0"
   }
 }
