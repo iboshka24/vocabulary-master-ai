@@ -267,6 +267,176 @@
     } catch (e) {}
   }
 
+  /* ---------------- Cinematic FX: фон, частицы, параллакс ---------------- */
+
+  var fxState = { raf: 0, particles: [], comets: [], w: 0, h: 0, dpr: 1, mx: 0, my: 0, lastComet: 0, ctx: null, canvas: null };
+
+  var FX_COLORS = { amber: [255, 196, 107], violet: [167, 139, 250], white: [244, 241, 234] };
+
+  function fxResize() {
+    var c = fxState.canvas, ctx = fxState.ctx;
+    if (!c || !ctx) return;
+    var w = window.innerWidth || 1200;
+    var h = window.innerHeight || 800;
+    fxState.dpr = Math.min(2, window.devicePixelRatio || 1);
+    fxState.w = w; fxState.h = h;
+    c.width = Math.floor(w * fxState.dpr);
+    c.height = Math.floor(h * fxState.dpr);
+    ctx.setTransform(fxState.dpr, 0, 0, fxState.dpr, 0, 0);
+  }
+
+  function fxSpawnParticles() {
+    var count = Math.max(28, Math.min(72, Math.round((fxState.w * fxState.h) / 26000)));
+    var ps = [];
+    for (var i = 0; i < count; i++) {
+      var depth = 0.35 + Math.random() * 0.65; /* 0.35 — дальний план, 1 — передний */
+      ps.push({
+        x: Math.random() * fxState.w,
+        y: Math.random() * fxState.h,
+        r: 0.6 + depth * 1.9,
+        depth: depth,
+        vx: (Math.random() - 0.5) * 0.16 * depth,
+        vy: -(0.05 + Math.random() * 0.2) * depth,
+        phase: Math.random() * Math.PI * 2,
+        wob: 0.25 + Math.random() * 0.55,
+        a: 0.1 + Math.random() * 0.3,
+        hue: Math.random() < 0.55 ? 'amber' : (Math.random() < 0.6 ? 'violet' : 'white')
+      });
+    }
+    fxState.particles = ps;
+  }
+
+  function fxFrame(now) {
+    var ctx = fxState.ctx;
+    if (!ctx) return;
+    var w = fxState.w, h = fxState.h;
+    ctx.clearRect(0, 0, w, h);
+    var t = now * 0.001;
+
+    /* пылинки с параллаксом от курсора */
+    for (var i = 0; i < fxState.particles.length; i++) {
+      var p = fxState.particles[i];
+      p.x += p.vx + Math.sin(t * p.wob + p.phase) * 0.14 * p.depth;
+      p.y += p.vy;
+      if (p.y < -12) { p.y = h + 12; p.x = Math.random() * w; }
+      if (p.x < -12) p.x = w + 12;
+      if (p.x > w + 12) p.x = -12;
+
+      var ox = fxState.mx * 26 * p.depth;
+      var oy = fxState.my * 20 * p.depth;
+      var col = FX_COLORS[p.hue] || FX_COLORS.amber;
+      var alpha = p.a * (0.65 + 0.35 * Math.sin(t * 0.8 + p.phase));
+
+      var g = ctx.createRadialGradient(p.x + ox, p.y + oy, 0, p.x + ox, p.y + oy, p.r * 4);
+      g.addColorStop(0, 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + alpha.toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x + ox, p.y + oy, p.r * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* редкие кометы, пересекающие экран */
+    if (now - fxState.lastComet > 5200 + Math.random() * 4200 && fxState.comets.length < 2) {
+      fxState.lastComet = now;
+      fxState.comets.push({
+        x: Math.random() * w * 0.7,
+        y: Math.random() * h * 0.4,
+        len: 90 + Math.random() * 130,
+        sp: 5.5 + Math.random() * 4,
+        life: 1
+      });
+    }
+    for (var c = fxState.comets.length - 1; c >= 0; c--) {
+      var k = fxState.comets[c];
+      k.x += k.sp; k.y += k.sp * 0.32; k.life -= 0.012;
+      if (k.life <= 0 || k.x > w + 200) { fxState.comets.splice(c, 1); continue; }
+      var lg = ctx.createLinearGradient(k.x, k.y, k.x - k.len, k.y - k.len * 0.32);
+      lg.addColorStop(0, 'rgba(255,255,255,' + (0.5 * k.life).toFixed(3) + ')');
+      lg.addColorStop(0.4, 'rgba(255,196,107,' + (0.26 * k.life).toFixed(3) + ')');
+      lg.addColorStop(1, 'rgba(255,196,107,0)');
+      ctx.strokeStyle = lg;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(k.x, k.y);
+      ctx.lineTo(k.x - k.len, k.y - k.len * 0.32);
+      ctx.stroke();
+    }
+
+    fxState.raf = window.requestAnimationFrame(fxFrame);
+  }
+
+  function initFX() {
+    try {
+      if (typeof document.createElement !== 'function') return;
+      var probe = document.createElement('canvas');
+      if (!probe || typeof probe.getContext !== 'function') return; /* нет canvas или мок-среда */
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var canvas = $('fx');
+      if (!canvas || typeof canvas.getContext !== 'function') return;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      fxState.canvas = canvas; fxState.ctx = ctx;
+      fxResize(); fxSpawnParticles();
+      fxState.raf = window.requestAnimationFrame(fxFrame);
+
+      window.addEventListener('resize', function () { fxResize(); fxSpawnParticles(); });
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          if (fxState.raf && window.cancelAnimationFrame) { window.cancelAnimationFrame(fxState.raf); fxState.raf = 0; }
+        } else if (!fxState.raf) {
+          fxState.raf = window.requestAnimationFrame(fxFrame);
+        }
+      });
+    } catch (e) {}
+  }
+
+  /* Параллакс: курсор двигает аврору, 3D-орбиту и световое пятно */
+  function initParallax() {
+    try {
+      var root = document.documentElement;
+      if (!root || !root.style) return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
+
+      var hero = $('screen-setup');
+      var spot = null;
+      if (hero && typeof hero.querySelector === 'function') spot = hero.querySelector('.spot');
+
+      var tx = 0, ty = 0, cx = 0, cy = 0, sx = 0, sy = 0, csx = 0, csy = 0;
+      var running = false;
+
+      var tick = function () {
+        cx += (tx - cx) * 0.08; cy += (ty - cy) * 0.08;
+        csx += (sx - csx) * 0.12; csy += (sy - csy) * 0.12;
+        root.style.setProperty('--mx', cx.toFixed(4));
+        root.style.setProperty('--my', cy.toFixed(4));
+        fxState.mx = cx; fxState.my = cy;
+        if (spot) spot.style.transform = 'translate3d(' + csx.toFixed(1) + 'px,' + csy.toFixed(1) + 'px,0)';
+        if (Math.abs(tx - cx) < 0.001 && Math.abs(ty - cy) < 0.001 &&
+            Math.abs(sx - csx) < 0.5 && Math.abs(sy - csy) < 0.5) {
+          running = false; return; /* цель достигнута — цикл замирает */
+        }
+        window.requestAnimationFrame(tick);
+      };
+      var ensure = function () { if (!running) { running = true; window.requestAnimationFrame(tick); } };
+
+      document.addEventListener('pointermove', function (e) {
+        var w = window.innerWidth || 1, h = window.innerHeight || 1;
+        tx = (e.clientX / w - 0.5) * 2;
+        ty = (e.clientY / h - 0.5) * 2;
+        if (spot && hero && typeof hero.getBoundingClientRect === 'function') {
+          var r = hero.getBoundingClientRect();
+          sx = e.clientX - r.left;
+          sy = e.clientY - r.top;
+        }
+        ensure();
+      }, { passive: true });
+    } catch (e) {}
+  }
+
   /* ---------------- pre-filter & pair parser ---------------- */
 
   function detectScript(text) {
@@ -686,6 +856,7 @@
     state.round = resume ? (resume.round || 1) : 1;
     state.known = 0; state.forgot = 0; state.answers = 0;
     state.startedAt = Date.now(); state.elapsed = 0;
+    combo = 0;
 
     try {
       window.history.pushState({ screen: 'train' }, '');
@@ -748,7 +919,10 @@
     $('cardBadge').textContent = fwd ? 'оригинал' : target.label;
     $('cardBadgeBack').textContent = fwd ? target.label : 'оригинал';
 
-    $('card').classList.remove('flipped');
+    var cardEl = $('card');
+    cardEl.classList.remove('flipped');
+    cardEl.classList.remove('exit-ok', 'exit-no');
+    if (cardEl.style) cardEl.style.transform = ''; /* сброс наклона за курсором */
     updateRows();
   }
 
@@ -821,24 +995,119 @@
     } catch (e) {}
   }
 
+  /* Плашка, парящая над карточкой: «+1», «🔥 серия ×N» или «вернётся в цикл» */
+  var combo = 0;
+
+  function floatLabel(text, kind) {
+    try {
+      var card = $('card');
+      if (!card || typeof document.createElement !== 'function') return;
+      var el = document.createElement('span');
+      el.className = 'float-label ' + kind;
+      el.textContent = text;
+      card.appendChild(el);
+      setTimeout(function () { if (el && typeof el.remove === 'function') el.remove(); }, 960);
+    } catch (e) {}
+  }
+
+  /* Кинематографичный выход карточки перед появлением следующей */
+  function exitCard(cls) {
+    try {
+      var card = $('card');
+      if (!card || !card.classList) return;
+      card.classList.remove('exit-ok', 'exit-no');
+      if (card.offsetWidth !== undefined) void card.offsetWidth; /* перезапуск анимации */
+      card.classList.add(cls);
+    } catch (e) {}
+  }
+
+  /* Confetti-финал для сильной сессии */
+  function burstConfetti(n) {
+    try {
+      var summ = $('summary');
+      if (!summ || typeof document.createElement !== 'function') return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var colors = ['#ffc46b', '#ff8a72', '#a78bfa', '#5ee6a8', '#7dd3fc', '#f4f1ea'];
+      var count = n || 46;
+      for (var i = 0; i < count; i++) {
+        var s = document.createElement('span');
+        s.className = 'confetti';
+        if (s.style && typeof s.style.setProperty === 'function') {
+          s.style.setProperty('--l', (3 + Math.random() * 94).toFixed(1) + '%');
+          s.style.setProperty('--cx', ((Math.random() - 0.5) * 280).toFixed(0) + 'px');
+          s.style.setProperty('--cr', (360 + Math.random() * 720).toFixed(0) + 'deg');
+          s.style.setProperty('--dl', (Math.random() * 0.75).toFixed(2) + 's');
+          s.style.setProperty('--c', colors[i % colors.length]);
+        }
+        summ.appendChild(s);
+        (function (el) {
+          setTimeout(function () { if (el && typeof el.remove === 'function') el.remove(); }, 3800);
+        })(s);
+      }
+    } catch (e) {}
+  }
+
+  /* Числа в сводке «набегают» счётчиком */
+  function countUpGrid() {
+    try {
+      var grid = $('summaryGrid');
+      if (!grid || typeof grid.querySelectorAll !== 'function') return;
+      var cells = grid.querySelectorAll('b');
+      if (!cells || !cells.length) return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      Array.prototype.forEach.call(cells, function (b) {
+        var target = parseInt(b.textContent, 10);
+        if (isNaN(target) || target <= 0) return; /* время («0:45») не трогаем */
+        b.textContent = '0';
+        var start = Date.now(), dur = 780;
+        var step = function () {
+          var p = Math.min(1, (Date.now() - start) / dur);
+          var eased = 1 - Math.pow(1 - p, 3);
+          b.textContent = String(Math.round(target * eased));
+          if (p < 1) setTimeout(step, 16);
+        };
+        step();
+      });
+    } catch (e) {}
+  }
+
+  /* Короткая подсветка клавиши в подсказках при нажатии */
+  function pulseHint(idx) {
+    try {
+      var keys = document.querySelectorAll('.hint-keys kbd');
+      if (!keys || !keys[idx]) return;
+      var kb = keys[idx];
+      kb.classList.remove('pulse');
+      if (kb.offsetWidth !== undefined) void kb.offsetWidth;
+      kb.classList.add('pulse');
+      setTimeout(function () { try { kb.classList.remove('pulse'); } catch (e) {} }, 460);
+    } catch (e) {}
+  }
+
   function answer(knew) {
     var c = state.current;
     if (!c) return;
 
     state.answers++;
     if (knew) {
+      combo++;
       state.known++;
       c.streak++;
       playSuccessSound();
       burstSparkles();
       flashCard('flash-ok');
+      exitCard('exit-ok');
+      floatLabel(combo >= 3 ? '🔥 серия ×' + combo : '+1', 'ok');
       // Карточка успешно закреплена в этом раунде
     } else {
+      combo = 0;
       state.forgot++;
       c.streak = 0;
       c.fails++;
       playForgotSound();
       flashCard('flash-no');
+      exitCard('exit-no');
+      floatLabel('↺ вернётся в цикл', 'no');
       // Повторяем забытое слово через 2-3 карточки в текущем раунде
       var insertPos = Math.min(state.roundQueue.length, 3);
       state.roundQueue.splice(insertPos, 0, c.id);
@@ -924,7 +1193,14 @@
       var v = Math.round(to * eased);
       if (canSet) ring.style.setProperty('--acc', v + '%');
       if (accEl) accEl.textContent = v + '%';
-      if (p < 1) setTimeout(step, 16);
+      if (p < 1) { setTimeout(step, 16); return; }
+      /* кольцо «довольно» — короткий пульс по завершении заливки */
+      try {
+        if (ring && ring.classList) {
+          ring.classList.add('done');
+          setTimeout(function () { try { ring.classList.remove('done'); } catch (e) {} }, 950);
+        }
+      } catch (e) {}
     };
     step();
   }
@@ -960,6 +1236,10 @@
     else if (acc >= 65) msg = 'Хороший прогресс — цикл вернул забытые слова, закрепление идёт полным ходом.';
     else msg = 'Всё по плану: забыл → карточка перевернулась → слово вернулось в очередь.';
     $('summaryMsg').textContent = msg;
+
+    /* Кинематографичный финал: confetti для уверенной сессии */
+    if (state.answers >= 5 && acc >= 60) burstConfetti(acc >= 85 ? 70 : 46);
+    countUpGrid();
 
     var summ = $('summary');
     if (summ) {
@@ -1108,6 +1388,8 @@
     loadCfg();
     updateSoundUI();
     checkServerStatus();
+    initFX();
+    initParallax();
 
     var sel = $('targetLang');
     LANGS.forEach(function (l) {
@@ -1326,21 +1608,26 @@
       if ($('screen-train').classList.contains('active') && $('summary').hidden) {
         if (k === ' ' || k === 'Enter' || k === 'ArrowDown') {
           e.preventDefault();
+          pulseHint(0);
           state.revealed ? answer(true) : reveal();
         } else if (k === '1' || k === 'ArrowLeft') {
           e.preventDefault();
+          pulseHint(1);
           state.revealed ? answer(false) : reveal();
         } else if (k === '2' || k === 'ArrowRight') {
           e.preventDefault();
+          pulseHint(2);
           answer(true);
         } else if (k === 's' || k === 'S' || k === 'ы' || k === 'Ы') {
           e.preventDefault();
+          pulseHint(3);
           speakCurrent();
         } else if (k === 'm' || k === 'M' || k === 'ь' || k === 'Ь') {
           e.preventDefault();
           toggleSound();
         } else if (k === 'Escape') {
           e.preventDefault();
+          pulseHint(4);
           showSummary();
         }
       } else if (!$('summary').hidden && k === 'Escape') {

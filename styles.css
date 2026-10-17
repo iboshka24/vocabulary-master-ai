@@ -591,6 +591,170 @@ kbd{
 /* --- toast уезжает вниз, а не исчезает --- */
 .toast.out{animation:toastOut .28s var(--ease) forwards}
 
+/* ============================================================
+   CINEMA — кинематографичный слой: живой фон с частицами,
+   параллакс, световые сопровождения переворота, чёткие
+   exit/enter карточек, плавающий фидбек и confetti-финал.
+   ============================================================ */
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+:root{--ang:0deg;--mx:0;--my:0}
+
+/* --- фон: canvas с пылинками + параллакс авроры --- */
+.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.glow-layer{
+  position:absolute;inset:0;will-change:transform;
+  transform:translate3d(calc(var(--mx,0) * -26px),calc(var(--my,0) * -20px),0);
+  transition:transform .7s var(--ease);
+}
+
+/* --- пословное кинораскрытие заголовка --- */
+.hero h1{animation:none}
+.hero h1 .line{display:block;overflow:hidden;padding:0 .08em .14em;margin-bottom:-.09em}
+.hero h1 .line i{
+  display:inline-block;font-style:inherit;font-weight:inherit;opacity:0;
+  transform:translateY(118%) rotate(3deg);
+  animation:wordUp 1s var(--ease) forwards;animation-delay:var(--d,0s);
+}
+.hero h1 .line i.grad{
+  font-style:italic;
+  background:linear-gradient(96deg,var(--amber),var(--amber-3) 52%,var(--violet));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+@keyframes wordUp{to{transform:none;opacity:1}}
+
+/* --- световое пятно за курсором и 3D-наклон орбиты --- */
+.hero .spot{animation:none}
+.spot{
+  position:absolute;left:0;top:0;width:560px;height:560px;margin:-280px 0 0 -280px;
+  border-radius:50%;pointer-events:none;z-index:-1;opacity:0;filter:blur(14px);will-change:transform;
+  background:radial-gradient(circle,rgba(255,196,107,.15),rgba(167,139,250,.07) 45%,transparent 68%);
+  transition:opacity .6s var(--ease);
+}
+.hero:hover .spot{opacity:1}
+.hero .orbit{animation:fadeIn .85s var(--ease) both .04s}
+.orbit{
+  transform:perspective(760px) rotateX(calc(var(--my,0) * 7deg)) rotateY(calc(var(--mx,0) * 9deg));
+  transition:transform .5s var(--ease);will-change:transform;
+}
+.orbit-ring::after{
+  content:"";position:absolute;inset:-1px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 74%,rgba(255,196,107,.5) 90%,transparent 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));
+  animation:spin 6s linear infinite;
+}
+.steps li{
+  transition:transform .35s var(--ease),border-color .35s,box-shadow .35s;
+  transform:perspective(600px) rotateX(calc(var(--my,0) * -3deg)) rotateY(calc(var(--mx,0) * 4deg));
+}
+.steps li:hover{
+  transform:perspective(600px) translateY(-4px) rotateX(calc(var(--my,0) * -3deg)) rotateY(calc(var(--mx,0) * 4deg));
+  box-shadow:0 18px 40px rgba(0,0,0,.36);border-color:rgba(255,196,107,.34);
+}
+
+/* --- вращающаяся радужная рамка у поля ввода --- */
+textarea#input:focus{
+  border-color:transparent;
+  background:
+    linear-gradient(rgba(6,5,10,.78),rgba(6,5,10,.78)) padding-box,
+    conic-gradient(from var(--ang),rgba(255,196,107,.85),rgba(167,139,250,.6),rgba(94,230,168,.5),rgba(255,125,138,.55),rgba(255,196,107,.85)) border-box;
+  border:1px solid transparent;
+  box-shadow:0 0 0 4px rgba(255,196,107,.1),0 20px 54px rgba(0,0,0,.42);
+  animation:ang 6s linear infinite;
+}
+@keyframes ang{to{var(--ang:360deg)}}
+
+/* --- основная кнопка: живой градиент + блик --- */
+.btn.primary{background-size:190% 100%;background-position:0% 0}
+.btn.primary:hover{
+  background-position:100% 0;transition:background-position .9s var(--ease),transform .2s var(--ease),box-shadow .3s;
+  box-shadow:0 18px 48px rgba(255,140,80,.46),inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+/* --- световой сопровождение переворота --- */
+.card-sheen{
+  position:absolute;top:-25%;bottom:-25%;left:0;width:38%;z-index:3;opacity:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);
+  transform:skewX(-16deg) translateX(-150%);
+}
+.card.flipped .card-sheen{animation:sheen .82s var(--ease)}
+@keyframes sheen{
+  0%{opacity:0;transform:skewX(-16deg) translateX(-150%)}
+  22%{opacity:1}
+  100%{opacity:0;transform:skewX(-16deg) translateX(370%)}
+}
+
+/* --- выход карточки: «знал» улетает вправо, «забыл» коротко трясётся --- */
+.card.exit-ok{animation:exitOk .19s cubic-bezier(.5,0,.9,.4) forwards}
+.card.exit-no{animation:shakeNo .19s cubic-bezier(.36,.07,.19,.97)}
+@keyframes exitOk{to{opacity:0;transform:translateX(86px) scale(.9) rotate(1.5deg);filter:blur(7px)}}
+@keyframes shakeNo{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-10px)}40%{transform:translateX(9px)}
+  60%{transform:translateX(-6px)}80%{transform:translateX(4px)}
+}
+
+/* --- плавающий фидбек над карточкой («+1», «серия ×4», «ещё раз») --- */
+.float-label{
+  position:absolute;left:50%;bottom:26px;z-index:6;pointer-events:none;white-space:nowrap;
+  font-family:var(--font-mono);font-size:13.5px;font-weight:700;letter-spacing:.03em;
+  padding:8px 15px;border-radius:999px;transform:translateX(-50%);
+  animation:floatUp .95s var(--ease) forwards;will-change:transform,opacity;
+}
+.float-label.ok{color:#062b1b;background:linear-gradient(135deg,#93f5cd,var(--emerald));box-shadow:0 12px 34px rgba(94,230,168,.42)}
+.float-label.no{color:#3b0a12;background:linear-gradient(135deg,#ffb6bc,var(--rose));box-shadow:0 12px 34px rgba(255,125,138,.42)}
+@keyframes floatUp{
+  0%{opacity:0;transform:translate(-50%,16px) scale(.78)}
+  16%{opacity:1;transform:translate(-50%,-8px) scale(1.05)}
+  100%{opacity:0;transform:translate(-50%,-68px) scale(1)}
+}
+
+/* --- светящаяся «комета» на прогрессе раунда и спиннере --- */
+.round-bar i{position:relative}
+.round-bar i::after{
+  content:"";position:absolute;right:-3px;top:-4px;bottom:-4px;width:15px;border-radius:99px;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,196,107,.5) 45%,transparent 72%);
+  filter:blur(1.5px);
+}
+.loop-spinner::before{
+  content:"";position:absolute;inset:-9px;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0 66%,rgba(255,196,107,.7) 86%,rgba(255,255,255,.9) 96%,transparent 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  animation:spin 1.9s linear infinite;
+}
+
+/* --- подсветка клавиш при нажатии --- */
+.hint-keys kbd.pulse{
+  animation:kpulse .42s var(--ease);border-color:rgba(255,196,107,.6);color:var(--amber);
+  box-shadow:0 0 18px rgba(255,196,107,.35);
+}
+@keyframes kpulse{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+/* --- odometer-перекат цифр статистики --- */
+.stat.bump b{animation:roll .5s var(--ease)}
+@keyframes roll{
+  0%{transform:translateY(0);opacity:1}
+  28%{transform:translateY(-75%);opacity:0}
+  32%{transform:translateY(75%);opacity:0}
+  100%{transform:translateY(0);opacity:1}
+}
+
+/* --- финал: пульс кольца и confetti --- */
+.sum-ring.done{animation:ringPulse .9s var(--ease)}
+@keyframes ringPulse{0%{transform:scale(1)}38%{transform:scale(1.08);box-shadow:0 0 78px rgba(255,196,107,.42)}100%{transform:scale(1)}}
+.confetti{
+  position:absolute;top:-26px;left:var(--l,50%);width:9px;height:15px;border-radius:2px;
+  background:var(--c,#ffc46b);opacity:0;pointer-events:none;will-change:transform,opacity;
+  animation:conf 2.7s cubic-bezier(.3,.55,.5,1) forwards;animation-delay:var(--dl,0s);
+}
+@keyframes conf{
+  0%{opacity:0;transform:translate3d(0,0,0) rotate(0)}
+  8%{opacity:1}
+  55%{transform:translate3d(calc(var(--cx,0px) * .55),46vh,0) rotate(calc(var(--cr,540deg) * .5))}
+  100%{opacity:0;transform:translate3d(var(--cx,0px),104vh,0) rotate(var(--cr,540deg))}
+}
+
 /* ---------- responsive ---------- */
 @media (max-width:960px){
   .setup-grid{grid-template-columns:1fr}
