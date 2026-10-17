@@ -493,6 +493,104 @@ kbd{
 .toast.err{border-left-color:var(--rose);color:#ffd9de}
 .toast.ok{border-left-color:var(--emerald)}
 
+/* ============================================================
+   MOTION — слой анимаций.
+   Входы с задержками (stagger), отклик на ответ, shimmer
+   прогресса, оживление статистики и сводки.
+   Всё выключается через prefers-reduced-motion.
+   ============================================================ */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:none}}
+@keyframes wordIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes tick{0%{transform:scale(1)}35%{transform:scale(1.24)}100%{transform:scale(1)}}
+@keyframes flashOk{
+  0%{box-shadow:0 0 0 0 rgba(94,230,168,.55)}
+  55%{box-shadow:0 0 0 16px rgba(94,230,168,.12)}
+  100%{box-shadow:0 0 0 30px rgba(94,230,168,0)}
+}
+@keyframes flashNo{
+  0%{box-shadow:0 0 0 0 rgba(255,125,138,.55)}
+  55%{box-shadow:0 0 0 16px rgba(255,125,138,.12)}
+  100%{box-shadow:0 0 0 30px rgba(255,125,138,0)}
+}
+@keyframes toastOut{to{opacity:0;transform:translate(-50%,16px)}}
+@keyframes shimmer{from{transform:translateX(-110%)}to{transform:translateX(320%)}}
+
+/* --- шапка и экран настройки --- */
+.topbar{animation:slideDown .6s var(--ease) both}
+.hero>*{animation:rise .65s var(--ease) both}
+.hero .orbit{animation-delay:.04s}
+.hero .eyebrow{animation-delay:.12s}
+.hero h1{animation-delay:.18s}
+.hero .sub{animation-delay:.26s}
+.hero .steps{animation-delay:.34s}
+.panel-words{animation:rise .7s var(--ease) both .3s}
+.panel-session{animation:rise .7s var(--ease) both .4s}
+.foot-note{animation:rise .7s var(--ease) both .5s}
+
+/* орбита замирает при наведении — удобно рассмотреть слово */
+.orbit-chip i{will-change:transform;transition:border-color .25s,color .25s}
+.orbit:hover .orbit-ring,.orbit:hover .orbit-chip i{animation-play-state:paused}
+.orbit:hover .orbit-chip i{border-color:rgba(255,196,107,.55);color:var(--amber)}
+
+/* --- блик по основной кнопке --- */
+.btn.primary{position:relative;overflow:hidden;isolation:isolate}
+.btn.primary::after{
+  content:"";position:absolute;top:0;bottom:0;left:-60%;width:45%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
+  transform:skewX(-18deg);transition:left .65s var(--ease);
+}
+.btn.primary:hover::after{left:125%}
+
+/* --- экран загрузки --- */
+.loader-card{animation:rise .45s var(--ease) both}
+.bar i{position:relative;overflow:hidden}
+.bar i::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 12%,rgba(255,255,255,.5) 45%,transparent 78%);
+  transform:translateX(-110%);animation:shimmer 1.7s var(--ease) infinite;
+}
+
+/* --- экран тренировки --- */
+.stat{animation:rise .5s var(--ease) both}
+.stat:nth-child(1){animation-delay:.02s}
+.stat:nth-child(2){animation-delay:.06s}
+.stat:nth-child(3){animation-delay:.1s}
+.stat:nth-child(4){animation-delay:.14s}
+.stat:nth-child(5){animation-delay:.18s}
+.stat:nth-child(6){animation-delay:.22s}
+.stat.bump b{animation:tick .45s var(--ease)}
+.stat.bump{border-color:rgba(255,196,107,.45);transition:border-color .4s}
+.round-bar{animation:rise .5s var(--ease) both .2s}
+.stage{animation:rise .55s var(--ease) both .08s}
+/* opacity-only для карточки: её transform занят наклоном за курсором */
+.card{animation:fadeIn .5s var(--ease) both .12s}
+.card.pop .card-word{animation:wordIn .5s var(--ease) both}
+.card.flash-ok{animation:flashOk .62s var(--ease)}
+.card.flash-no{animation:flashNo .62s var(--ease)}
+.hint-keys{animation:fadeIn .5s var(--ease) both .26s}
+.answer-row{animation:rise .45s var(--ease) both}
+.stage-tools{animation:fadeIn .5s var(--ease) both .34s}
+
+/* --- сводка: кольцо и сетка появляются по очереди --- */
+.summary-card>*{animation:rise .5s var(--ease) both}
+.summary-card .sum-ring{animation-delay:.02s}
+.summary-card h2{animation-delay:.08s}
+.summary-grid{animation-delay:.14s}
+.summary-card .sub{animation-delay:.2s}
+.summary-card .actions{animation-delay:.26s}
+.summary-card .link{animation-delay:.32s}
+.summary-grid div{animation:rise .45s var(--ease) both}
+.summary-grid div:nth-child(1){animation-delay:.18s}
+.summary-grid div:nth-child(2){animation-delay:.23s}
+.summary-grid div:nth-child(3){animation-delay:.28s}
+.summary-grid div:nth-child(4){animation-delay:.33s}
+.summary-grid div:nth-child(5){animation-delay:.38s}
+.summary-grid div:nth-child(6){animation-delay:.43s}
+
+/* --- toast уезжает вниз, а не исчезает --- */
+.toast.out{animation:toastOut .28s var(--ease) forwards}
+
 /* ---------- responsive ---------- */
 @media (max-width:960px){
   .setup-grid{grid-template-columns:1fr}
@@ -520,5 +618,9 @@ kbd{
   .foot-note{font-size:11px}
 }
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;animation-delay:0ms!important;
+    transition-duration:.01ms!important;transition-delay:0ms!important;scroll-behavior:auto!important;
+  }
+  html{scroll-behavior:auto}
 }

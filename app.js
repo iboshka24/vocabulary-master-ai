@@ -188,18 +188,38 @@
   /* ---------------- utils ---------------- */
 
   function show(id) {
-    document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    var apply = function () {
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    /* Прогрессивное улучшение: нативный cross-fade между экранами, где поддерживается */
+    try {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reduced && typeof document.startViewTransition === 'function') {
+        document.startViewTransition(apply);
+        return;
+      }
+    } catch (e) {}
+    apply();
   }
 
   var toastTimer = null;
+  var toastHideTimer = null;
   function toast(msg, type, ms) {
     var t = $('toast');
+    if (!t) return;
     t.textContent = msg;
     t.className = 'toast ' + (type || '');
     t.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.hidden = true; }, ms || 3200);
+    clearTimeout(toastHideTimer);
+    toastTimer = setTimeout(function () {
+      try { t.classList.add('out'); } catch (e) {}
+      toastHideTimer = setTimeout(function () {
+        t.hidden = true;
+        try { t.classList.remove('out'); } catch (e) {}
+      }, 280);
+    }, ms || 3200);
   }
 
   function shuffle(a) {
@@ -787,6 +807,20 @@
     } catch (e) {}
   }
 
+  /* Короткая вспышка на карточке: бирюзовая при «знал», розовая при «забыл» */
+  function flashCard(cls) {
+    try {
+      var card = $('card');
+      if (!card || !card.classList) return;
+      card.classList.remove('flash-ok', 'flash-no');
+      if (card.offsetWidth !== undefined) void card.offsetWidth; /* перезапуск анимации */
+      card.classList.add(cls);
+      setTimeout(function () {
+        try { card.classList.remove(cls); } catch (e) {}
+      }, 640);
+    } catch (e) {}
+  }
+
   function answer(knew) {
     var c = state.current;
     if (!c) return;
@@ -797,12 +831,14 @@
       c.streak++;
       playSuccessSound();
       burstSparkles();
+      flashCard('flash-ok');
       // Карточка успешно закреплена в этом раунде
     } else {
       state.forgot++;
       c.streak = 0;
       c.fails++;
       playForgotSound();
+      flashCard('flash-no');
       // Повторяем забытое слово через 2-3 карточки в текущем раунде
       var insertPos = Math.min(state.roundQueue.length, 3);
       state.roundQueue.splice(insertPos, 0, c.id);
@@ -818,12 +854,31 @@
     renderStats();
   }
 
+  var lastStats = {};
+
+  /* Обновление ячейки статистики: значение меняется, ячейка коротко «подскакивает» */
+  function setStat(id, val) {
+    var el = $(id);
+    if (!el) return;
+    var s = String(val);
+    if (el.textContent !== s) el.textContent = s;
+    if (lastStats[id] !== undefined && lastStats[id] !== s && el.classList) {
+      var host = el.parentNode || el;
+      if (host.classList) {
+        host.classList.remove('bump');
+        if (host.offsetWidth !== undefined) void host.offsetWidth; /* перезапуск анимации */
+        host.classList.add('bump');
+      }
+    }
+    lastStats[id] = s;
+  }
+
   function renderStats() {
-    $('stRound').textContent = state.round;
-    $('stKnown').textContent = state.known;
-    $('stForgot').textContent = state.forgot;
-    $('stAcc').textContent = state.answers ? Math.round((state.known / state.answers) * 100) + '%' : '—';
-    $('stLeft').textContent = state.roundQueue.length + (state.current ? 1 : 0);
+    setStat('stRound', state.round);
+    setStat('stKnown', state.known);
+    setStat('stForgot', state.forgot);
+    setStat('stAcc', state.answers ? Math.round((state.known / state.answers) * 100) + '%' : '—');
+    setStat('stLeft', state.roundQueue.length + (state.current ? 1 : 0));
 
     /* Прогресс-бар раунда: сколько карточек уже закрыто в этом круге */
     var rb = $('roundBar');
@@ -851,6 +906,29 @@
 
   /* ---------------- summary ---------------- */
 
+  /* Плавная заливка кольца точности: --acc от 0 до итогового значения */
+  function animateAccuracy(to) {
+    var ring = $('sumRing');
+    var accEl = $('sumAcc');
+    var canSet = ring && ring.style && typeof ring.style.setProperty === 'function';
+    if (!canSet && !accEl) return;
+
+    var reduced = false;
+    try { reduced = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+    var dur = reduced ? 0 : 850;
+    var start = Date.now();
+
+    var step = function () {
+      var p = dur ? Math.min(1, (Date.now() - start) / dur) : 1;
+      var eased = 1 - Math.pow(1 - p, 3);
+      var v = Math.round(to * eased);
+      if (canSet) ring.style.setProperty('--acc', v + '%');
+      if (accEl) accEl.textContent = v + '%';
+      if (p < 1) setTimeout(step, 16);
+    };
+    step();
+  }
+
   function showSummary() {
     if (nextCardTimer) {
       clearTimeout(nextCardTimer);
@@ -865,13 +943,8 @@
     var acc = state.answers ? Math.round((state.known / state.answers) * 100) : 0;
     var mastered = state.cards.filter(function (c) { return c.streak >= 2 && c.fails === 0; }).length;
 
-    /* Кольцо точности */
-    var ring = $('sumRing');
-    if (ring && ring.style && typeof ring.style.setProperty === 'function') {
-      ring.style.setProperty('--acc', acc + '%');
-    }
-    var accEl = $('sumAcc');
-    if (accEl) accEl.textContent = acc + '%';
+    /* Кольцо точности заливается счётчиком */
+    animateAccuracy(acc);
 
     $('summaryGrid').innerHTML =
       '<div><b>' + state.cards.length + '</b><span>карточек</span></div>' +
