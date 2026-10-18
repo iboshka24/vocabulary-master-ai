@@ -370,6 +370,7 @@
       if (r.ok) {
         var d = await r.json();
         state.serverHasKey = Boolean(d.serverKeyConfigured);
+        state.serverProvider = d.provider || '';
         if (document.body) document.body.classList.toggle('server-ai', state.serverHasKey); // the site's own key: nothing to connect
         state.serverAvailable = true;
       } else {
@@ -381,9 +382,20 @@
     updateApiStatus();
   }
 
+  var ownKeyOpen = false;
   function updateApiStatus() {
     var ind = $('statusIndicator');
     var summ = $('apiSummaryStatus');
+    // With the site's own key there is nothing to set up; manual settings stay one click away.
+    var siteAI = state.serverHasKey && !state.cfg.apiKey;
+    var note = $('serverAiNote'), own = $('apiOwn');
+    if (note && own) {
+      note.hidden = !siteAI;
+      $('serverAiText').textContent = tr('api.serverP', { p: state.serverProvider === 'gemini' ? 'Google Gemini' : tr('api.someAI') });
+      own.hidden = siteAI && !ownKeyOpen;
+      $('btnOwnKey').setAttribute('aria-expanded', String(!own.hidden));
+      $('btnOwnKey').textContent = tr(own.hidden ? 'api.ownKey' : 'api.ownKeyHide');
+    }
     if (state.serverHasKey) {
       if (ind) { ind.textContent = tr('status.server'); ind.className = 'status-indicator'; }
       if (summ) { summ.textContent = tr('summ.server'); summ.className = 'api-summary-status'; }
@@ -2413,6 +2425,7 @@
       setTimeout(function () { $('apiBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120);
     });
 
+    $('btnOwnKey').addEventListener('click', function () { ownKeyOpen = !ownKeyOpen; updateApiStatus(); if (ownKeyOpen) $('cfgKey').focus(); });
     $('btnMenu').addEventListener('click', function () { setSidebar(!document.body.classList.contains('side-open')); });
     $('sideBackdrop').addEventListener('click', function () { setSidebar(false); $('btnMenu').focus(); });
     document.addEventListener('keydown', function (e) {

@@ -122,7 +122,7 @@ module.exports = async (req, res) => {
   const serverKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || '';
 
   if (body.action === 'status') {
-    return send(res, 200, { status: 'ok', serverKeyConfigured: Boolean(serverKey), limits: { words: core.LIMITS.words, wordLength: core.LIMITS.wordLength } });
+    return send(res, 200, { status: 'ok', serverKeyConfigured: Boolean(serverKey), provider: geminiServer ? 'gemini' : serverKey ? 'openai-compatible' : null, limits: { words: core.LIMITS.words, wordLength: core.LIMITS.wordLength } });
   }
 
   const bearer = header(req, 'authorization').replace(/^Bearer\s+/i, '').trim();

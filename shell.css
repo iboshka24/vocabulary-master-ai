@@ -138,3 +138,6 @@
 }
 @media (prefers-reduced-motion:reduce) { .sidebar, .deck-item, .cover-play { transition:none; } }
 .server-ai .side-card { display:none; }
+.server-ai-note { padding:14px 16px; margin-bottom:14px; border:1px solid var(--stroke); border-left:3px solid var(--gold); border-radius:10px; background:var(--bg); }
+.server-ai-note strong { display:block; font:600 14px var(--font-ui); }
+.server-ai-note p { margin:6px 0 8px; font-size:12.5px; line-height:1.55; color:var(--muted); }

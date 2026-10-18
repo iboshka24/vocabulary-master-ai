@@ -177,6 +177,10 @@ function mockRes() {
       addEventListener: (e, fn) => {
         domListeners[id + ':' + e] = fn;
       },
+      attrs: {},
+      setAttribute(k, v) { this.attrs[k] = String(v); },
+      getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+      removeAttribute(k) { delete this.attrs[k]; },
       appendChild: () => {},
       focus: () => {},
       select: () => {},

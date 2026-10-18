@@ -155,6 +155,12 @@
               <span class="api-summary-status" id="apiSummaryStatus" data-i18n="api.auto">Авто-режим</span>
             </summary>
             <div class="api-body">
+              <div class="server-ai-note" id="serverAiNote" hidden>
+                <strong data-i18n="api.serverH">ИИ уже подключён</strong>
+                <p id="serverAiText">Сайт переводит через ИИ своим ключом. Ничего вводить не нужно — просто добавь слова и нажми «Создать тренировку».</p>
+                <button type="button" class="link" id="btnOwnKey" aria-expanded="false" aria-controls="apiOwn" data-i18n="api.ownKey">Использовать свой ключ (необязательно)</button>
+              </div>
+              <div id="apiOwn">
               <p class="hint" id="apiHint" data-i18n-html="api.hint">
                 <strong>Ключ можно дать позже.</strong> Без ключа работает встроенный бесплатный авто-переводчик. Для умных мнемоник и фильтрации подключи любой OpenAI-совместимый API — OpenAI, Groq, OpenRouter или DeepSeek.
               </p>
@@ -186,6 +192,7 @@
               <div class="row-gap">
                 <button class="chip-btn" id="btnSaveCfg" type="button" data-i18n="api.save">Сохранить</button>
                 <button class="chip-btn" id="btnResetCfg" type="button" data-i18n="api.reset">Сбросить</button>
+              </div>
               </div>
             </div>
           </details>
