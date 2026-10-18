@@ -112,3 +112,46 @@ assert.equal(legacy.interval, 18, 'pre-v2.7 box 4 (7 days) continues from 7 × 2
 assert.equal(legacy.due, 18 * DAY);
 assert.throws(() => L.schedule({}, 'perfect'));
 console.log('✓ SM-2 schedule: intervals, ease bounds, lapses, hard/good/easy ordering, legacy boxes');
+
+// --- backup export / restore ---
+const CODES = ['ru', 'en', 'uz'];
+const lib = {
+  decks: { 'en-ru': { source: 'en', target: 'ru', created: 1700000000000, cards: [
+    { original: 'apple', translation: 'яблоко', hint: 'h', definition: 'd', examples: ['e1'], streak: 2, fails: 1, box: 2, due: 123, ease: 2.36, interval: 6, reps: 2, lapses: 1 },
+    { original: 'pending', translation: '—', hint: '', definition: '', examples: [], streak: 0, fails: 0 }
+  ] } },
+  history: { '2026-10-17': { answers: 4, correct: 3, celebrated: true }, '2026-10-18': { answers: 1, correct: 1 } },
+  goal: 15, batch: 20,
+  streak: { count: 3, last: '2026-10-18', freezes: 1, enabled: true, checked: '2026-10-18' }
+};
+const roundTrip = L.restoreBackup(JSON.parse(JSON.stringify(L.backupFile(lib))), CODES);
+assert.deepEqual(JSON.parse(JSON.stringify(roundTrip)), lib, 'export → import is exact, absent SM-2 fields stay absent');
+
+const rejects = (data, code) => assert.throws(() => L.restoreBackup(data, CODES), e => e.code === code, code + ': ' + JSON.stringify(data).slice(0, 60));
+for (const data of [null, 42, 'x', {}, { version: 1, library: lib }, { version: 2 }, { version: 2, library: { decks: {}, history: {} } }, { version: 2, library: { decks: null, history: {}, streak: {} } }]) rejects(data, 'not-backup');
+const withDeck = d => ({ version: 2, library: { decks: { k: d }, history: {}, streak: {} } });
+for (const d of [null, { source: 'xx', target: 'ru', cards: [] }, { source: 'en', target: 'en', cards: [] }, { source: 'en', target: 'ru', cards: 'nope' }, { source: 'en', target: 'ru', cards: Array(5001).fill({ original: 'a', translation: 'b' }) }]) rejects(withDeck(d), 'bad-deck');
+for (const c of [null, {}, { original: '', translation: 'x' }, { original: '  ', translation: 'x' }, { original: 'a', translation: 5 }, { original: 'a'.repeat(501), translation: 'x' }, { original: 'a', translation: 'x'.repeat(1001) }]) rejects(withDeck({ source: 'en', target: 'ru', cards: [c] }), 'bad-word');
+
+const dirty = L.restoreBackup({ version: 2, library: {
+  decks: { whatever: { source: 'en', target: 'ru', cards: [{ original: 'a', translation: 'b', ease: 9, interval: 99999, box: -3, streak: 'abc', fails: -2, reps: '4', lapses: null, due: 'soon',
+    hint: 'h'.repeat(2000), examples: ['one', 2, 'three', 'four'], evil: '<script>', __proto__: { polluted: true } }] } },
+  history: { 'not-a-date': { answers: 5 }, '2026-01-01': { answers: '3', correct: 9, celebrated: 0 }, '2026-01-02': null },
+  goal: 9999, batch: 25,
+  streak: { count: -1, last: 'yesterday', freezes: 7, enabled: false, protectedThrough: '2026-01-02', checked: 'bad' }
+} }, CODES);
+const card0 = dirty.decks['en-ru'].cards[0];
+assert.equal(card0.ease, 5); assert.equal(card0.interval, 3650); assert.equal(card0.box, 0);
+assert.equal(card0.streak, 0); assert.equal(card0.fails, 0); assert.equal(card0.reps, 4); assert.equal(card0.lapses, undefined); assert.equal(card0.due, undefined);
+assert.equal(card0.hint.length, 1000); assert.deepEqual(card0.examples, ['one', 'three']);
+assert.equal('evil' in card0, false, 'unknown fields are dropped');
+assert.equal({}.polluted, undefined, 'no prototype pollution');
+assert.equal(typeof dirty.decks['en-ru'].created, 'number');
+assert.deepEqual(Object.keys(dirty.history), ['2026-01-01', '2026-01-02']);
+assert.deepEqual(dirty.history['2026-01-01'], { answers: 3, correct: 3 }, 'correct never exceeds answers; celebrated only when true');
+assert.equal(dirty.goal, 200); assert.equal(dirty.batch, 0);
+assert.deepEqual(dirty.streak, { count: 0, last: null, freezes: 2, enabled: false, protectedThrough: '2026-01-02' });
+const proto = L.restoreBackup(JSON.parse('{"version":2,"library":{"decks":{"__proto__":{"source":"uz","target":"ru","cards":[]}},"history":{},"streak":{}}}'), CODES);
+assert.deepEqual(Object.keys(proto.decks), ['uz-ru']); assert.equal({}.source, undefined);
+assert.deepEqual(L.librarySize(lib), { decks: 1, words: 2 }); assert.deepEqual(L.librarySize({}), { decks: 0, words: 0 });
+console.log('✓ Backups: exact round-trip, every malformed shape rejected with a code, values clamped, unknown fields and prototype keys ignored');

@@ -186,3 +186,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports._resetRateLimit = () => hits.clear();
+module.exports._rateLimitSize = () => hits.size;

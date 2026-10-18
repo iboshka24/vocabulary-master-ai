@@ -169,5 +169,48 @@
     }
     return out;
   }
-  return { day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
+  var DATE = /^\d{4}-\d{2}-\d{2}$/;
+  function backupFile(library) { return { version: 2, library: library }; }
+  // Validates a parsed backup file and returns a clean library. Nothing from the
+  // file is trusted: unknown fields are dropped, numbers are clamped, and fields
+  // that are absent stay absent so a backup restores exactly.
+  // Throws an Error whose .code is 'not-backup', 'bad-deck' or 'bad-word'.
+  function restoreBackup(data, langCodes) {
+    function fail(code) { var e = new Error(code); e.code = code; return e; }
+    function opt(v, min, max) { return v == null || v === '' || isNaN(Number(v)) ? undefined : Math.max(min, Math.min(max, Number(v))); }
+    function count(v) { return Math.max(0, Number(v) || 0); }
+    var incoming = data && data.version === 2 && data.library;
+    if (!incoming || typeof incoming !== 'object' || !incoming.decks || typeof incoming.decks !== 'object' || !incoming.history || !incoming.streak) throw fail('not-backup');
+    var langs = {};
+    (langCodes || []).forEach(function (c) { langs[c] = true; });
+    var decks = {};
+    Object.keys(incoming.decks).forEach(function (key) {
+      var d = incoming.decks[key];
+      if (!d || !langs[d.source] || !langs[d.target] || d.source === d.target || !Array.isArray(d.cards) || d.cards.length > 5000) throw fail('bad-deck');
+      var cards = d.cards.map(function (c) {
+        if (!c || typeof c.original !== 'string' || typeof c.translation !== 'string' || !c.original.trim() || c.original.length > 500 || c.translation.length > 1000) throw fail('bad-word');
+        return { original: c.original, translation: c.translation, hint: String(c.hint || '').slice(0, 1000), definition: String(c.definition || '').slice(0, 2000),
+          examples: Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0, 2).map(function (x) { return x.slice(0, 1000); }) : [],
+          streak: count(c.streak), fails: count(c.fails), box: opt(c.box, 0, 5), due: opt(c.due, 0, 1e14), ease: opt(c.ease, 1.3, 5),
+          interval: opt(c.interval, 0, 3650), reps: opt(c.reps, 0, 1e6), lapses: opt(c.lapses, 0, 1e6) };
+      });
+      decks[d.source + '-' + d.target] = { source: d.source, target: d.target, cards: cards, created: opt(d.created, 0, 1e14) || Date.now() };
+    });
+    var history = {};
+    Object.keys(incoming.history).filter(function (k) { return DATE.test(k); }).forEach(function (k) {
+      var h = incoming.history[k] || {};
+      history[k] = { answers: count(h.answers), correct: Math.min(count(h.answers), count(h.correct)) };
+      if (h.celebrated) history[k].celebrated = true;
+    });
+    var s = incoming.streak;
+    var streak = { count: count(s.count), last: DATE.test(s.last || '') ? s.last : null, freezes: Math.min(2, count(s.freezes)), enabled: s.enabled !== false };
+    ['checked', 'protectedThrough'].forEach(function (k) { if (DATE.test(s[k] || '')) streak[k] = s[k]; });
+    var batch = Number(incoming.batch);
+    return { decks: decks, history: history, goal: Math.max(1, Math.min(200, Number(incoming.goal) || 10)), batch: [10, 20, 30].indexOf(batch) >= 0 ? batch : 0, streak: streak };
+  }
+  function librarySize(library) {
+    var keys = Object.keys((library && library.decks) || {});
+    return { decks: keys.length, words: keys.reduce(function (n, k) { return n + library.decks[k].cards.length; }, 0) };
+  }
+  return { backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
 });

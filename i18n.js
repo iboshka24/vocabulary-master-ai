@@ -1,6 +1,7 @@
 /* Interface language: RU / EN / UZ. Each entry is [ru, en, uz]; plural entries hold arrays of forms. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(null);
+  // In Node, create(fakeWindow) builds an instance bound to a test DOM.
+  if (typeof module === 'object' && module.exports) { module.exports = factory(null); module.exports.create = factory; }
   else root.VMI18n = factory(root);
 })(typeof window !== 'undefined' ? window : this, function (win) {
   'use strict';
@@ -197,8 +198,8 @@
     'word.edit': ['Изменить', 'Edit', "O'zgartirish"],
     'word.remove': ['Убрать', 'Remove', 'Olib tashlash'],
     'word.prompt': ['Перевод для «{w}»', 'Translation for "{w}"', '«{w}» uchun tarjima'],
-    'confirm.deleteDeck': ['Удалить эту колоду и её прогресс?', 'Delete this deck and its progress?', "Bu koloda va uning natijalari o'chirilsinmi?"],
-    'confirm.replace': ['Заменить текущую библиотеку резервной копией?', 'Replace the current library with the backup?', 'Joriy kutubxona zaxira nusxa bilan almashtirilsinmi?'],
+    'confirm.deleteDeckDetail': ['Удалить колоду «{name}» ({w} сл.) вместе с прогрессом? Сразу после этого можно нажать «Отменить».', 'Delete the deck "{name}" ({w} words) with its progress? You can press Undo right after.', "«{name}» kolodasi ({w} ta so'z) natijalari bilan o'chirilsinmi? Shundan so'ng darhol «Bekor qilish»ni bosish mumkin."],
+    'confirm.replaceDetail': ['Сейчас в библиотеке колод: {d}, слов: {w}. В файле колод: {d2}, слов: {w2}. Заменить библиотеку файлом? Сразу после замены можно нажать «Отменить».', 'Your library now has {d} decks and {w} words; the file has {d2} decks and {w2} words. Replace the library with the file? You can press Undo right after.', "Hozir kutubxonada {d} ta koloda va {w} ta so'z bor; faylda {d2} ta koloda va {w2} ta so'z. Kutubxona fayl bilan almashtirilsinmi? Shundan so'ng darhol «Bekor qilish»ni bosish mumkin."],
     'motion.summary': ['За кулисами: Native motion / EffectCraft', 'Behind the scenes: Native motion / EffectCraft', 'Sahna ortida: Native motion / EffectCraft'],
     'motion.p': ['Спокойное движение интерфейса — CSS. Ниже — сохранённый рендер композиции из EffectCraft CLI; это отдельный motion-этюд, не стиль приложения.', 'The calm interface motion is CSS. Below is a saved render of an EffectCraft CLI composition — a separate motion study, not the app style.', "Interfeysdagi yumshoq harakat — CSS. Quyida EffectCraft CLI kompozitsiyasining saqlangan renderi — bu alohida motion-etyud, ilova uslubi emas."],
     'motion.native': ['Слово за словом.', 'Word by word.', "So'zma-so'z."],
@@ -218,7 +219,7 @@
     'quiz.saved': ['Ошибки сохранены: сложные слова вернутся в практику.', 'Mistakes are saved: hard words will come back to practice.', "Xatolar saqlandi: qiyin so'zlar mashqqa qaytadi."],
 
     'footer.tag': ['Меньше шума. Больше смысла.', 'Less noise. More meaning.', "Kamroq shovqin. Ko'proq ma'no."],
-    'footer.made': ['Сделано для ежедневной практики · v2.9', 'Made for daily practice · v2.9', 'Kundalik mashq uchun yaratilgan · v2.9'],
+    'footer.made': ['Сделано для ежедневной практики · v2.10', 'Made for daily practice · v2.10', 'Kundalik mashq uchun yaratilgan · v2.10'],
     'sum.title': ['Сессия завершена', 'Session complete', 'Sessiya yakunlandi'],
     'sum.continue': ['Продолжить цикл', 'Keep looping', 'Siklni davom ettirish'],
     'sum.newSet': ['Новый набор слов', 'New word set', "Yangi so'zlar to'plami"],
@@ -317,6 +318,15 @@
     'aiErr.bad-model-response': ['Ответ ИИ оказался непригодным.', 'The AI answer could not be used.', "AI javobidan foydalanib bo'lmadi."],
     'aiErr.bad-request': ['Список не подходит для ИИ (слишком длинный или неверные языки).', 'The list does not fit the AI request (too long or unsupported languages).', "Ro'yxat AI so'roviga mos emas (juda uzun yoki tillar noto'g'ri)."],
     'aiErr.forbidden-origin': ['Этот сайт не может пользоваться серверным ИИ.', 'This site may not use the server AI.', "Bu sayt server AI dan foydalana olmaydi."],
+    'undo.action': ['↶ Отменить', '↶ Undo', '↶ Bekor qilish'],
+    'undo.done': ['Отменено — всё как было.', 'Undone — everything is back.', 'Bekor qilindi — hammasi avvalgidek.'],
+    'undo.wordRemoved': ['Слово «{w}» убрано.', 'Removed "{w}".', "«{w}» so'zi olib tashlandi."],
+    'undo.deckDeleted': ['Колода «{name}» удалена.', 'Deck "{name}" deleted.', "«{name}» kolodasi o'chirildi."],
+    'undo.cleared': ['Список очищен.', 'List cleared.', "Ro'yxat tozalandi."],
+    'lib.empty1': ['Вставь слова на вкладке «Учить слова» — по одному в строке или пары «apple - яблоко».', 'Paste words on the "Study words" tab — one per line or pairs like "apple - pomme".', "«So'z o'rganish» bo'limiga so'zlarni joyla — har qatorda bittadan yoki «apple - olma» juftliklari."],
+    'lib.empty2': ['Нажми «Создать тренировку» — переводы подставятся сами.', 'Press "Start training" — translations are filled in for you.', "«Mashg'ulotni boshlash»ni bos — tarjimalar o'zi qo'yiladi."],
+    'lib.empty3': ['Слова и прогресс появятся здесь. Есть резервная копия? Восстанови её из файла.', 'Words and progress will appear here. Have a backup? Restore it from a file.', "So'zlar va natijalar shu yerda paydo bo'ladi. Zaxira nusxa bormi? Uni fayldan tikla."],
+    'test.empty': ['Для теста и игры нужна колода хотя бы из 4 слов.', 'The test and the game need a deck with at least 4 words.', "Test va o'yin uchun kamida 4 so'zli koloda kerak."],
     'mode.listen': ['🎧 На слух', '🎧 Listening', '🎧 Eshitib'],
     'listen.sub': ['слушай и напиши слово', 'listen and type the word', "tingla va so'zni yoz"],
     'listen.badge': ['аудирование', 'listening', 'tinglash'],
@@ -393,8 +403,9 @@
     if (!doc || typeof doc.querySelectorAll !== 'function') return;
     if (doc.documentElement) {
       doc.documentElement.lang = lang;
-      doc.title = t('meta.title');
-      var meta = doc.querySelector('meta[name="description"]'); if (meta) meta.setAttribute('content', t('meta.desc'));
+      if (doc.title !== t('meta.title')) doc.title = t('meta.title');
+      var meta = doc.querySelector('meta[name="description"]');
+      if (meta && meta.getAttribute('content') !== t('meta.desc')) meta.setAttribute('content', t('meta.desc'));
     }
     // Only touch nodes whose text actually changes: rewriting identical markup would
     // recreate the hero heading after load and push back Largest Contentful Paint.

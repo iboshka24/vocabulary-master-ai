@@ -201,4 +201,38 @@ function noSecrets(res) {
   delete process.env.AI_RATE_LIMIT; delete process.env.AI_RATE_WINDOW_MS; delete process.env.OPENAI_API_KEY;
   console.log('✓ /api/ai: per-IP sliding-window rate limit with Retry-After');
 
+  // --- remaining edges: env-driven config, body shapes, header forms, limiter memory bound
+  process.env.OPENAI_API_KEY = SERVER_KEY; process.env.OPENAI_MODEL = 'my-model'; process.env.OPENAI_BASE_URL = 'https://openrouter.ai/api/v1/';
+  process.env.VERCEL_URL = 'preview-123.vercel.app';
+  h = freshHandler();
+  provider = async () => modelReply(GOOD);
+  r = await call(h, request({ headers: { origin: 'https://preview-123.vercel.app', host: 'internal' } }));
+  assert.equal(r.statusCode, 200, 'the deployment URL is an allowed origin');
+  assert.equal(lastCall.url, 'https://openrouter.ai/api/v1/chat/completions'); assert.equal(lastCall.body.model, 'my-model');
+  assert.equal(lastCall.options.headers['X-Title'], 'Vocabulary Master AI', 'OpenRouter gets its attribution header');
+  r = await call(h, request({ headers: { origin: [ORIGIN, 'https://other'] } }));
+  assert.equal(r.statusCode, 200, 'repeated headers use the first value');
+  r = await call(h, request({ body: { words: ['a'], source: 'en', target: 'ru', pad: 'x'.repeat(20000) } }));
+  assert.equal(r.statusCode, 413, 'an oversize pre-parsed body is refused too');
+  r = await call(h, request({ body: undefined }));
+  assert.equal(r.statusCode, 400, 'a missing body is a bad request, not a crash');
+  delete process.env.OPENAI_MODEL; process.env.OPENAI_BASE_URL = 'https://api.tokenharbor.example/v1';
+  r = await call(h, request());
+  assert.equal(lastCall.body.model, 'claude-sonnet-4.6', 'TokenHarbor keeps its default model');
+  delete process.env.OPENAI_API_KEY; delete process.env.OPENAI_BASE_URL; delete process.env.VERCEL_URL;
+  h = freshHandler();
+  r = await call(h, request({ body: { words: ['apple'], source: 'en', target: 'ru', apiKey: USER_KEY } }));
+  assert.equal(r.statusCode, 200); assert.equal(lastCall.options.headers.Authorization, 'Bearer ' + USER_KEY, 'a key in the body still works for old clients');
+  noSecrets(r);
+  const noIp = request({ headers: { 'x-real-ip': '', 'x-forwarded-for': '' }, body: { words: ['apple'], source: 'en', target: 'ru', apiKey: USER_KEY } });
+  noIp.socket = { remoteAddress: '192.0.2.44' };
+  assert.equal((await call(h, noIp)).statusCode, 200, 'falls back to the socket address');
+  process.env.AI_RATE_WINDOW_MS = '1';
+  for (let i = 0; i < 5002; i++) await call(h, request({ headers: { 'x-real-ip': '10.' + (i >> 16 & 255) + '.' + (i >> 8 & 255) + '.' + (i & 255), authorization: 'Bearer ' + USER_KEY } }));
+  await new Promise(res => setTimeout(res, 5));
+  await call(h, request({ headers: { 'x-real-ip': '10.255.255.255', authorization: 'Bearer ' + USER_KEY } }));
+  assert(h._rateLimitSize() < 100, 'stale IPs are evicted once the table passes 5000 entries (size ' + h._rateLimitSize() + ')');
+  delete process.env.AI_RATE_WINDOW_MS;
+  console.log('✓ /api/ai: env-driven endpoint/model, deployment origin, body shapes, legacy body key, limiter memory stays bounded');
+
 })().catch(err => { console.error(err); process.exitCode = 1; });

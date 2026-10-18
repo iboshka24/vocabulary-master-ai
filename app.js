@@ -211,14 +211,20 @@
   var toastTimer = null;
   var toastHideTimer = null;
   var importantUntil = 0;
-  function toast(msg, type, ms) {
+  function toast(msg, type, ms, action) {
     var t = $('toast');
     if (!t) return;
     // A long error message (storage full, offline...) is not replaced by routine confirmations.
     if (type !== 'err' && Date.now() < importantUntil) return;
     importantUntil = type === 'err' && (ms || 0) >= 6000 ? Date.now() + ms : 0;
     t.textContent = msg;
-    t.className = 'toast ' + (type || '');
+    if (action) {
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'toast-action'; btn.textContent = action.label;
+      btn.onclick = function () { clearTimeout(toastTimer); t.hidden = true; action.run(); };
+      t.appendChild(btn);
+    }
+    t.className = 'toast ' + (type || '') + (action ? ' has-action' : '');
     t.hidden = false;
     clearTimeout(toastTimer);
     clearTimeout(toastHideTimer);
@@ -1327,6 +1333,28 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; });
   }
 
+  // Destructive library actions (replace by import, delete deck, remove word, clear list)
+  // are undoable for a few seconds: toast button or U.
+  var libraryUndo = null, libraryUndoTimer = null;
+  function offerUndo(message, restore) {
+    libraryUndo = restore;
+    clearTimeout(libraryUndoTimer);
+    libraryUndoTimer = setTimeout(function () { libraryUndo = null; }, 10000);
+    toast(message, 'ok', 8000, { label: tr('undo.action'), run: runLibraryUndo });
+  }
+  function runLibraryUndo() {
+    var restore = libraryUndo;
+    if (!restore) return false;
+    libraryUndo = null; clearTimeout(libraryUndoTimer);
+    restore();
+    toast(tr('undo.done'), 'ok', 2200);
+    return true;
+  }
+  function snapshotLibrary() { return JSON.parse(JSON.stringify(library)); }
+  function restoreLibrary(previous) {
+    return function () { library = previous; persistLibrary(); renderLibrary(); renderDaily(); };
+  }
+
   function swapLanguages() {
     var s = state.cfg.source; state.cfg.source = state.cfg.target; state.cfg.target = s;
     $('sourceLang').value = state.cfg.source; $('targetLang').value = state.cfg.target; saveCfg();
@@ -1594,7 +1622,12 @@
     renderActivity(); renderSearch();
     var keys = Object.keys(library.decks);
     if (!keys.length) {
-      host.innerHTML = '<div class="empty-library"><h2>' + tr('lib.emptyH') + '</h2><p>' + tr('lib.emptyP') + '</p><button class="btn primary" type="button" data-action="new">' + tr('lib.emptyBtn') + '</button></div>';
+      host.innerHTML = '<div class="empty-library"><h2>' + tr('lib.emptyH') + '</h2><p>' + tr('lib.emptyP') + '</p>' +
+        '<ol class="empty-steps"><li>' + tr('lib.empty1') + '</li><li>' + tr('lib.empty2') + '</li><li>' + tr('lib.empty3') + '</li></ol>' +
+        '<div class="actions"><button class="btn primary" type="button" data-action="new">' + tr('lib.emptyBtn') + '</button>' +
+        '<button class="btn" type="button" data-action="demo">' + tr('setup.demo') + '</button>' +
+        '<label class="btn" for="importLibrary">' + tr('lib.import') + '</label></div></div>';
+      host.querySelector('[data-action="demo"]').onclick = function () { $('btnDemo').click(); };
       host.querySelector('button').onclick = function () { navigateLearning('screen-setup'); };
       return;
     }
@@ -1616,7 +1649,11 @@
           if (value === null || !value.trim()) return;
           c.translation = value.trim(); persistLibrary(); renderLibrary();
         };
-        row.querySelector('[data-act="remove"]').onclick = function () { d.cards.splice(i,1); persistLibrary(); renderLibrary(); };
+        row.querySelector('[data-act="remove"]').onclick = function () {
+          var previous = snapshotLibrary();
+          d.cards.splice(i, 1); persistLibrary(); renderLibrary();
+          offerUndo(tr('undo.wordRemoved', { w: c.original }), restoreLibrary(previous));
+        };
         list.appendChild(row);
       });
       panel.querySelector('[data-act="practice"]').onclick = function () {
@@ -1632,8 +1669,11 @@
         navigateLearning('screen-setup'); $('input').focus(); updateInputStat(true);
       };
       panel.querySelector('[data-act="delete"]').onclick = function () {
-        if (!window.confirm(tr('confirm.deleteDeck'))) return;
+        var name = langByCode(d.source).label + ' → ' + langByCode(d.target).label;
+        if (!window.confirm(tr('confirm.deleteDeckDetail', { name: name, w: d.cards.length }))) return;
+        var previous = snapshotLibrary();
         delete library.decks[key]; persistLibrary(); renderLibrary();
+        offerUndo(tr('undo.deckDeleted', { name: name }), restoreLibrary(previous));
       };
       host.appendChild(panel);
     });
@@ -1660,6 +1700,9 @@
   function fillQuizDecks() {
     lexical = null; $('quizBody').hidden = true; $('btnQuizStart').hidden = false;
     var sel = $('quizDeck'); sel.innerHTML = '';
+    var empty = !Object.keys(library.decks).length;
+    $('quizEmpty').hidden = !empty;
+    sel.disabled = $('btnQuizStart').disabled = $('btnMatchStart').disabled = empty;
     Object.keys(library.decks).forEach(function (key) {
       var d = library.decks[key]; var opt = document.createElement('option');
       opt.value = key; opt.textContent = langByCode(d.source).label + ' → ' + langByCode(d.target).label + ' · ' + d.cards.length;
@@ -1722,48 +1765,36 @@
     $('batchSize').onchange = function () { library.batch = Number(this.value) || 0; persistLibrary(); };
     $('btnUndo').onclick = undoAnswer;
     $('btnMatchStart').onclick = startMatch;
+    $('btnQuizEmpty').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
     $('btnHint').onclick = showHint;
     $('btnHintTyping').onclick = showHint;
     $('freezeEnabled').onchange =function () { library.streak.enabled = this.checked; persistLibrary(); renderDaily(); };
     $('dailyGoal').onchange = function () { library.goal = Math.max(1, Math.min(200, Number(this.value) || 10)); persistLibrary(); renderDaily(); };
     $('btnExportLibrary').onclick = function () {
       // Library exports never include API keys or provider configuration.
-      var blob = new Blob([JSON.stringify({ version: 2, library: library }, null, 2)], { type: 'application/json' });
+      var blob = new Blob([JSON.stringify(L.backupFile(library), null, 2)], { type: 'application/json' });
       var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'vocabulary-master-' + L.day() + '.json'; link.click();
       setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
     };
     $('importLibrary').onchange = async function () {
-      var file = this.files[0]; if (!file) return;
+      // Reset the picker first, so choosing the same file again (e.g. after Cancel) still fires.
+      var file = this.files[0]; this.value = '';
+      if (!file) return;
       try {
         if (file.size > 5000000) throw new Error(tr('err.fileBig'));
         var data;
         try { data = JSON.parse(await file.text()); } catch (parseErr) { throw new Error(tr('err.badJson')); }
-        var incoming = data && data.library;
-        if (!incoming || !incoming.decks || !incoming.history || !incoming.streak || data.version !== 2) throw new Error(tr('err.notBackup'));
-        // Scheduling fields are clamped but never invented, so a backup round-trips exactly.
-        var opt = function (v, min, max) { return v == null || isNaN(Number(v)) ? undefined : Math.max(min, Math.min(max, Number(v))); };
-        var safeDecks = {};
-        Object.keys(incoming.decks).forEach(function (key) {
-          var d = incoming.decks[key];
-          if (!LANGS.some(function (l) { return l.code === d.source; }) || !LANGS.some(function (l) { return l.code === d.target; }) || !Array.isArray(d.cards) || d.cards.length > 5000) throw new Error(tr('err.badDeck'));
-          var cards = d.cards.map(function (c) {
-            if (typeof c.original !== 'string' || typeof c.translation !== 'string' || !c.original.trim() || c.original.length > 500 || c.translation.length > 1000) throw new Error(tr('err.badWord'));
-            return { original:c.original, translation:c.translation, hint:String(c.hint || '').slice(0,1000), definition:String(c.definition || '').slice(0,2000), examples:Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0,2).map(function (x) { return x.slice(0,1000); }) : [], streak:Math.max(0,Number(c.streak)||0), fails:Math.max(0,Number(c.fails)||0), box:opt(c.box, 0, 5), due:opt(c.due, 0, 1e14), ease:opt(c.ease, 1.3, 5), interval:opt(c.interval, 0, 3650), reps:opt(c.reps, 0, 1e6), lapses:opt(c.lapses, 0, 1e6) };
-          });
-          safeDecks[d.source + '-' + d.target] = { source:d.source, target:d.target, cards:cards, created:Date.now() };
-        });
-        if (!window.confirm(tr('confirm.replace'))) return;
-        // Import vocabulary and history, but do not trust arbitrary runtime fields.
-        var safeHistory = {};
-        Object.keys(incoming.history).filter(function (k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }).forEach(function (k) {
-          var h = incoming.history[k] || {}; safeHistory[k] = { answers:Math.max(0,Number(h.answers)||0), correct:Math.max(0,Number(h.correct)||0) }; if (h.celebrated) safeHistory[k].celebrated = true;
-        });
-        var safeStreak = { count:Math.max(0,Number(incoming.streak.count)||0), last:/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak.last || '') ? incoming.streak.last : null, freezes:Math.max(0,Math.min(2,Number(incoming.streak.freezes)||0)), enabled:incoming.streak.enabled !== false };
-        ['checked','protectedThrough'].forEach(function (key) { if (/^\d{4}-\d{2}-\d{2}$/.test(incoming.streak[key] || '')) safeStreak[key] = incoming.streak[key]; });
-        library = { decks:safeDecks, history:safeHistory, goal:Math.max(1,Math.min(200,Number(incoming.goal)||10)), batch:[10,20,30].indexOf(Number(incoming.batch)) >= 0 ? Number(incoming.batch) : 0, streak:safeStreak };
-        L.reconcile(library.streak,L.day()); persistLibrary(); renderLibrary(); renderDaily(); toast(tr('toast.restored'), 'ok');
+        var restored;
+        try { restored = L.restoreBackup(data, LANGS.map(function (l) { return l.code; })); }
+        catch (e) { throw new Error(tr({ 'not-backup': 'err.notBackup', 'bad-deck': 'err.badDeck', 'bad-word': 'err.badWord' }[e.code] || 'err.readFile')); }
+        var now = L.librarySize(library), next = L.librarySize(restored);
+        // Nothing to lose in an empty library; otherwise say exactly what is replaced.
+        if (now.words && !window.confirm(tr('confirm.replaceDetail', { d: now.decks, w: now.words, d2: next.decks, w2: next.words }))) return;
+        var previous = snapshotLibrary();
+        library = restored;
+        L.reconcile(library.streak, L.day()); persistLibrary(); renderLibrary(); renderDaily();
+        offerUndo(tr('toast.restored'), restoreLibrary(previous));
       } catch(err) { toast(err.message || tr('err.readFile'), 'err'); }
-      this.value = '';
     };
     $('typingForm').onsubmit = checkTypedAnswer;
     $('btnNextAnswer').onclick = function () {
@@ -1857,9 +1888,11 @@
     /* setup events */
     $('input').addEventListener('input', updateInputStat);
     $('btnClear').addEventListener('click', function () {
+      var previous = $('input').value;
       $('input').value = '';
       updateInputStat();
       $('input').focus();
+      if (L && previous.trim()) offerUndo(tr('undo.cleared'), function () { $('input').value = previous; updateInputStat(true); $('input').focus(); });
     });
 
     $('btnPaste').addEventListener('click', async function () {
@@ -2109,6 +2142,8 @@
         }
       } else if (!$('summary').hidden && k === 'Escape') {
         hideSummary();
+      } else if (L && (k === 'u' || k === 'U' || k === 'г' || k === 'Г') && runLibraryUndo()) {
+        e.preventDefault();
       }
     });
 

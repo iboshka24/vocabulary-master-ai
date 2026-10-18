@@ -305,3 +305,12 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .card:focus-visible { outline:2px solid var(--amber); outline-offset:6px; border-radius:14px; }
 .match-tile:focus-visible,.quiz-option:focus-visible,.nav-link:focus-visible { outline:2px solid var(--amber); outline-offset:3px; }
 @media(max-width:720px) { #rowShown { grid-template-columns:1fr 1fr; } }
+
+/* v2.10 — undo toasts, empty states */
+.toast.has-action { display:flex; align-items:center; gap:14px; text-align:left; }
+.toast-action { flex:none; border:1px solid var(--stroke); background:var(--bg); color:var(--text); border-radius:6px; padding:6px 10px; font:600 12px var(--font-ui); cursor:pointer; }
+.toast-action:hover { border-color:var(--amber); color:var(--amber); }
+.empty-steps { max-width:520px; margin:0 auto 26px; padding-left:22px; text-align:left; font-size:13px; line-height:1.7; color:var(--muted); }
+.empty-steps li::marker { color:var(--amber); font-weight:600; }
+.empty-library .actions { justify-content:center; }
+.quiz-empty { margin:0 0 18px; padding:12px 14px; border:1px dashed var(--stroke); border-radius:8px; font-size:13px; color:var(--muted); }
