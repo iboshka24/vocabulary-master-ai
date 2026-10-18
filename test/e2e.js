@@ -634,7 +634,7 @@ run.server(server);
   await page.click('#btnSideGemini');
   await page.locator('#apiBox[open]').waitFor();
   assert.equal(await page.inputValue('#cfgBaseUrl'), 'https://generativelanguage.googleapis.com/v1beta/openai');
-  assert.equal(await page.inputValue('#cfgModel'), 'gemini-2.5-flash');
+  assert.equal(await page.inputValue('#cfgModel'), 'gemini-3.5-flash-lite');
   assert(await page.locator('.prov-chip[data-prov="gemini"].active').count(), 'the Gemini chip is selected');
   await page.click('.prov-chip[data-prov="free"]');
   await page.click('#navLibrary');

@@ -226,7 +226,7 @@ function noSecrets(res) {
   r = await call(h, request({ body: { words: ['apple'], source: 'en', target: 'uz', baseUrl: 'https://api.groq.com/openai/v1', model: 'x' } }));
   assert.equal(r.statusCode, 200, 'GEMINI_API_KEY works as the server key');
   assert.equal(lastCall.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', 'the Gemini server key is pinned to Google');
-  assert.equal(lastCall.body.model, 'gemini-2.5-flash'); assert.equal(lastCall.body.reasoning_effort, 'low');
+  assert.equal(lastCall.body.model, 'gemini-3.5-flash-lite'); assert.equal(lastCall.body.reasoning_effort, 'low');
   assert.match(lastCall.body.messages[0].content, /official Latin alphabet/, 'Uzbek gets its script rule');
   process.env.GEMINI_MODEL = 'gemini-2.5-pro';
   await call(h, request());

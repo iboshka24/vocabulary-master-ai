@@ -370,6 +370,7 @@
       if (r.ok) {
         var d = await r.json();
         state.serverHasKey = Boolean(d.serverKeyConfigured);
+        if (document.body) document.body.classList.toggle('server-ai', state.serverHasKey); // the site's own key: nothing to connect
         state.serverAvailable = true;
       } else {
         state.serverAvailable = false;

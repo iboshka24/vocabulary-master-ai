@@ -137,3 +137,4 @@
   .filter-row .link { margin-left:0; }
 }
 @media (prefers-reduced-motion:reduce) { .sidebar, .deck-item, .cover-play { transition:none; } }
+.server-ai .side-card { display:none; }

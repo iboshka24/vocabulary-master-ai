@@ -11,7 +11,7 @@
  *   OPENAI_BASE_URL       https endpoint for the server key (default https://api.openai.com/v1)
  *   OPENAI_MODEL          model for the server key
  *   GEMINI_API_KEY        alternative server key for Google Gemini (free tier at aistudio.google.com); used when
- *                         OPENAI_API_KEY is not set. GEMINI_MODEL picks the model (default gemini-2.5-flash)
+ *                         OPENAI_API_KEY is not set. GEMINI_MODEL picks the model (default gemini-3.5-flash-lite)
  *   ALLOWED_ORIGINS       extra comma-separated origins allowed to call (the deployment's own host always is)
  *   AI_ALLOWED_HOSTS      extra provider hosts for "bring your own key" requests
  *   AI_RATE_LIMIT / AI_RATE_LIMIT_BYOK / AI_RATE_WINDOW_MS   per-IP limits (default 30 / 120 per 10 min)

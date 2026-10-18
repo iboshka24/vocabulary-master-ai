@@ -73,7 +73,7 @@
   }
 
   // Google Gemini through its OpenAI-compatible endpoint.
-  var GEMINI = { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' };
+  var GEMINI = { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.5-flash-lite' };
   function isGemini(baseUrl) { return /^https:\/\/generativelanguage\.googleapis\.com\//i.test(String(baseUrl || '')); }
 
   // The /chat/completions body, shared by the server and the browser fallback.
