@@ -46,14 +46,17 @@ function layoutProblems() {
   const origin = 'http://127.0.0.1:' + server.address().port;
   const browser = run.browser(await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined }));
   const report = [];
-  for (const lang of LANGS) for (const theme of THEMES) for (const width of WIDTHS) {
+  // Every language/theme/width at normal size, plus extra-large text on a phone in each language.
+  const combos = LANGS.flatMap(lang => THEMES.flatMap(theme => WIDTHS.map(width => ({ lang, theme, width, size: 'm' }))))
+    .concat(LANGS.map(lang => ({ lang, theme: 'light', width: 375, size: 'xl' })));
+  for (const { lang, theme, width, size } of combos) {
     const context = await browser.newContext({ viewport: { width, height: width < 600 ? 812 : 900 }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: lang, hasTouch: width < 600, isMobile: width < 600 });
-    await context.addInitScript(([l, t]) => { try { localStorage.setItem('vm.ui-lang', l); localStorage.setItem('vm.theme', t); } catch (e) {} }, [lang, theme]);
+    await context.addInitScript(([l, t, z]) => { try { localStorage.setItem('vm.ui-lang', l); localStorage.setItem('vm.display', JSON.stringify({ theme: t, size: z })); } catch (e) {} }, [lang, theme, size]);
     const page = await context.newPage();
     const shot = async scene => {
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(150);
-      const name = `${lang}-${theme}-${width}-${scene}.png`;
+      const name = `${lang}-${theme}-${width}${size === 'm' ? '' : '-' + size}-${scene}.png`;
       await page.screenshot({ path: path.join(outDir, name), fullPage: true });
       for (const p of await page.evaluate(layoutProblems)) report.push(`${name}: ${p}`);
     };
@@ -93,7 +96,7 @@ function layoutProblems() {
     await shot('8-preview');
     await context.close();
   }
-  console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 8} snapshots in ${path.relative(root, outDir)}`);
+  console.log(`Screens: ${combos.length * 8} snapshots in ${path.relative(root, outDir)}`);
   if (report.length) { console.log('Layout problems:\n  ' + [...new Set(report)].join('\n  ')); process.exitCode = 1; }
   else console.log('✓ No horizontal overflow or clipped text found');
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());

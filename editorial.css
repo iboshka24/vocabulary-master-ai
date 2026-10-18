@@ -414,3 +414,34 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
    which made the browser download latin-ext and cyrillic-ext webfont files (~110 KB) and re-layout the page.
    A system UI font here avoids that; the extended subsets still load when a deck actually needs them. */
 .lang-pair select { font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+/* v2.15 — reading comfort: text size, high contrast (AAA text, 3:1 borders), wider spacing */
+:root[data-size="s"] body { zoom:.92; }
+:root[data-size="l"] body { zoom:1.12; }
+:root[data-size="xl"] body { zoom:1.25; }
+:root[data-contrast="high"] { --muted:#52524a; --amber:#6a4b24; --amber-3:#6a4b24; --emerald:#335946; --rose:#803e36; --stroke:#8c8b84; --stroke-soft:#b4b2a9; }
+:root[data-theme="dark"][data-contrast="high"] { --muted:#adaf9f; --amber:#d7b175; --amber-3:#d7b175; --emerald:#90b99b; --rose:#daa093; --stroke:#6c6f68; --stroke-soft:#55584f; }
+:root[data-contrast="high"] .link, :root[data-contrast="high"] .nav-link.active { text-decoration-thickness:2px; }
+:root[data-contrast="high"] :focus-visible { outline-width:3px; }
+:root[data-spacing="wide"] body { letter-spacing:.05em; word-spacing:.16em; line-height:1.8; }
+:root[data-spacing="wide"] :is(p, li, .mini, .hint, .sub, .hint-text, .card-hint, .card-sub, .context-block, .saved-word, .chart-caption, .prog-tile-note, .answer-feedback, .toast) { line-height:1.8; }
+.display-card { width:min(460px,100%); }
+.disp-group { border:0; padding:0; margin:0; }
+.disp-group legend { font:10px var(--font-mono); text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:8px; padding:0; }
+.choice-row { display:flex; gap:4px; padding:3px; border:1px solid var(--stroke); border-radius:8px; background:var(--bg); }
+.choice-row label { flex:1; position:relative; display:flex; align-items:center; justify-content:center; min-height:40px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:13px; color:var(--muted); text-align:center; }
+.choice-row input { position:absolute; opacity:0; width:1px; height:1px; margin:0; }
+.choice-row label:has(input:checked) { background:var(--surface); color:var(--text); font-weight:600; box-shadow:0 1px 3px #0000001a; }
+.choice-row label:has(input:focus-visible) { outline:2px solid var(--amber); outline-offset:2px; }
+.size-mark { font-family:var(--font-display); line-height:1; }
+.size-mark.s { font-size:13px; } .size-mark.m { font-size:16px; } .size-mark.l { font-size:19px; } .size-mark.xl { font-size:23px; }
+.disp-check { display:flex; align-items:flex-start; gap:10px; font-size:14px; color:var(--text); cursor:pointer; }
+.disp-check input { margin-top:3px; }
+.disp-preview { border-left:3px solid var(--amber); padding-left:10px; margin:0; }
+#btnDisplay { font:600 13px var(--font-display); }
+/* Zoomed text sizes shrink the room inside the bar while media queries still see the real width:
+   let the bar wrap onto a second row instead of pushing buttons off-screen. */
+.topbar { flex-wrap:wrap; row-gap:12px; }
+.topbar-right { flex-wrap:wrap; justify-content:flex-end; row-gap:8px; }
+.hero { overflow-x:clip; } /* the rotated sample cards are decoration; at large text sizes they must not widen the page */
+.card-word { hyphens:auto; overflow-wrap:break-word; }

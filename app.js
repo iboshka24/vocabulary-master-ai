@@ -738,6 +738,9 @@
       setTimeout(function () { if (state.current === c && !state.revealed) speakText(c.original, state.cfg.source); }, 380);
     }
     if (L) $('typedAnswer').placeholder = tr(isListen() ? 'listen.ph' : 'typing.ph');
+    // Each face declares its language so long words hyphenate correctly instead of breaking anywhere.
+    $('cardWord').lang = isListen() ? '' : (fwd ? state.cfg.source : state.cfg.target);
+    $('cardTrans').lang = isListen() || !fwd ? state.cfg.source : state.cfg.target;
     if (L) { cardElLabel(); announce(''); }
 
     var cardEl = $('card');
@@ -1609,6 +1612,58 @@
     if (window.VMMotion) window.VMMotion.library();
   }
 
+  /* ---------------- Display settings (theme, text size, contrast, spacing) ---------------- */
+  // The inline script in <head> has already applied the saved settings before the first paint.
+  var display = null, displayOpener = null;
+  function prefersDark() { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+  function applyDisplay(settings, persist) {
+    var D = window.VMDisplay;
+    display = D.normalize(settings);
+    D.apply(document.documentElement, D.resolve(display, prefersDark()));
+    if (persist && !D.save(localStorage, display)) toast(tr('toast.saveFail'), 'err');
+    syncDisplayForm();
+    // Charts measure their container in CSS pixels, which change with the text size.
+    if ($('screen-progress').classList.contains('active')) renderProgress();
+  }
+  function syncDisplayForm() {
+    document.querySelectorAll('input[name="dispTheme"]').forEach(function (r) { r.checked = r.value === display.theme; });
+    document.querySelectorAll('input[name="dispSize"]').forEach(function (r) { r.checked = r.value === display.size; });
+    $('dispContrast').checked = display.contrast; $('dispSpacing').checked = display.spacing;
+  }
+  function readDisplayForm() {
+    var pick = function (name) { var c = document.querySelector('input[name="' + name + '"]:checked'); return c ? c.value : null; };
+    return { theme: pick('dispTheme'), size: pick('dispSize'), contrast: $('dispContrast').checked, spacing: $('dispSpacing').checked };
+  }
+  function openDisplay() {
+    displayOpener = document.activeElement;
+    syncDisplayForm();
+    $('displayDialog').hidden = false;
+    var current = document.querySelector('input[name="dispTheme"]:checked');
+    if (current) current.focus();
+  }
+  function closeDisplay() {
+    $('displayDialog').hidden = true;
+    if (displayOpener && displayOpener.focus) displayOpener.focus();
+  }
+  function initDisplay() {
+    if (!window.VMDisplay) return;
+    display = window.VMDisplay.load(localStorage);
+    applyDisplay(display, false);
+    $('btnDisplay').onclick = openDisplay;
+    $('btnDisplayClose').onclick = closeDisplay;
+    $('btnDisplayReset').onclick = function () { applyDisplay(window.VMDisplay.DEFAULTS, true); };
+    $('displayDialog').addEventListener('change', function () { applyDisplay(readDisplayForm(), true); });
+    // ◐ stays a one-click switch between light and dark.
+    $('btnTheme').onclick = function () {
+      applyDisplay(Object.assign({}, display, { theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' }), true);
+    };
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var follow = function () { if (display.theme === 'system') applyDisplay(display, false); };
+      if (mq.addEventListener) mq.addEventListener('change', follow); else if (mq.addListener) mq.addListener(follow);
+    }
+  }
+
   /* ---------------- Sharing a deck by link (#deck=…, never sent to a server) ---------------- */
   var shareState = { deck: null, link: '', title: '', opener: null }, previewDeck = null, qrLoading = null;
   function langCodes() { return LANGS.map(function (l) { return l.code; }); }
@@ -2004,10 +2059,7 @@
     document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === state.cfg.mode); b.onclick = function () {
       state.cfg.mode = b.dataset.mode; saveCfg(); document.querySelectorAll('#modeSeg button').forEach(function (btn) { btn.classList.toggle('on', btn === b); });
     }; });
-    $('btnTheme').onclick = function () {
-      var root = document.documentElement; root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem('vm.theme', root.dataset.theme); } catch(e) {}
-    };
+    initDisplay();
     $('navStudy').onclick = function () { navigateLearning('screen-setup'); };
     $('navLibrary').onclick = function () { navigateLearning('screen-library'); };
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
@@ -2369,8 +2421,8 @@
     document.addEventListener('keydown', function (e) {
       // Alt+X swaps languages on the setup screen, even while typing the word list.
       if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
-      if (!$('shareDialog').hidden || !$('sharePreview').hidden) {
-        if (e.key === 'Escape') { e.preventDefault(); if (!$('shareDialog').hidden) closeShare(); else closePreview(); }
+      if (!$('shareDialog').hidden || !$('sharePreview').hidden || !$('displayDialog').hidden) {
+        if (e.key === 'Escape') { e.preventDefault(); if (!$('displayDialog').hidden) closeDisplay(); else if (!$('shareDialog').hidden) closeShare(); else closePreview(); }
         return;
       }
       if (e.target.matches('input,textarea,select')) return;

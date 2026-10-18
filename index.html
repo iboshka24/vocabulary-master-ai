@@ -10,11 +10,11 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.14" />
-  <link rel="stylesheet" href="styles.css?v=2.14" />
-  <link rel="stylesheet" href="editorial.css?v=2.14" />
-  <link rel="stylesheet" href="motion.css?v=2.14" />
-  <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.15" />
+  <link rel="stylesheet" href="styles.css?v=2.15" />
+  <link rel="stylesheet" href="editorial.css?v=2.15" />
+  <link rel="stylesheet" href="motion.css?v=2.15" />
+  <script>try{var r=document.documentElement,s=JSON.parse(localStorage.getItem('vm.display')||'null')||{},t=/^(system|light|dark)$/.test(s.theme)?s.theme:localStorage.getItem('vm.theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t==='dark'?'dark':'light';if(/^(s|l|xl)$/.test(s.size))r.dataset.size=s.size;if(s.contrast===true)r.dataset.contrast='high';if(s.spacing===true)r.dataset.spacing='wide'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
   <header class="topbar">
@@ -37,6 +37,7 @@
       <span class="streak-indicator" title="Дни с завершённой тренировкой" data-i18n-attr="title:top.streak"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
       <label class="ui-lang" title="Язык интерфейса" data-i18n-attr="title:top.uiLang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20" /></svg><select id="uiLang" aria-label="Язык интерфейса" data-i18n-attr="aria-label:top.uiLang"><option value="ru">RU</option><option value="en">EN</option><option value="uz">UZ</option></select></label>
       <button class="icon-btn" id="btnInstall" type="button" hidden title="Установить приложение" aria-label="Установить приложение" data-i18n-attr="title:top.install,aria-label:top.install"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg></button>
+      <button class="icon-btn" id="btnDisplay" type="button" title="Отображение: тема, размер текста, контраст" aria-label="Настройки отображения" aria-haspopup="dialog" data-i18n-attr="title:top.displayTitle,aria-label:top.display">Aa</button>
       <button class="icon-btn" id="btnTheme" type="button" title="Сменить тему" aria-label="Сменить тему" data-i18n-attr="title:top.theme,aria-label:top.theme">◐</button>
       <button class="icon-btn motion-toggle" id="btnMotion" type="button" title="3D-анимации" aria-label="Настроить анимации" aria-pressed="true">3D</button>
       <span class="pill" id="topPill" hidden></span>
@@ -355,7 +356,7 @@
       </div>
     </section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.14</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.15</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -370,6 +371,34 @@
         <button class="btn ghost" id="btnNewSet" type="button" data-i18n="sum.newSet">Новый набор слов</button>
       </div>
       <button class="link" id="btnCopyStats" type="button" data-i18n="sum.copy">Скопировать статистику</button>
+    </div>
+  </div>
+
+  <!-- ============ DISPLAY SETTINGS ============ -->
+  <div class="overlay" id="displayDialog" hidden role="dialog" aria-modal="true" aria-labelledby="displayTitle">
+    <div class="panel share-card display-card">
+      <h2 id="displayTitle" data-i18n="disp.title">Отображение</h2>
+      <fieldset class="disp-group">
+        <legend data-i18n="disp.theme">Тема</legend>
+        <div class="choice-row">
+          <label><input type="radio" name="dispTheme" value="system" /><span data-i18n="disp.themeSystem">Как в системе</span></label>
+          <label><input type="radio" name="dispTheme" value="light" /><span data-i18n="disp.themeLight">Светлая</span></label>
+          <label><input type="radio" name="dispTheme" value="dark" /><span data-i18n="disp.themeDark">Тёмная</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="disp-group">
+        <legend data-i18n="disp.size">Размер текста</legend>
+        <div class="choice-row size-row">
+          <label><input type="radio" name="dispSize" value="s" /><span class="size-mark s" aria-hidden="true">A</span><span class="sr-only" data-i18n="disp.sizeS">Мелкий</span></label>
+          <label><input type="radio" name="dispSize" value="m" /><span class="size-mark m" aria-hidden="true">A</span><span class="sr-only" data-i18n="disp.sizeM">Обычный</span></label>
+          <label><input type="radio" name="dispSize" value="l" /><span class="size-mark l" aria-hidden="true">A</span><span class="sr-only" data-i18n="disp.sizeL">Крупный</span></label>
+          <label><input type="radio" name="dispSize" value="xl" /><span class="size-mark xl" aria-hidden="true">A</span><span class="sr-only" data-i18n="disp.sizeXL">Очень крупный</span></label>
+        </div>
+      </fieldset>
+      <label class="disp-check"><input type="checkbox" id="dispContrast" /> <span data-i18n="disp.contrast">Повышенная контрастность</span></label>
+      <label class="disp-check"><input type="checkbox" id="dispSpacing" /> <span data-i18n="disp.spacing">Увеличенные интервалы между буквами и строками</span></label>
+      <p class="mini disp-preview" data-i18n="disp.preview">Так выглядит обычный текст: вспомни перевод, потом переверни карточку.</p>
+      <div class="actions"><button class="btn" type="button" id="btnDisplayReset" data-i18n="disp.reset">Сбросить</button><button class="btn primary" type="button" id="btnDisplayClose" data-i18n="disp.done">Готово</button></div>
     </div>
   </div>
 
@@ -408,11 +437,12 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="i18n.js?v=2.14"></script>
-  <script defer src="motion.js?v=2.14"></script>
-  <script defer src="learning.js?v=2.14"></script>
-  <script defer src="ai-core.js?v=2.14"></script>
-  <script defer src="share.js?v=2.14"></script>
-  <script defer src="app.js?v=2.14"></script>
+  <script defer src="display.js?v=2.15"></script>
+  <script defer src="i18n.js?v=2.15"></script>
+  <script defer src="motion.js?v=2.15"></script>
+  <script defer src="learning.js?v=2.15"></script>
+  <script defer src="ai-core.js?v=2.15"></script>
+  <script defer src="share.js?v=2.15"></script>
+  <script defer src="app.js?v=2.15"></script>
 </body>
 </html>
