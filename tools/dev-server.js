@@ -4,6 +4,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const aiHandler = require('../api/ai.js');
 const vercelHeaders = require('./vercel-headers.js');
 
@@ -36,7 +37,17 @@ http.createServer((req, res) => {
   if (!file.startsWith(root + path.sep) || rel.split('/').some(seg => seg.startsWith('.') || seg === 'node_modules')) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
-    res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
+    const type = MIME[path.extname(file)] || 'application/octet-stream';
+    res.setHeader('Content-Type', type);
+    // Compress text like Vercel does (brotli, else gzip), so local measurements match production.
+    const accept = String(req.headers['accept-encoding'] || '');
+    if (/^(text\/|application\/(json|manifest))/.test(type) && data.length > 1024 && /(br|gzip)/.test(accept)) {
+      const br = /br/.test(accept);
+      res.setHeader('Content-Encoding', br ? 'br' : 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.end(br ? zlib.brotliCompressSync(data) : zlib.gzipSync(data));
+      return;
+    }
     res.end(data);
   });
 }).listen(port, () => console.log('Vocabulary Master AI → http://localhost:' + port));

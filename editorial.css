@@ -410,3 +410,7 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .preview-list strong { font-weight:600; overflow-wrap:anywhere; hyphens:auto; } .preview-list span { color:var(--muted); overflow-wrap:anywhere; hyphens:auto; }
 .btn.block { width:100%; }
 @media(max-width:720px) { .share-card { padding:22px 18px; } .preview-list li { grid-template-columns:1fr; gap:0; } }
+/* The two language pickers list native names (Azərbaycanca, Қазақша…). Their options are measured on load,
+   which made the browser download latin-ext and cyrillic-ext webfont files (~110 KB) and re-layout the page.
+   A system UI font here avoids that; the extended subsets still load when a deck actually needs them. */
+.lang-pair select { font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
