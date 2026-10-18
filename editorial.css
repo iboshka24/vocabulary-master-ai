@@ -314,3 +314,9 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .empty-steps li::marker { color:var(--amber); font-weight:600; }
 .empty-library .actions { justify-content:center; }
 .quiz-empty { margin:0 0 18px; padding:12px 14px; border:1px dashed var(--stroke); border-radius:8px; font-size:13px; color:var(--muted); }
+
+/* v2.11 — no inline styles (strict CSP) */
+.goal-input { width:55px; background:transparent; border:1px solid var(--stroke); border-radius:5px; padding:5px; color:var(--text); }
+.file-label { cursor:pointer; }
+.deck-item .deck-progress { width:100%; }
+.link.link-danger { margin-top:12px; color:var(--rose); }

@@ -8,9 +8,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
+const vercelHeaders = require('../tools/vercel-headers.js');
 const LIB = 'vocabulary-master.library.v2';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.mp4': 'video/mp4' };
+  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
 
 // The fake translator knows these words; anything else gets an empty answer.
 const DICT = { 'to wander': 'бродить', 'to gather': 'собирать', lantern: 'фонарь', meadow: 'луг', harbor: 'гавань',
@@ -35,6 +36,7 @@ let serverDown = false;
 
 const server = http.createServer((req, res) => {
   if (serverDown) { req.socket.destroy(); return; }
+  vercelHeaders.apply(res, req.url.split('?')[0]); // run under the production CSP
   if (req.url.startsWith('/api/ai')) {
     // The real serverless function; the AI provider behind it is faked below.
     let body = '';
@@ -109,7 +111,8 @@ let browser;
   const origin = 'http://127.0.0.1:' + server.address().port;
   browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined });
   const context = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce', acceptDownloads: true, viewport: { width: 1280, height: 900 } });
-  await context.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
+  const thirdParty = [];
+  await context.route(/fonts\.(googleapis|gstatic)\.com/, route => { thirdParty.push(route.request().url()); return route.abort(); });
   await context.route(/api\.mymemory\.translated\.net/, route => {
     api.calls++;
     if (api.mode === 'down') return route.abort('internetdisconnected');
@@ -127,7 +130,10 @@ let browser;
     if (COVERAGE) { coverage.push(...await page.coverage.stopJSCoverage()); await page.coverage.startJSCoverage({ resetOnNavigation: false }); }
     return page.reload();
   };
-  const errors = [];
+  const errors = [], cspViolations = [];
+  // Any CSP violation is a bug: the app must work under the production policy (no unsafe-inline / unsafe-eval).
+  const watch = pg => pg.on('console', m => { if (/Content Security Policy|Refused to (load|execute|apply|connect|frame)/i.test(m.text())) cspViolations.push(m.text().slice(0, 200)); });
+  watch(page);
   page.on('pageerror', e => errors.push(e.message));
   let lastDialog = '';
   page.on('dialog', d => { lastDialog = d.message(); d.accept(); });
@@ -388,6 +394,7 @@ let browser;
   const fresh = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
   await fresh.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   const empty = await fresh.newPage();
+  watch(empty);
   empty.on('pageerror', e => errors.push(e.message));
   await empty.goto(origin);
   await empty.click('#navLibrary');
@@ -399,6 +406,54 @@ let browser;
   await empty.click('.empty-library [data-action="demo"]');
   await empty.locator('#screen-train.active').waitFor();
   await fresh.close();
+
+  step('XSS: a malicious backup renders as plain text in library, search, training, test and game');
+  const xctx = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
+  const xpage = await xctx.newPage();
+  watch(xpage);
+  xpage.on('pageerror', e => errors.push(e.message));
+  xpage.on('dialog', d => d.accept());
+  await xpage.goto(origin);
+  const payload = '<img src=x onerror="window.__xss=1">';
+  const evil = { version: 2, library: { decks: { 'en-ru': { source: 'en', target: 'ru', created: 1, cards: [
+    { original: payload, translation: '<svg onload="window.__xss=2"></svg>', hint: '<script>window.__xss=3</script>', definition: '" onmouseover="window.__xss=4', examples: ['<a href="javascript:window.__xss=5">x</a>'], streak: 0, fails: 1 },
+    { original: 'river', translation: 'река', streak: 0, fails: 0 },
+    { original: 'forest', translation: 'лес', streak: 0, fails: 0 },
+    { original: 'mountain', translation: 'гора', streak: 0, fails: 0 }
+  ] } }, history: {}, goal: 10, streak: { count: 0, last: null, freezes: 2, enabled: true } } };
+  await xpage.click('#navLibrary');
+  await xpage.locator('#importLibrary').setInputFiles({ name: 'evil.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(evil)) });
+  await xpage.waitForFunction(() => document.getElementById('toast').textContent.includes('Библиотека восстановлена'));
+  const noInjection = async where => {
+    const found = await xpage.evaluate(() => ({
+      flag: window.__xss,
+      img: document.querySelectorAll('img[src="x"]').length,
+      handlers: [...document.querySelectorAll('*')].filter(el => [...el.attributes].some(a => /^on/i.test(a.name))).map(el => el.tagName),
+      jsLinks: document.querySelectorAll('a[href^="javascript:"]').length
+    }));
+    assert.deepEqual(found, { flag: undefined, img: 0, handlers: [], jsLinks: 0 }, 'no injected markup in ' + where);
+  };
+  await xpage.locator('.deck-item summary').first().click();
+  assert.equal(await xpage.locator('.saved-word strong').first().innerText(), payload, 'the word is shown literally');
+  await noInjection('library');
+  await xpage.fill('#librarySearch', 'img');
+  assert.match(await xpage.locator('#searchResults').innerText(), /<img src=x/);
+  await noInjection('search');
+  await xpage.fill('#librarySearch', '');
+  await xpage.click('[data-act="hard"]');
+  await xpage.locator('#screen-train.active').waitFor();
+  await xpage.keyboard.press('Space');
+  await xpage.locator('#card.flipped').waitFor();
+  assert.match(await xpage.locator('#card').innerText(), /<img src=x|<svg onload/);
+  await noInjection('training');
+  await xpage.click('#btnExit'); await xpage.click('#btnNewSet');
+  await xpage.click('#navTest');
+  await xpage.click('#btnQuizStart');
+  await noInjection('lexical test');
+  await xpage.click('#btnMatchStart');
+  assert.equal(await xpage.locator('.match-tile', { hasText: 'onerror' }).count(), 1, 'the payload is a plain-text tile in the game');
+  await noInjection('matching game');
+  await xctx.close();
 
   step('interface language: RU → EN → UZ, choice survives a reload');
   await page.click('#navStudy');
@@ -412,6 +467,8 @@ let browser;
   assert.equal(await page.inputValue('#uiLang'), 'uz');
 
   assert.deepEqual(errors, [], 'no uncaught page errors');
+  assert.deepEqual(cspViolations, [], 'no Content-Security-Policy violations');
+  assert.deepEqual(thirdParty, [], 'fonts are self-hosted: no requests to Google Fonts');
   if (COVERAGE) printCoverage(coverage.concat(await page.coverage.stopJSCoverage()));
-  console.log('✓ E2E: service worker, SM-2 persistence, offline + resync, API failures, backup round-trip, storage quota, server AI contract, undo/swap/game/empty states, languages');
+  console.log('✓ E2E: service worker, SM-2 persistence, offline + resync, API failures, backup round-trip, storage quota, server AI contract, undo/swap/game/empty states, XSS, CSP, languages');
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); server.close(); });

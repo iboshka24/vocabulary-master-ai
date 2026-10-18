@@ -219,7 +219,7 @@
     'quiz.saved': ['Ошибки сохранены: сложные слова вернутся в практику.', 'Mistakes are saved: hard words will come back to practice.', "Xatolar saqlandi: qiyin so'zlar mashqqa qaytadi."],
 
     'footer.tag': ['Меньше шума. Больше смысла.', 'Less noise. More meaning.', "Kamroq shovqin. Ko'proq ma'no."],
-    'footer.made': ['Сделано для ежедневной практики · v2.10', 'Made for daily practice · v2.10', 'Kundalik mashq uchun yaratilgan · v2.10'],
+    'footer.made': ['Сделано для ежедневной практики · v2.11', 'Made for daily practice · v2.11', 'Kundalik mashq uchun yaratilgan · v2.11'],
     'sum.title': ['Сессия завершена', 'Session complete', 'Sessiya yakunlandi'],
     'sum.continue': ['Продолжить цикл', 'Keep looping', 'Siklni davom ettirish'],
     'sum.newSet': ['Новый набор слов', 'New word set', "Yangi so'zlar to'plami"],

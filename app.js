@@ -1400,25 +1400,40 @@
       setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
     }
   }
-  function highlight(text, q) {
+  // Builds DOM nodes; user text always goes through textContent and is never parsed as HTML.
+  function h(tag, props, children) {
+    var node = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) {
+      if (k === 'text') node.textContent = props[k];
+      else if (k === 'className') node.className = props[k];
+      else node.setAttribute(k, props[k]);
+    });
+    (children || []).forEach(function (c) { if (c) node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return node;
+  }
+  function highlighted(tag, text, q) {
     var s = String(text || ''), i = s.toLocaleLowerCase().indexOf(q);
-    if (i < 0) return escapeHTML(s);
-    return escapeHTML(s.slice(0, i)) + '<mark>' + escapeHTML(s.slice(i, i + q.length)) + '</mark>' + escapeHTML(s.slice(i + q.length));
+    if (i < 0) return h(tag, { text: s });
+    return h(tag, {}, [s.slice(0, i), h('mark', { text: s.slice(i, i + q.length) }), s.slice(i + q.length)]);
   }
   function renderSearch() {
     var box = $('searchResults'), q = $('librarySearch').value.toLocaleLowerCase().trim();
     $('libraryGrid').hidden = !!q; box.hidden = !q;
-    if (!q) { box.innerHTML = ''; return; }
+    box.textContent = '';
+    if (!q) return;
     var hits = [];
     Object.keys(library.decks).forEach(function (key) {
       var d = library.decks[key];
       d.cards.forEach(function (c) { if ((c.original + '\n' + c.translation).toLocaleLowerCase().indexOf(q) >= 0) hits.push({ d: d, c: c }); });
     });
-    box.innerHTML = '<p class="search-head">' + (hits.length ? tr('search.found', { n: hits.length }) : escapeHTML(tr('search.none', { q: q }))) + '</p>' +
-      hits.slice(0, 100).map(function (h) {
-        return '<div class="saved-word"><strong>' + highlight(h.c.original, q) + '</strong><span>' + highlight(h.c.translation, q) + '</span><span class="deck-kicker">' +
-          escapeHTML(langByCode(h.d.source).label + ' → ' + langByCode(h.d.target).label) + (h.c.fails ? tr('search.mistakes', { n: h.c.fails }) : '') + '</span></div>';
-      }).join('');
+    box.appendChild(h('p', { className: 'search-head', text: hits.length ? tr('search.found', { n: hits.length }) : tr('search.none', { q: q }) }));
+    hits.slice(0, 100).forEach(function (hit) {
+      box.appendChild(h('div', { className: 'saved-word' }, [
+        highlighted('strong', hit.c.original, q),
+        highlighted('span', hit.c.translation, q),
+        h('span', { className: 'deck-kicker', text: langByCode(hit.d.source).label + ' → ' + langByCode(hit.d.target).label + (hit.c.fails ? tr('search.mistakes', { n: hit.c.fails }) : '') })
+      ]));
+    });
   }
   function renderActivity() {
     var days = L.activity(library.history, 84, L.day());
@@ -1636,14 +1651,21 @@
       var mastered = d.cards.filter(function (c) { return c.streak >= 2; }).length;
       var due = L.pick(d.cards, 'due').length, hard = L.pick(d.cards, 'hard').length;
       var panel = document.createElement('article'); panel.className = 'deck-item';
-      panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track" style="width:100%"><i style="width:' + Math.round(mastered / Math.max(1,d.cards.length) * 100) + '%"></i></div>' +
+      panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track deck-progress"><i></i></div>' +
         '<div class="actions"><button class="btn primary" type="button" data-act="practice" title="' + tr('deck.practiceTitle') + '">' + (due ? tr('deck.practiceDue', { n: due }) : tr('deck.practiceAll')) + '</button><button class="btn" type="button" data-act="hard"' + (hard ? '' : ' disabled') + ' title="' + tr('deck.hardTitle') + '">' + tr('deck.hardBtn', { n: hard }) + '</button><button class="btn" type="button" data-act="add">' + tr('deck.add') + '</button></div>' +
         '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button></div>' +
-        '<details><summary>' + tr('deck.all') + '</summary><div class="word-list"></div><button class="link" type="button" data-act="delete" style="margin-top:12px;color:var(--rose)">' + tr('deck.delete') + '</button></details>';
+        '<details><summary>' + tr('deck.all') + '</summary><div class="word-list"></div><button class="link link-danger" type="button" data-act="delete">' + tr('deck.delete') + '</button></details>';
+      panel.querySelector('.deck-progress i').style.width = Math.round(mastered / Math.max(1, d.cards.length) * 100) + '%';
       var list = panel.querySelector('.word-list');
       d.cards.forEach(function (c, i) {
-        var row = document.createElement('div'); row.className = 'saved-word';
-        row.innerHTML = '<strong>' + escapeHTML(c.original) + '</strong><span>' + escapeHTML(c.translation) + '</span><div class="word-actions"><button class="link" data-act="edit">' + tr('word.edit') + '</button><button class="link" data-act="remove">' + tr('word.remove') + '</button></div>';
+        var row = h('div', { className: 'saved-word' }, [
+          h('strong', { text: c.original }),
+          h('span', { text: c.translation }),
+          h('div', { className: 'word-actions' }, [
+            h('button', { className: 'link', type: 'button', 'data-act': 'edit', text: tr('word.edit') }),
+            h('button', { className: 'link', type: 'button', 'data-act': 'remove', text: tr('word.remove') })
+          ])
+        ]);
         row.querySelector('[data-act="edit"]').onclick = function () {
           var value = window.prompt(tr('word.prompt', { w: c.original }), c.translation);
           if (value === null || !value.trim()) return;

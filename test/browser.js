@@ -6,10 +6,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const root = path.resolve(__dirname, '..');
+const vercelHeaders = require('../tools/vercel-headers.js');
 const output = process.env.VM_SCREENSHOTS || path.join(os.tmpdir(), 'opencode', 'vocabulary-master-screenshots');
 fs.mkdirSync(output, { recursive: true });
-const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.mp4':'video/mp4'};
+const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.mp4':'video/mp4','.woff2':'font/woff2','.json':'application/json','.png':'image/png'};
 const server = http.createServer((req,res) => {
+  vercelHeaders.apply(res, req.url.split('?')[0]); // run under the production CSP
   if (req.url === '/api/ai') { res.setHeader('Content-Type','application/json'); res.end('{"status":"ok","serverKeyConfigured":false}'); return; }
   const file = path.resolve(root, '.' + decodeURIComponent(req.url === '/' ? '/index.html' : req.url.split('?')[0]));
   if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
@@ -21,6 +23,8 @@ let browser;
   browser = await chromium.launch({headless:true});
   const page = await browser.newPage({viewport:{width:1440,height:1100},reducedMotion:'reduce'});
   const errors = []; page.on('pageerror',e=>errors.push(e.message));
+  const csp = []; const watchCsp = pg => pg.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text().slice(0,200)); });
+  watchCsp(page);
   await page.goto('http://127.0.0.1:' + server.address().port);
   await page.locator('#sourceLang option').first().waitFor({state:'attached'});
   assert.equal(await page.title(),'Vocabulary Master AI — слова становятся знаниями');
@@ -90,6 +94,7 @@ let browser;
   // Motion is a real EffectCraft export, used in actual learning flows.
   const motionPage = await browser.newPage({viewport:{width:1100,height:900},reducedMotion:'no-preference'});
   motionPage.on('pageerror',e=>errors.push(e.message));
+  watchCsp(motionPage);
   await motionPage.goto('http://127.0.0.1:' + server.address().port);
   await motionPage.waitForFunction(()=>window.VMMotion);
   // lottie is lazy: not on the startup path, fetched once a session starts.
@@ -236,6 +241,7 @@ let browser;
   assert.equal(await motionPage.locator('.deck-stage.is-swapping').count(),0);
   await motionPage.close();
   assert.deepEqual(errors,[],'uncaught browser errors');
+  assert.deepEqual(csp,[],'no CSP violations with lottie, 3D motion and fonts');
   console.log('✓ Browser: learning, seamless simultaneous swap, preview identity/round boundary, mouse + mobile touch swipes, compositor-only frames, EffectCraft, reduced-motion');
   console.log('Screenshots: ' + output);
 })().catch(err=>{console.error(err);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.close();});
