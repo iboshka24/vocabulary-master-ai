@@ -1135,7 +1135,7 @@
       '<div><b>' + fmtTime(state.elapsed) + '</b><span data-i18n="st.time">' + tr('st.time') + '</span></div>';
 
     var msg;
-    state.summaryMsg = !state.answers ? ['sum.msg0'] : acc >= 90 ? ['sum.msg90', mastered] : acc >= 65 ? ['sum.msg65'] : ['sum.msgLow'];
+    state.summaryMsg = !state.answers ? ['sum.msg0'] : acc >= 90 && mastered ? ['sum.msg90', mastered] : acc >= 90 ? ['sum.msgClean'] : acc >= 65 ? ['sum.msg65'] : ['sum.msgLow'];
     msg = summaryMessage();
     $('summaryMsg').textContent = msg;
 

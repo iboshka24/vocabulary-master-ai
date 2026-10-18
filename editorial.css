@@ -320,3 +320,24 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .file-label { cursor:pointer; }
 .deck-item .deck-progress { width:100%; }
 .link.link-danger { margin-top:12px; color:var(--rose); }
+
+/* v2.12 — visual review fixes */
+.scene-caption { z-index:4; } /* the rotated back sheets (z-index 2) used to cover it */
+@media(max-width:720px) { .paper-scene { margin-bottom:22px; } .scene-caption { bottom:-30px; } }
+.card-face.back .swipe-hint { margin-top:auto; padding-top:10px; } /* was flush against the example sentence */
+@media(max-width:720px) {
+  /* three deck buttons do not fit one row on a phone: primary on top, the others below */
+  .deck-item .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .deck-item .actions .btn.primary { grid-column:1 / -1; }
+  .deck-item .btn { white-space:nowrap; }
+}
+/* word rows: stable columns instead of wrapping flex (actions used to jump to a new line on long pairs) */
+.saved-word { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; column-gap:12px; align-items:baseline; }
+.saved-word > strong, .saved-word > span { overflow-wrap:anywhere; }
+.search-results .saved-word { grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; }
+@media(max-width:720px) {
+  .saved-word, .search-results .saved-word { grid-template-columns:minmax(0,1fr) auto; row-gap:2px; }
+  .saved-word > strong, .saved-word > span:not(.deck-kicker) { grid-column:1; }
+  .saved-word > span:not(.deck-kicker) { color:var(--muted); }
+  .saved-word > .word-actions, .saved-word > .deck-kicker { grid-column:2; grid-row:1 / span 2; align-self:center; }
+}

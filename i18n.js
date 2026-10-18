@@ -205,6 +205,7 @@
     'motion.native': ['Слово за словом.', 'Word by word.', "So'zma-so'z."],
     'motion.video': ['Композиция EffectCraft', 'EffectCraft composition', 'EffectCraft kompozitsiyasi'],
 
+    'test.eyebrow': ['ЛЕКСИЧЕСКИЙ ЗАПАС', 'LEXICAL RESOURCE', "LUG'AT BOYLIGI"],
     'test.h1': ['Проверь глубину словаря', 'Test the depth of your vocabulary', "Lug'atingning chuqurligini tekshir"],
     'test.sub': ['Контекстные вопросы и точное значение. Четыре варианта, один ответ.', 'Context questions and exact meaning. Four options, one answer.', "Kontekstli savollar va aniq ma'no. To'rt variant, bitta javob."],
     'test.deck': ['Выбери колоду', 'Choose a deck', 'Kolodani tanla'],
@@ -219,13 +220,14 @@
     'quiz.saved': ['Ошибки сохранены: сложные слова вернутся в практику.', 'Mistakes are saved: hard words will come back to practice.', "Xatolar saqlandi: qiyin so'zlar mashqqa qaytadi."],
 
     'footer.tag': ['Меньше шума. Больше смысла.', 'Less noise. More meaning.', "Kamroq shovqin. Ko'proq ma'no."],
-    'footer.made': ['Сделано для ежедневной практики · v2.11', 'Made for daily practice · v2.11', 'Kundalik mashq uchun yaratilgan · v2.11'],
+    'footer.made': ['Сделано для ежедневной практики · v2.12', 'Made for daily practice · v2.12', 'Kundalik mashq uchun yaratilgan · v2.12'],
     'sum.title': ['Сессия завершена', 'Session complete', 'Sessiya yakunlandi'],
     'sum.continue': ['Продолжить цикл', 'Keep looping', 'Siklni davom ettirish'],
     'sum.newSet': ['Новый набор слов', 'New word set', "Yangi so'zlar to'plami"],
     'sum.copy': ['Скопировать статистику', 'Copy stats', 'Statistikani nusxalash'],
     'sum.msg0': ['Сессия только началась. Возвращайся в цикл в любой момент!', 'The session has just started. Come back to the loop any time!', 'Sessiya endi boshlandi. Istalgan payt siklga qayt!'],
     'sum.msg90': [['Отличная память! {n} слово запомнилось на автомате.', 'Отличная память! {n} слова запомнились на автомате.', 'Отличная память! {n} слов запомнились на автомате.'], ['Great memory! {n} word stuck automatically.', 'Great memory! {n} words stuck automatically.'], ["Ajoyib xotira! {n} ta so'z avtomatik esda qoldi."]],
+    'sum.msgClean': ['Ни одной ошибки — отличное начало. Слова закрепятся после пары повторов.', 'No mistakes — a great start. Words stick after a couple more reviews.', "Birorta ham xato yo'q — ajoyib boshlanish. So'zlar yana bir-ikki takrordan keyin mustahkamlanadi."],
     'sum.msg65': ['Хороший прогресс — цикл вернул забытые слова, закрепление идёт полным ходом.', 'Good progress — the loop brought back forgotten words, they are sticking.', "Yaxshi natija — sikl unutilgan so'zlarni qaytardi, mustahkamlash davom etmoqda."],
     'sum.msgLow': ['Всё по плану: забыл → карточка перевернулась → слово вернулось в очередь.', 'All according to plan: forgot → card flipped → the word went back to the queue.', "Hammasi reja bo'yicha: unutding → karta aylandi → so'z navbatga qaytdi."],
     'sum.stats': ['Vocabulary Master AI: {c} карточек · {a} ответов · {p}% точность · раунд {r} · время {t}', 'Vocabulary Master AI: {c} cards · {a} answers · {p}% accuracy · round {r} · time {t}', 'Vocabulary Master AI: {c} karta · {a} javob · {p}% aniqlik · {r}-raund · vaqt {t}'],

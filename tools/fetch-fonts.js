@@ -5,9 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CSS_URL = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..900;1,9..144,500..900' +
+  '&family=Literata:ital,opsz,wght@0,7..72,500..700;1,7..72,500..700' +
   '&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap';
-const SUBSETS = ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext']; // RU, UZ (Latin) and EN interface text
-const LICENSES = { Fraunces: 'fraunces', Inter: 'inter', 'JetBrains Mono': 'jetbrainsmono' };
+const ALL = ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext']; // RU, UZ (Latin) and EN interface text
+// Fraunces has no Cyrillic: Literata (also optical-size aware) takes over for Cyrillic headings via the font stack.
+const SUBSETS = { Fraunces: ['latin', 'latin-ext'], Literata: ['cyrillic', 'cyrillic-ext'], Inter: ALL, 'JetBrains Mono': ALL };
+const LICENSES = { Fraunces: 'fraunces', Literata: 'literata', Inter: 'inter', 'JetBrains Mono': 'jetbrainsmono' };
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 const out = path.join(__dirname, '..', 'vendor', 'fonts');
 
@@ -22,7 +25,7 @@ async function get(url, binary) {
   const css = await get(CSS_URL);
   const blocks = css.split(/(?=\/\* [a-z-]+ \*\/)/).filter(b => b.includes('@font-face'));
   const files = new Map();
-  const kept = blocks.filter(b => SUBSETS.includes(b.match(/\/\* ([a-z-]+) \*\//)[1])).map(b => {
+  const kept = blocks.filter(b => (SUBSETS[b.match(/font-family: '([^']+)'/)[1]] || []).includes(b.match(/\/\* ([a-z-]+) \*\//)[1])).map(b => {
     const subset = b.match(/\/\* ([a-z-]+) \*\//)[1];
     const family = b.match(/font-family: '([^']+)'/)[1];
     const style = b.match(/font-style: (\w+)/)[1];

@@ -6,3 +6,4 @@ node_modules/
 .env.local
 tools/effectcraft/build/_export-*.jsx
 coverage/
+test/screens/
