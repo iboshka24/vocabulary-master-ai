@@ -60,9 +60,19 @@ function layoutProblems() {
       await page.screenshot({ path: path.join(outDir, name), fullPage: true });
       for (const p of await page.evaluate(layoutProblems)) report.push(`${name}: ${p}`);
     };
+    // On phones the sidebar is a drawer behind the menu button.
+    const nav = async id => {
+      if (await page.locator('#btnMenu').isVisible()) { await page.click('#btnMenu'); await page.locator('body.side-open').waitFor(); await page.waitForTimeout(300); }
+      await page.click(id);
+    };
     await page.goto(origin);
     await page.locator('#screen-setup.active').waitFor();
     await shot('1-setup');
+    if (await page.locator('#btnMenu').isVisible()) {
+      await page.click('#btnMenu'); await page.waitForTimeout(350);
+      await shot('0-menu');
+      await page.keyboard.press('Escape');
+    }
     await page.click('#btnDemo');
     await page.locator('#screen-train.active').waitFor();
     await page.click('#btnReveal');
@@ -74,18 +84,18 @@ function layoutProblems() {
     await page.locator('#summary:not([hidden])').waitFor();
     await shot('3-summary');
     await page.click('#btnNewSet');
-    await page.click('#navLibrary');
+    await nav('#navLibrary');
     await page.locator('.deck-item').first().waitFor();
     await page.locator('.deck-item summary').first().click();
     await shot('4-library');
-    await page.click('#navTest');
+    await nav('#navTest');
     await page.click('#btnMatchStart');
     await page.locator('.match-tile').first().waitFor();
     await shot('5-test');
-    await page.click('#navProgress');
+    await nav('#navProgress');
     await page.locator('#screen-progress.active').waitFor();
     await shot('6-progress');
-    await page.click('#navLibrary');
+    await nav('#navLibrary');
     await page.locator('.deck-item [data-act="share"]').first().click();
     await page.locator('#shareQr svg').waitFor();
     await shot('7-share');

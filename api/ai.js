@@ -10,6 +10,8 @@
  *   OPENAI_API_KEY        server key (optional; never echoed or logged)
  *   OPENAI_BASE_URL       https endpoint for the server key (default https://api.openai.com/v1)
  *   OPENAI_MODEL          model for the server key
+ *   GEMINI_API_KEY        alternative server key for Google Gemini (free tier at aistudio.google.com); used when
+ *                         OPENAI_API_KEY is not set. GEMINI_MODEL picks the model (default gemini-2.5-flash)
  *   ALLOWED_ORIGINS       extra comma-separated origins allowed to call (the deployment's own host always is)
  *   AI_ALLOWED_HOSTS      extra provider hosts for "bring your own key" requests
  *   AI_RATE_LIMIT / AI_RATE_LIMIT_BYOK / AI_RATE_WINDOW_MS   per-IP limits (default 30 / 120 per 10 min)
@@ -116,7 +118,8 @@ module.exports = async (req, res) => {
   if (parsed.tooLarge) return error(res, 413, 'payload-too-large', 'Request body is too large.');
   if (parsed.invalid || !parsed.body || typeof parsed.body !== 'object' || Array.isArray(parsed.body)) return error(res, 400, 'bad-request', 'Body must be a JSON object.');
   const body = parsed.body;
-  const serverKey = process.env.OPENAI_API_KEY || '';
+  const geminiServer = !process.env.OPENAI_API_KEY && Boolean(process.env.GEMINI_API_KEY);
+  const serverKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || '';
 
   if (body.action === 'status') {
     return send(res, 200, { status: 'ok', serverKeyConfigured: Boolean(serverKey), limits: { words: core.LIMITS.words, wordLength: core.LIMITS.wordLength } });
@@ -137,8 +140,13 @@ module.exports = async (req, res) => {
   // A server key is pinned to the operator's endpoint and model; a caller's own key may pick a known provider.
   let base, model;
   if (serverKey) {
-    base = String(process.env.OPENAI_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
-    model = process.env.OPENAI_MODEL || (/tokenharbor/i.test(base) ? 'claude-sonnet-4.6' : 'gpt-4o-mini');
+    if (geminiServer) {
+      base = core.GEMINI.baseUrl;
+      model = process.env.GEMINI_MODEL || core.GEMINI.model;
+    } else {
+      base = String(process.env.OPENAI_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
+      model = process.env.OPENAI_MODEL || (/tokenharbor/i.test(base) ? 'claude-sonnet-4.6' : 'gpt-4o-mini');
+    }
   } else {
     base = String(body.baseUrl || DEFAULT_BASE).replace(/\/+$/, '');
     let url;
@@ -157,7 +165,7 @@ module.exports = async (req, res) => {
     upstream = await fetch(base + '/chat/completions', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model, messages: core.buildMessages(request), temperature: 0.2 }),
+      body: JSON.stringify(core.buildPayload(request, model, base)),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       redirect: 'error'
     });

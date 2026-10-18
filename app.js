@@ -191,7 +191,26 @@
 
   /* ---------------- utils ---------------- */
 
+  var NAV_FOR = { 'screen-setup': 'navStudy', 'screen-library': 'navLibrary', 'screen-test': 'navTest', 'screen-progress': 'navProgress' };
+  var CRUMB_FOR = { 'screen-setup': 'nav.study', 'screen-library': 'nav.library', 'screen-test': 'nav.test', 'screen-progress': 'nav.progress', 'screen-train': 'crumb.train', 'screen-loading': 'crumb.loading' };
+  function updateShell(id) {
+    document.querySelectorAll('.nav-link').forEach(function (b) {
+      var on = b.id === NAV_FOR[id];
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    var crumb = $('crumbHere');
+    if (crumb && CRUMB_FOR[id]) crumb.textContent = tr(CRUMB_FOR[id]);
+  }
+  function setSidebar(open) {
+    document.body.classList.toggle('side-open', open);
+    $('sideBackdrop').hidden = !open;
+    $('btnMenu').setAttribute('aria-expanded', String(open));
+    if (open) { var first = document.querySelector('#sidebar .nav-link'); if (first) first.focus(); }
+  }
   function show(id) {
+    updateShell(id);
+    if (document.body && document.body.classList.contains('side-open')) setSidebar(false);
     var apply = function () {
       document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -376,6 +395,15 @@
     }
   }
 
+  function syncProviderChip() {
+    var base = String(state.cfg.baseUrl || ''), prov = !state.cfg.apiKey ? 'free'
+      : window.VMAICore && window.VMAICore.isGemini(base) ? 'gemini' : /groq\.com/.test(base) ? 'groq' : /openrouter\.ai/.test(base) ? 'openrouter' : /api\.openai\.com/.test(base) ? 'openai' : '';
+    document.querySelectorAll('.prov-chip').forEach(function (c) { c.classList.toggle('active', c.dataset.prov === prov); });
+    var gem = Boolean(state.cfg.apiKey) && prov === 'gemini';
+    if (document.body) document.body.classList.toggle('gemini-on', gem);
+    var btn = $('btnSideGemini'); if (btn) btn.textContent = tr(gem ? 'side.cardOn' : 'side.cardBtn');
+  }
+
   function aiError(code, message) { var e = new Error(message || code); e.code = code; return e; }
 
   // Translates up to 40 words through /api/ai (server key or the user's key) or,
@@ -413,7 +441,7 @@
         res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
-          body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', messages: AI.buildMessages(request), temperature: 0.2 }),
+          body: JSON.stringify(AI.buildPayload(request, cfg.model || 'gpt-4o-mini', url)),
           signal: AbortSignal.timeout(45000)
         });
       } catch (e) { throw aiError(e && e.name === 'TimeoutError' ? 'provider-timeout' : 'provider-unavailable'); }
@@ -1908,16 +1936,36 @@
     hideSummary();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     show(id); renderDaily();
-    document.querySelectorAll('.nav-link').forEach(function (b) { b.classList.toggle('active', b.id === ({'screen-setup':'navStudy','screen-library':'navLibrary','screen-test':'navTest','screen-progress':'navProgress'})[id]); });
     if (id === 'screen-library') renderLibrary();
     if (id === 'screen-test') fillQuizDecks();
     if (id === 'screen-progress') renderProgress();
   }
+  function deckMatches(d, lang, status) {
+    if (lang && d.source !== lang && d.target !== lang) return false;
+    if (status === 'due') return L.pick(d.cards, 'due').length > 0;
+    if (status === 'hard') return L.pick(d.cards, 'hard').length > 0;
+    if (status === 'mastered') return d.cards.length > 0 && d.cards.filter(function (c) { return c.streak >= 2; }).length / d.cards.length >= 0.7;
+    return true;
+  }
+  function fillLangFilter(keys) {
+    var sel = $('filterLang'), keep = sel.value, seen = Object.create(null);
+    keys.forEach(function (k) { seen[library.decks[k].source] = true; seen[library.decks[k].target] = true; });
+    while (sel.options.length > 1) sel.remove(1);
+    Object.keys(seen).forEach(function (code) { sel.appendChild(h('option', { value: code, text: langByCode(code).label })); });
+    sel.value = seen[keep] ? keep : '';
+  }
   function renderLibrary() {
     var host = $('libraryGrid'); host.innerHTML = '';
     renderActivity(); renderSearch();
-    var keys = Object.keys(library.decks);
-    if (!keys.length) {
+    var allKeys = Object.keys(library.decks);
+    fillLangFilter(allKeys);
+    var lang = $('filterLang').value, status = $('filterStatus').value;
+    var keys = allKeys.filter(function (k) { return deckMatches(library.decks[k], lang, status); });
+    $('libraryFilters').hidden = !allKeys.length;
+    $('btnClearFilters').hidden = !lang && !status;
+    $('filterEmpty').hidden = !allKeys.length || keys.length > 0;
+    $('deckCount').textContent = allKeys.length ? trn('lib.decks', keys.length) : '';
+    if (!allKeys.length) {
       host.innerHTML = '<div class="empty-library"><h2>' + tr('lib.emptyH') + '</h2><p>' + tr('lib.emptyP') + '</p>' +
         '<ol class="empty-steps"><li>' + tr('lib.empty1') + '</li><li>' + tr('lib.empty2') + '</li><li>' + tr('lib.empty3') + '</li></ol>' +
         '<div class="actions"><button class="btn primary" type="button" data-action="new">' + tr('lib.emptyBtn') + '</button>' +
@@ -1932,10 +1980,20 @@
       var mastered = d.cards.filter(function (c) { return c.streak >= 2; }).length;
       var due = L.pick(d.cards, 'due').length, hard = L.pick(d.cards, 'hard').length;
       var panel = document.createElement('article'); panel.className = 'deck-item';
+      var cover = h('div', { className: 'deck-cover cover-' + ((d.source.charCodeAt(0) + d.target.charCodeAt(1)) % 4) }, [
+        h('span', { className: 'cover-langs', text: d.source.toUpperCase() + ' → ' + d.target.toUpperCase() }),
+        h('button', { className: 'cover-play', type: 'button', 'aria-label': tr('deck.play') + ': ' + langByCode(d.source).label + ' → ' + langByCode(d.target).label }),
+        h('span', { className: 'cover-badge', text: tr('deck.minutes', { n: Math.max(1, Math.round(Math.max(due, Math.min(d.cards.length, 20)) * 0.25)) }) })
+      ]);
       panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track deck-progress"><i></i></div>' +
         '<div class="actions"><button class="btn primary" type="button" data-act="practice" title="' + tr('deck.practiceTitle') + '">' + (due ? tr('deck.practiceDue', { n: due }) : tr('deck.practiceAll')) + '</button><button class="btn" type="button" data-act="hard"' + (hard ? '' : ' disabled') + ' title="' + tr('deck.hardTitle') + '">' + tr('deck.hardBtn', { n: hard }) + '</button><button class="btn" type="button" data-act="add">' + tr('deck.add') + '</button></div>' +
         '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button><button class="link" type="button" data-act="share">' + tr('share.button') + '</button></div>' +
         '<details><summary>' + tr('deck.all') + '</summary><div class="word-list"></div><button class="link link-danger" type="button" data-act="delete">' + tr('deck.delete') + '</button></details>';
+      panel.insertBefore(cover, panel.firstChild);
+      cover.querySelector('.cover-play').onclick = function () {
+        if (!d.cards.length) { toast(tr('toast.addWords'), 'err'); return; }
+        practiceDeck(d, 'due');
+      };
       panel.querySelector('.deck-progress i').style.width = Math.round(mastered / Math.max(1, d.cards.length) * 100) + '%';
       var list = panel.querySelector('.word-list');
       d.cards.forEach(function (c, i) {
@@ -2074,6 +2132,9 @@
       renderProgress();
     };
     $('btnAddDeck').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
+    $('filterLang').onchange = renderLibrary;
+    $('filterStatus').onchange = renderLibrary;
+    $('btnClearFilters').onclick = function () { $('filterLang').value = ''; $('filterStatus').value = ''; renderLibrary(); $('filterLang').focus(); };
     $('librarySearch').oninput = renderSearch;
     $('batchSize').onchange = function () { library.batch = Number(this.value) || 0; persistLibrary(); };
     $('btnUndo').onclick = undoAnswer;
@@ -2154,6 +2215,8 @@
 
   function refreshLanguage() {
     updateSoundUI(); updateApiStatus(); updateInputStat(true);
+    var active = document.querySelector('.screen.active');
+    if (active) updateShell(active.id);
     if (!L) return;
     renderDaily();
     if ($('screen-library').classList.contains('active')) renderLibrary();
@@ -2185,10 +2248,16 @@
     }
     if (I18N) {
       I18N.apply();
-      var uiSel = $('uiLang');
-      uiSel.value = I18N.lang();
-      uiSel.addEventListener('change', function () { I18N.set(uiSel.value); });
-      I18N.onChange(refreshLanguage);
+      var pills = function () {
+        document.querySelectorAll('#uiLang [data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.lang === I18N.lang())); });
+      };
+      pills();
+      var current = document.querySelector('.screen.active'); if (current) updateShell(current.id);
+      $('uiLang').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-lang]');
+        if (b && b.dataset.lang !== I18N.lang()) I18N.set(b.dataset.lang);
+      });
+      I18N.onChange(function () { pills(); refreshLanguage(); });
     }
     updateSoundUI();
     checkServerStatus();
@@ -2204,6 +2273,7 @@
     $('cfgBaseUrl').value = state.cfg.baseUrl;
     $('cfgModel').value = state.cfg.model;
     $('cfgKey').value = state.cfg.apiKey;
+    syncProviderChip();
     setDir(state.cfg.dir);
 
     try {
@@ -2262,6 +2332,11 @@
           $('cfgModel').value = 'gpt-4o-mini';
           $('cfgKey').focus();
           toast(tr('toast.provOpenai'), 'ok');
+        } else if (p === 'gemini') {
+          $('cfgBaseUrl').value = window.VMAICore.GEMINI.baseUrl;
+          $('cfgModel').value = window.VMAICore.GEMINI.model;
+          $('cfgKey').focus();
+          toast(tr('toast.provGemini'), 'ok', 4000);
         } else if (p === 'groq') {
           $('cfgBaseUrl').value = 'https://api.groq.com/openai/v1';
           $('cfgModel').value = 'llama-3.3-70b-versatile';
@@ -2290,7 +2365,7 @@
       state.cfg.baseUrl = $('cfgBaseUrl').value.trim() || 'https://api.openai.com/v1';
       state.cfg.model = $('cfgModel').value.trim() || 'gpt-4o-mini';
       state.cfg.apiKey = $('cfgKey').value.trim();
-      saveCfg();
+      saveCfg(); syncProviderChip();
       toast(tr('toast.cfgSaved'), 'ok');
     });
 
@@ -2301,7 +2376,7 @@
       $('cfgBaseUrl').value = state.cfg.baseUrl;
       $('cfgModel').value = state.cfg.model;
       $('cfgKey').value = '';
-      saveCfg();
+      saveCfg(); syncProviderChip();
       toast(tr('toast.cfgReset'), 'ok');
     });
 
@@ -2335,6 +2410,18 @@
       show('screen-setup');
       $('apiBox').open = true;
       setTimeout(function () { $('apiBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120);
+    });
+
+    $('btnMenu').addEventListener('click', function () { setSidebar(!document.body.classList.contains('side-open')); });
+    $('sideBackdrop').addEventListener('click', function () { setSidebar(false); $('btnMenu').focus(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.body.classList.contains('side-open')) { setSidebar(false); $('btnMenu').focus(); }
+    });
+    $('btnSideGemini').addEventListener('click', function () {
+      $('btnSettings').click();
+      var chip = document.querySelector('.prov-chip[data-prov="gemini"]');
+      if (chip && !window.VMAICore.isGemini(state.cfg.baseUrl)) chip.click();
+      setTimeout(function () { $('cfgKey').focus({ preventScroll: true }); }, 400);
     });
 
     $('logoHome').addEventListener('click', function (e) {

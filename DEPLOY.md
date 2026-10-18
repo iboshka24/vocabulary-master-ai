@@ -15,6 +15,8 @@ Vercel → Project → Settings → Environment Variables. Всё необяза
 | `OPENAI_API_KEY` | Серверный ключ — ИИ для всех посетителей за счёт владельца | `sk-…` |
 | `OPENAI_BASE_URL` | Куда ходит серверный ключ (любой OpenAI-совместимый HTTPS) | `https://api.openai.com/v1` |
 | `OPENAI_MODEL` | Модель для серверного ключа | `gpt-4o-mini` |
+| `GEMINI_API_KEY` | Серверный ключ Google Gemini (бесплатный, [aistudio.google.com/apikey](https://aistudio.google.com/apikey)). Используется, если `OPENAI_API_KEY` не задан; адрес и модель подставляются сами | `AIza…` |
+| `GEMINI_MODEL` | Модель Gemini для серверного ключа | `gemini-2.5-flash` |
 | `ALLOWED_ORIGINS` | Другие сайты, которым можно вызывать `/api/ai` (через запятую). Всегда разрешены домен, на который пришёл запрос, и адреса этого деплоя (`VERCEL_URL`, production-домен) | `https://vocab.example.com` |
 | `AI_ALLOWED_HOSTS` | Дополнительные провайдеры для собственных ключей пользователей | `api.fireworks.ai` |
 | `AI_RATE_LIMIT` | Запросов с одного IP за окно при серверном ключе | `30` |

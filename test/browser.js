@@ -90,7 +90,7 @@ run.server(server);
   await page.screenshot({path:path.join(output,'03-dark.png'),fullPage:true});
   await page.click('#btnTheme');
   await page.setViewportSize({width:390,height:844});
-  await page.click('#navStudy');
+  await page.click('#btnMenu'); await page.locator('body.side-open').waitFor(); await page.waitForTimeout(300); await page.click('#navStudy'); // phones: the sidebar is a drawer
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), 'mobile horizontal overflow');
   await page.screenshot({path:path.join(output,'04-mobile.png'),fullPage:true});
   // Motion is a real EffectCraft export, used in actual learning flows.
@@ -237,7 +237,7 @@ run.server(server);
   await cdp.detach();
   await motionPage.click('#btnReveal'); await motionPage.waitForTimeout(700);
   await motionPage.click('#btnKnew2');
-  await motionPage.click('#navStudy');
+  await motionPage.click('#btnMenu'); await motionPage.locator('body.side-open').waitFor(); await motionPage.waitForTimeout(300); await motionPage.click('#navStudy');
   await motionPage.waitForTimeout(600);
   assert.equal(await motionPage.locator('#screen-setup.active').count(),1,'navigation cancels a pending handoff');
   assert.equal(await motionPage.locator('.deck-stage.is-swapping').count(),0);

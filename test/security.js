@@ -51,7 +51,7 @@ for (const f of ['app.js', 'motion.js', 'i18n.js']) {
 // no third-party resources: everything is served from this origin
 const refs = [...html.matchAll(/<(?:script|link|img|video|source)\b[^>]*\s(?:src|href)="([^"]+)"/g)].map(m => m[1]);
 for (const ref of refs) assert(!/^(https?:)?\/\//.test(ref) || ref.startsWith('https://github.com/'), 'external resource: ' + ref);
-for (const f of ['styles.css', 'editorial.css', 'motion.css', 'vendor/fonts/fonts.css']) assert(!/url\((["']?)(https?:)?\/\//.test(read(f)), f + ': no remote url()');
+for (const f of ['styles.css', 'editorial.css', 'shell.css', 'motion.css', 'vendor/fonts/fonts.css']) assert(!/url\((["']?)(https?:)?\/\//.test(read(f)), f + ': no remote url()');
 assert(fs.existsSync(path.join(root, 'vendor/fonts/OFL-inter.txt')), 'font licenses ship with the fonts');
 
 // the dev server applies the same headers

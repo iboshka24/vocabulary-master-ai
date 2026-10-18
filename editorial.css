@@ -438,7 +438,6 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
 .disp-check { display:flex; align-items:flex-start; gap:10px; font-size:14px; color:var(--text); cursor:pointer; }
 .disp-check input { margin-top:3px; }
 .disp-preview { border-left:3px solid var(--amber); padding-left:10px; margin:0; }
-#btnDisplay { font:600 13px var(--font-display); }
 /* Zoomed text sizes shrink the room inside the bar while media queries still see the real width:
    let the bar wrap onto a second row instead of pushing buttons off-screen. */
 .topbar { flex-wrap:wrap; row-gap:12px; }
