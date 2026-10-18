@@ -1490,6 +1490,125 @@
     toast(trn('toast.retried', fixed), 'ok', 3000);
   }
 
+  /* ---------------- Progress screen: SVG charts drawn from SM-2 data ---------------- */
+  var progressDays = 7;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs, children) {
+    var node = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    (children || []).forEach(function (c) { node.appendChild(c); });
+    return node;
+  }
+  // Day and month names come from the dictionary: Intl often has no Uzbek data and silently falls back to English.
+  function parseDay(dateStr) { var p = dateStr.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function dayLabel(dateStr, offset, short) {
+    var d = parseDay(dateStr);
+    if (offset === 0) return tr('prog.today');
+    return short ? String(d.getDate()) : tr('prog.weekdays').split(',')[d.getDay()];
+  }
+  function longDate(dateStr) {
+    var d = parseDay(dateStr);
+    return tr('prog.dateFormat', { d: d.getDate(), m: tr('prog.months').split(',')[d.getMonth()] });
+  }
+  function addDays(dateStr, n) { var p = dateStr.split('-').map(Number); return L.day(new Date(p[0], p[1] - 1, p[2] + n)); }
+  // Bar chart (optionally stacked) + a screen-reader table with the same numbers. The SVG is decorative.
+  function barChart(host, labels, series, opts) {
+    host.textContent = '';
+    // One SVG unit = one CSS pixel (viewBox follows the real width), so labels never stretch.
+    var n = labels.length, W = Math.max(280, Math.round(host.clientWidth || 600)), H = 170, top = 18, bottom = 24, plotH = H - top - bottom;
+    var totals = labels.map(function (_, i) { return series.reduce(function (s, se) { return s + se.values[i]; }, 0); });
+    var max = Math.max(1, Math.max.apply(null, totals));
+    var slot = W / n, bw = Math.max(3, Math.min(48, slot * 0.66));
+    var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart-svg', 'aria-hidden': 'true', focusable: 'false' });
+    chart.appendChild(svg('line', { x1: 0, x2: W, y1: top + plotH, y2: top + plotH, class: 'chart-axis' }));
+    labels.forEach(function (label, i) {
+      var x = i * slot + (slot - bw) / 2, y = top + plotH;
+      series.forEach(function (se) {
+        var h = se.values[i] / max * plotH;
+        if (h > 0) { y -= h; chart.appendChild(svg('rect', { x: x.toFixed(1), y: y.toFixed(1), width: bw.toFixed(1), height: Math.max(1, h).toFixed(1), rx: 2, class: se.cls })); }
+      });
+      if (n <= 7 && totals[i]) { var v = svg('text', { x: (x + bw / 2).toFixed(1), y: (y - 5).toFixed(1), 'text-anchor': 'middle', class: 'chart-value' }); v.textContent = totals[i]; chart.appendChild(v); }
+      if (n <= 7 || i % 5 === 0 || i === n - 1) { var t = svg('text', { x: (x + bw / 2).toFixed(1), y: H - 6, 'text-anchor': 'middle', class: 'chart-label' }); t.textContent = label; chart.appendChild(t); }
+    });
+    host.appendChild(chart);
+    if (opts.caption) host.appendChild(h('figcaption', { className: 'chart-caption', text: opts.caption }));
+    if (opts.legend) host.appendChild(h('div', { className: 'chart-legend', 'aria-hidden': 'true' }, series.map(function (se) { return h('span', { className: 'legend-item ' + se.cls, text: se.name }); })));
+    host.appendChild(h('table', { className: 'sr-only' }, [
+      h('caption', { text: opts.tableCaption }),
+      h('thead', {}, [h('tr', {}, [h('th', { scope: 'col', text: opts.columnLabel })].concat(series.map(function (se) { return h('th', { scope: 'col', text: se.name }); })))]),
+      h('tbody', {}, labels.map(function (label, i) {
+        return h('tr', {}, [h('th', { scope: 'row', text: opts.rowLabels ? opts.rowLabels[i] : label })].concat(series.map(function (se) { return h('td', { text: String(se.values[i]) }); })));
+      }))
+    ]));
+  }
+  function allCards() {
+    var out = [];
+    Object.keys(library.decks).forEach(function (k) { out = out.concat(library.decks[k].cards); });
+    return out;
+  }
+  function tile(label, value, note) {
+    return h('div', { className: 'prog-tile' }, [h('span', { className: 'prog-tile-label', text: label }), h('strong', { text: value }), note ? h('span', { className: 'prog-tile-note', text: note }) : null]);
+  }
+  function renderProgress() {
+    var cards = allCards(), today = L.day(), now = Date.now();
+    var translated = cards.filter(function (c) { return c.translation && c.translation !== '—'; });
+    $('progEmpty').hidden = translated.length > 0;
+    $('progBody').hidden = !translated.length;
+    if (!translated.length) return;
+    var fc = L.forecast(cards, progressDays, now), mat = L.maturity(cards), acc = L.accuracy(library.history, 30, today);
+    var best = Math.max(L.longestStreak(library.history), library.streak.count);
+
+    $('progTiles').textContent = '';
+    [tile(tr('prog.tileToday'), String(fc.days[0]), fc.fresh ? trn('prog.tileNew', fc.fresh) : ''),
+     tile(tr('prog.tileStreak'), trn('streak.days', library.streak.count), tr('prog.tileBest', { n: trn('streak.days', best) })),
+     tile(tr('prog.tileAccuracy'), acc.pct == null ? '—' : acc.pct + '%', trn('act.answers', acc.answers)),
+     tile(tr('prog.tileWords'), String(translated.length), tr('prog.tileMature', { n: mat.mature }))
+    ].forEach(function (t) { $('progTiles').appendChild(t); });
+
+    var fcLabels = fc.days.map(function (_, i) { return dayLabel(addDays(today, i), i, progressDays > 7); });
+    var fcRows = fc.days.map(function (_, i) { return i === 0 ? tr('prog.today') : longDate(addDays(today, i)); });
+    var fcTotal = fc.days.reduce(function (a, b) { return a + b; }, 0);
+    barChart($('forecastChart'), fcLabels, [{ name: tr('prog.reviews'), values: fc.days, cls: 'bar-due' }],
+      { caption: tr('prog.forecastCaption', { today: fc.days[0], total: fcTotal, days: progressDays }), tableCaption: tr('prog.forecast'), columnLabel: tr('prog.day'), rowLabels: fcRows });
+
+    var accRows = acc.days.map(function (d) { return longDate(d.date); });
+    barChart($('accuracyChart'), acc.days.map(function (d, i) { return dayLabel(d.date, i === acc.days.length - 1 ? 0 : 1, true); }),
+      [{ name: tr('prog.correct'), values: acc.days.map(function (d) { return d.correct; }), cls: 'bar-ok' },
+       { name: tr('prog.wrong'), values: acc.days.map(function (d) { return d.answers - d.correct; }), cls: 'bar-no' }],
+      { caption: acc.answers ? tr('prog.accuracyCaption', { pct: acc.pct, n: trn('act.answers', acc.answers), d: trn('act.days', acc.active) }) : tr('prog.noAnswers'),
+        legend: true, tableCaption: tr('prog.accuracy'), columnLabel: tr('prog.day'), rowLabels: accRows });
+
+    var host = $('maturityChart'); host.textContent = '';
+    var parts = [{ key: 'fresh', cls: 'm-new', name: tr('prog.mNew') }, { key: 'learning', cls: 'm-learning', name: tr('prog.mLearning') }, { key: 'mature', cls: 'm-mature', name: tr('prog.mMature') }];
+    var total = mat.fresh + mat.learning + mat.mature, x = 0;
+    var bar = svg('svg', { viewBox: '0 0 600 28', class: 'maturity-svg', 'aria-hidden': 'true', focusable: 'false', preserveAspectRatio: 'none' });
+    parts.forEach(function (p) { var w = mat[p.key] / total * 600; if (w > 0) bar.appendChild(svg('rect', { x: x.toFixed(1), y: 0, width: w.toFixed(1), height: 28, class: p.cls })); x += w; });
+    host.appendChild(bar);
+    host.appendChild(h('ul', { className: 'maturity-legend' }, parts.map(function (p) {
+      return h('li', { className: p.cls }, [h('strong', { text: String(mat[p.key]) }), ' ' + p.name + ' · ' + Math.round(mat[p.key] / total * 100) + '%']);
+    })));
+    host.appendChild(h('figcaption', { className: 'chart-caption', text: (mat.avgEase == null ? '' : tr('prog.avgEase', { e: mat.avgEase.toFixed(2) }) + ' ') + tr('prog.matureHint') }));
+
+    var list = $('weakList'); list.textContent = '';
+    var any = false;
+    Object.keys(library.decks).forEach(function (key) {
+      var d = library.decks[key], weak = L.weakest(d.cards);
+      if (!weak.length) return;
+      any = true;
+      var btn = h('button', { className: 'btn primary', type: 'button', text: tr('prog.practice', { n: weak.length }) });
+      btn.onclick = function () { practiceDeck(d, 'weak'); };
+      list.appendChild(h('div', { className: 'weak-deck' }, [
+        h('div', { className: 'weak-head' }, [h('span', { className: 'deck-kicker', text: langByCode(d.source).label + ' → ' + langByCode(d.target).label }), btn]),
+        h('ol', { className: 'weak-words' }, weak.slice(0, 5).map(function (c) {
+          return h('li', {}, [h('strong', { text: c.original, lang: d.source }), h('span', { text: c.translation, lang: d.target }),
+            h('span', { className: 'weak-meta', text: tr('prog.weakMeta', { f: c.fails || 0, e: (c.ease || 2.5).toFixed(2) }) })]);
+        }))
+      ]));
+    });
+    if (!any) list.appendChild(h('p', { className: 'mini', text: tr('prog.noWeak') }));
+    if (window.VMMotion) window.VMMotion.library();
+  }
+
   var match = null;
   function stopMatch() { if (match && match.timer) { clearInterval(match.timer); match.timer = null; } }
   function matchBest() { try { return JSON.parse(localStorage.getItem('vm.match-best') || '{}'); } catch (e) { return {}; } }
@@ -1628,9 +1747,10 @@
     hideSummary();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     show(id); renderDaily();
-    document.querySelectorAll('.nav-link').forEach(function (b) { b.classList.toggle('active', b.id === ({'screen-setup':'navStudy','screen-library':'navLibrary','screen-test':'navTest'})[id]); });
+    document.querySelectorAll('.nav-link').forEach(function (b) { b.classList.toggle('active', b.id === ({'screen-setup':'navStudy','screen-library':'navLibrary','screen-test':'navTest','screen-progress':'navProgress'})[id]); });
     if (id === 'screen-library') renderLibrary();
     if (id === 'screen-test') fillQuizDecks();
+    if (id === 'screen-progress') renderProgress();
   }
   function renderLibrary() {
     var host = $('libraryGrid'); host.innerHTML = '';
@@ -1659,8 +1779,8 @@
       var list = panel.querySelector('.word-list');
       d.cards.forEach(function (c, i) {
         var row = h('div', { className: 'saved-word' }, [
-          h('strong', { text: c.original }),
-          h('span', { text: c.translation }),
+          h('strong', { text: c.original, lang: d.source }),
+          h('span', { text: c.translation, lang: d.target }),
           h('div', { className: 'word-actions' }, [
             h('button', { className: 'link', type: 'button', 'data-act': 'edit', text: tr('word.edit') }),
             h('button', { className: 'link', type: 'button', 'data-act': 'remove', text: tr('word.remove') })
@@ -1760,6 +1880,8 @@
       var raw = JSON.parse(localStorage.getItem(LIBRARY_KEY) || 'null');
       if (raw && raw.decks && raw.streak && raw.history) library = raw;
     } catch(e) {}
+    // The daily aggregate stays compact: two years are plenty for the progress screen.
+    library.history = L.trimHistory(library.history, 730, L.day());
     L.reconcile(library.streak, L.day()); persistLibrary(); renderDaily();
     LANGS.forEach(function (l) { var opt = document.createElement('option'); opt.value = l.code; opt.textContent = l.label; $('sourceLang').appendChild(opt); });
     $('sourceLang').value = state.cfg.source;
@@ -1782,6 +1904,16 @@
     $('navStudy').onclick = function () { navigateLearning('screen-setup'); };
     $('navLibrary').onclick = function () { navigateLearning('screen-library'); };
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
+    $('navProgress').onclick = function () { navigateLearning('screen-progress'); };
+    $('btnProgEmpty').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
+    var progressResize = null;
+    window.addEventListener('resize', function () { clearTimeout(progressResize); progressResize = setTimeout(function () { if ($('screen-progress').classList.contains('active')) renderProgress(); }, 150); });
+    $('progRange').onclick = function (e) {
+      var b = e.target.closest('button[data-days]'); if (!b) return;
+      progressDays = Number(b.dataset.days);
+      this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      renderProgress();
+    };
     $('btnAddDeck').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
     $('librarySearch').oninput = renderSearch;
     $('batchSize').onchange = function () { library.batch = Number(this.value) || 0; persistLibrary(); };
@@ -1853,6 +1985,7 @@
     renderDaily();
     if ($('screen-library').classList.contains('active')) renderLibrary();
     if ($('screen-test').classList.contains('active') && !lexical) fillQuizDecks();
+    if ($('screen-progress').classList.contains('active')) renderProgress();
     if (state.cards.length) $('topPill').textContent = trn('pill.cards', state.cards.length);
     if (state.summaryMsg) $('summaryMsg').textContent = summaryMessage();
     if (state.current && $('screen-train').classList.contains('active') && !state.revealed && !answerLocked) renderCard();

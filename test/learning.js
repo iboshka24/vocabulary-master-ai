@@ -155,3 +155,49 @@ const proto = L.restoreBackup(JSON.parse('{"version":2,"library":{"decks":{"__pr
 assert.deepEqual(Object.keys(proto.decks), ['uz-ru']); assert.equal({}.source, undefined);
 assert.deepEqual(L.librarySize(lib), { decks: 1, words: 2 }); assert.deepEqual(L.librarySize({}), { decks: 0, words: 0 });
 console.log('✓ Backups: exact round-trip, every malformed shape rejected with a code, values clamped, unknown fields and prototype keys ignored');
+
+// --- progress statistics ---
+const NOW = new Date(2026, 9, 18, 12, 0, 0).getTime();          // 18 Oct 2026, noon local time
+const at = (dayOffset, hour = 9) => new Date(2026, 9, 18 + dayOffset, hour).getTime();
+const stat = [
+  { original: 'new', translation: 'новое' },                                              // never answered
+  { original: 'pending', translation: '—' },                                              // ignored: no translation
+  { original: 'overdue', translation: 'x', due: at(-3), interval: 1, reps: 1, ease: 2.5 }, // overdue → today
+  { original: 'today-late', translation: 'x', due: at(0, 23), interval: 1, reps: 1, ease: 2.36 },
+  { original: 'tomorrow-early', translation: 'x', due: at(1, 0), interval: 6, reps: 2, ease: 2.6 },
+  { original: 'in-a-week', translation: 'x', due: at(7), interval: 15, reps: 3, ease: 2.5, fails: 2 },
+  { original: 'mature', translation: 'x', due: at(40), interval: 38, reps: 4, ease: 2.7 },
+  { original: 'legacy', translation: 'x', box: 4, due: at(2), fails: 1 },                  // pre-v2.7: 7-day box
+  { original: 'relearn', translation: 'x', box: 0, due: at(0, 8), interval: 0, reps: 0, lapses: 1, ease: 1.96, fails: 1 }
+];
+const fc7 = L.forecast(stat, 7, NOW);
+assert.deepEqual(fc7.days, [3, 1, 1, 0, 0, 0, 0], 'overdue + today, then by calendar day');
+assert.equal(fc7.fresh, 1, 'never-answered words are counted separately');
+const fc30 = L.forecast(stat, 30, NOW);
+assert.equal(fc30.days.length, 30); assert.equal(fc30.days[7], 1, 'the week-out card'); assert.equal(fc30.days.reduce((a, b) => a + b), 6, 'cards beyond the window are left out');
+assert.deepEqual(L.forecast([], 7, NOW), { days: [0, 0, 0, 0, 0, 0, 0], fresh: 0 });
+
+const mat = L.maturity(stat);
+assert.deepEqual([mat.fresh, mat.learning, mat.mature], [1, 6, 1], 'interval 21+ is mature; legacy box 4 (7 d) is learning');
+assert.equal(mat.avgEase, Math.round((2.5 + 2.36 + 2.6 + 2.5 + 2.7 + 2.5 + 1.96) / 7 * 100) / 100, 'legacy cards count with the default ease');
+assert.equal(L.maturity([{ original: 'a', translation: 'b' }]).avgEase, null, 'no ease without answers');
+
+assert.deepEqual(L.weakest(stat).map(c => c.original), ['in-a-week', 'relearn', 'legacy'], 'mistakes first, then lower ease; one "hard" (2.36) is not weak yet');
+assert.deepEqual(L.weakest([{ original: 'a', translation: 'b', ease: 2.22 }]).length, 1, 'two "hard" answers make a word weak');
+assert.equal(L.weakest(stat, 2).length, 2);
+assert.deepEqual(L.pick(stat, 'weak').map(c => c.original), L.weakest(stat).map(c => c.original), 'practice mode "weak" uses the same order');
+
+const hist = { '2026-10-18': { answers: 10, correct: 8 }, '2026-10-17': { answers: 5, correct: 5 }, '2026-10-15': { answers: 2, correct: 9 }, '2024-01-01': { answers: 3, correct: 3 } };
+const acc30 = L.accuracy(hist, 30, '2026-10-18');
+assert.equal(acc30.days.length, 30); assert.equal(acc30.days[29].pct, 80); assert.equal(acc30.days[28].pct, 100);
+assert.equal(acc30.days[26].correct, 2, 'correct never exceeds answers'); assert.equal(acc30.days[27].pct, null, 'a day without answers has no accuracy');
+assert.deepEqual([acc30.answers, acc30.correct, acc30.active, acc30.pct], [17, 15, 3, 88]);
+assert.equal(L.accuracy({}, 30, '2026-10-18').pct, null);
+
+assert.equal(L.longestStreak(hist), 2);
+assert.equal(L.longestStreak({ '2026-10-01': { answers: 1 }, '2026-10-02': { answers: 1 }, '2026-10-03': { answers: 0 }, '2026-09-30': { answers: 4 }, bogus: { answers: 9 } }), 3, 'zero-answer days break a run');
+assert.equal(L.longestStreak({}), 0);
+
+assert.deepEqual(Object.keys(L.trimHistory(hist, 730, '2026-10-18')).sort(), ['2026-10-15', '2026-10-17', '2026-10-18'], 'days older than two years are dropped');
+assert.equal(Object.keys(L.trimHistory(hist, 2, '2026-10-18')).length, 2);
+console.log('✓ Progress stats: forecast by calendar day, maturity buckets, weakest words, 30-day accuracy, longest streak, history trimming');

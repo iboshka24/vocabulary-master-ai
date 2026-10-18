@@ -145,7 +145,69 @@
     var ready = (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; });
     if (mode === 'hard') return ready.filter(function (c) { return (c.fails || 0) > 0; }).sort(function (a, b) { return (b.fails || 0) - (a.fails || 0); });
     if (mode === 'due') return ready.filter(function (c) { return !c.due || c.due <= t; }).sort(function (a, b) { return (a.due || 0) - (b.due || 0); });
+    if (mode === 'weak') return weakest(ready);
     return ready;
+  }
+
+  // ---- progress statistics (pure; the progress screen only draws them) ----
+  function isTranslated(c) { return c && c.translation && c.translation !== '—'; }
+  // A card that was never answered has no schedule at all.
+  function isNew(c) { return !(c.reps > 0) && c.interval == null && !c.box && !c.due; }
+  function intervalOf(c) { return c.interval != null ? c.interval : LEGACY[Math.min(5, c.box || 0)]; }
+  // Reviews due per calendar day: index 0 is today and includes everything overdue.
+  function forecast(cards, days, now) {
+    var t = now == null ? Date.now() : now, today = day(new Date(t)), out = [];
+    for (var i = 0; i < days; i++) out.push(0);
+    var fresh = 0;
+    (cards || []).filter(isTranslated).forEach(function (c) {
+      if (isNew(c)) { fresh++; return; }
+      var idx = c.due ? Math.max(0, gap(today, day(new Date(c.due)))) : 0;
+      if (idx < days) out[idx]++;
+    });
+    return { days: out, fresh: fresh };
+  }
+  // new: never answered; learning: interval under 21 days; mature: 21 days or more.
+  function maturity(cards) {
+    var m = { fresh: 0, learning: 0, mature: 0, avgEase: null }, easeSum = 0, easeN = 0;
+    (cards || []).filter(isTranslated).forEach(function (c) {
+      if (isNew(c)) { m.fresh++; return; }
+      if (intervalOf(c) >= 21) m.mature++; else m.learning++;
+      easeSum += c.ease || 2.5; easeN++;
+    });
+    if (easeN) m.avgEase = Math.round(easeSum / easeN * 100) / 100;
+    return m;
+  }
+  // Words with mistakes or a lowered ease, worst first (more mistakes, then lower ease).
+  function weakest(cards, n) {
+    var list = (cards || []).filter(function (c) { return isTranslated(c) && ((c.fails || 0) > 0 || (c.ease != null && c.ease < 2.3)); })
+      .sort(function (a, b) { return (b.fails || 0) - (a.fails || 0) || (a.ease || 2.5) - (b.ease || 2.5) || a.original.localeCompare(b.original); });
+    return n ? list.slice(0, n) : list;
+  }
+  // Last `days` days of answers with accuracy, plus totals; days without answers have pct null.
+  function accuracy(history, days, today) {
+    var list = activity(history, days, today).map(function (d) {
+      var correct = Math.min(d.correct, d.answers);
+      return { date: d.date, answers: d.answers, correct: correct, pct: d.answers ? Math.round(correct / d.answers * 100) : null };
+    });
+    var answers = 0, correct = 0, active = 0;
+    list.forEach(function (d) { answers += d.answers; correct += d.correct; if (d.answers) active++; });
+    return { days: list, answers: answers, correct: correct, active: active, pct: answers ? Math.round(correct / answers * 100) : null };
+  }
+  // Longest run of consecutive days with at least one answer.
+  function longestStreak(history) {
+    var dates = Object.keys(history || {}).filter(function (k) { return DATE.test(k) && history[k] && history[k].answers > 0; }).sort();
+    var best = 0, run = 0;
+    for (var i = 0; i < dates.length; i++) {
+      run = i && gap(dates[i - 1], dates[i]) === 1 ? run + 1 : 1;
+      if (run > best) best = run;
+    }
+    return best;
+  }
+  // Keeps the daily aggregate compact: days older than keepDays are dropped.
+  function trimHistory(history, keepDays, today) {
+    var t = today || day(), out = {};
+    Object.keys(history || {}).forEach(function (k) { if (DATE.test(k) && gap(k, t) < keepDays) out[k] = history[k]; });
+    return out;
   }
   // Up to n cards for the matching game; no two tiles may share a text.
   function pairs(cards, n, random) {
@@ -212,5 +274,6 @@
     var keys = Object.keys((library && library.decks) || {});
     return { decks: keys.length, words: keys.reduce(function (n, k) { return n + library.decks[k].cards.length; }, 0) };
   }
-  return { backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
+  return { forecast: forecast, maturity: maturity, weakest: weakest, accuracy: accuracy, longestStreak: longestStreak, trimHistory: trimHistory,
+    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
 });

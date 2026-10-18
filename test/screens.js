@@ -79,9 +79,12 @@ function layoutProblems() {
     await page.click('#btnMatchStart');
     await page.locator('.match-tile').first().waitFor();
     await shot('5-test');
+    await page.click('#navProgress');
+    await page.locator('#screen-progress.active').waitFor();
+    await shot('6-progress');
     await context.close();
   }
-  console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 5} snapshots in ${path.relative(root, outDir)}`);
+  console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 6} snapshots in ${path.relative(root, outDir)}`);
   if (report.length) { console.log('Layout problems:\n  ' + [...new Set(report)].join('\n  ')); process.exitCode = 1; }
   else console.log('✓ No horizontal overflow or clipped text found');
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());

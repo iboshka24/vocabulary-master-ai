@@ -10,10 +10,10 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.12" />
-  <link rel="stylesheet" href="styles.css?v=2.12" />
-  <link rel="stylesheet" href="editorial.css?v=2.12" />
-  <link rel="stylesheet" href="motion.css?v=2.12" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.13" />
+  <link rel="stylesheet" href="styles.css?v=2.13" />
+  <link rel="stylesheet" href="editorial.css?v=2.13" />
+  <link rel="stylesheet" href="motion.css?v=2.13" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -31,6 +31,7 @@
       <button type="button" class="nav-link active" id="navStudy" data-i18n="nav.study">Учить слова</button>
       <button type="button" class="nav-link" id="navLibrary" data-i18n="nav.library">Моя библиотека</button>
       <button type="button" class="nav-link" id="navTest" data-i18n="nav.test">Лексический тест</button>
+      <button type="button" class="nav-link" id="navProgress" data-i18n="nav.progress">Прогресс</button>
     </nav>
     <div class="topbar-right">
       <span class="streak-indicator" title="Дни с завершённой тренировкой" data-i18n-attr="title:top.streak"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
@@ -330,8 +331,31 @@
       <details class="motion-details"><summary data-i18n="motion.summary">За кулисами: Native motion / EffectCraft</summary><p data-i18n="motion.p">Спокойное движение интерфейса — CSS. Ниже — сохранённый рендер композиции из EffectCraft CLI; это отдельный motion-этюд, не стиль приложения.</p><div class="motion-comparison"><div class="motion-native"><b data-i18n="motion.native">Слово за словом.</b></div><video src="motion/streak-celebration.mp4" controls preload="none" playsinline aria-label="Композиция EffectCraft" data-i18n-attr="aria-label:motion.video"></video></div></details>
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow" data-i18n="test.eyebrow">ЛЕКСИЧЕСКИЙ ЗАПАС</span><h1 data-i18n="test.h1">Проверь глубину словаря</h1><p data-i18n="test.sub">Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><p class="quiz-empty" id="quizEmpty" hidden><span data-i18n="test.empty">Для теста и игры нужна колода хотя бы из 4 слов.</span> <button class="link" type="button" id="btnQuizEmpty" data-i18n="lib.emptyBtn">Добавить слова →</button></p><label class="field"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button" data-i18n="test.start">Начать мини-тест →</button><p class="mini" data-i18n="test.note">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden data-i18n="btn.next">Дальше →</button></div></div><div class="panel match-panel"><div class="match-head"><div><span class="eyebrow" data-i18n="match.eyebrow">МИНИ-ИГРА</span><h2 data-i18n="match.title">Найди пару</h2><p class="mini" data-i18n="match.sub">Соедини слово с переводом как можно быстрее. Колода — та же, что выбрана выше.</p></div><button class="btn primary" id="btnMatchStart" type="button" data-i18n="match.start">Играть →</button></div><div class="match-stats" id="matchStats" hidden><span id="matchTime">0:00</span><span id="matchMistakes"></span><span id="matchBest"></span></div><div class="match-grid" id="matchGrid"></div></div></section>
+    <section class="screen" id="screen-progress">
+      <div class="library-intro"><div><span class="eyebrow" data-i18n="prog.eyebrow">ПРОГРЕСС</span><h1 data-i18n="prog.h1">Как идёт обучение</h1><p data-i18n="prog.sub">Что ждёт впереди, насколько прочно держатся слова и где нужна помощь.</p></div></div>
+      <p class="quiz-empty" id="progEmpty" hidden><span data-i18n="prog.empty">Статистика появится после первых ответов.</span> <button class="link" type="button" id="btnProgEmpty" data-i18n="lib.emptyBtn">Добавить слова →</button></p>
+      <div id="progBody">
+        <div class="prog-tiles" id="progTiles"></div>
+        <section class="panel prog-panel" aria-labelledby="progForecastTitle">
+          <div class="prog-head"><h2 id="progForecastTitle" data-i18n="prog.forecast">Повторения впереди</h2><div class="segmented" id="progRange"><button type="button" data-days="7" class="on" data-i18n="prog.days7">7 дней</button><button type="button" data-days="30" data-i18n="prog.days30">30 дней</button></div></div>
+          <figure class="chart" id="forecastChart"></figure>
+        </section>
+        <section class="panel prog-panel" aria-labelledby="progAccuracyTitle">
+          <h2 id="progAccuracyTitle" data-i18n="prog.accuracy">Ответы и точность за 30 дней</h2>
+          <figure class="chart" id="accuracyChart"></figure>
+        </section>
+        <section class="panel prog-panel" aria-labelledby="progMaturityTitle">
+          <h2 id="progMaturityTitle" data-i18n="prog.maturity">Насколько прочно держатся слова</h2>
+          <figure class="chart" id="maturityChart"></figure>
+        </section>
+        <section class="panel prog-panel" aria-labelledby="progWeakTitle">
+          <h2 id="progWeakTitle" data-i18n="prog.weak">Самые трудные слова</h2>
+          <div id="weakList"></div>
+        </section>
+      </div>
+    </section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.12</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.13</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -353,10 +377,10 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="i18n.js?v=2.12"></script>
-  <script defer src="motion.js?v=2.12"></script>
-  <script defer src="learning.js?v=2.12"></script>
-  <script defer src="ai-core.js?v=2.12"></script>
-  <script defer src="app.js?v=2.12"></script>
+  <script defer src="i18n.js?v=2.13"></script>
+  <script defer src="motion.js?v=2.13"></script>
+  <script defer src="learning.js?v=2.13"></script>
+  <script defer src="ai-core.js?v=2.13"></script>
+  <script defer src="app.js?v=2.13"></script>
 </body>
 </html>
