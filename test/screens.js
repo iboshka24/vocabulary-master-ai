@@ -7,6 +7,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const vercelHeaders = require('../tools/vercel-headers.js');
+const run = require('./harness.js')('test/screens.js', { deadlineMs: 360000 });
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(__dirname, 'screens');
@@ -40,9 +41,10 @@ function layoutProblems() {
 
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
+  run.server(server);
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = 'http://127.0.0.1:' + server.address().port;
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined });
+  const browser = run.browser(await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined }));
   const report = [];
   for (const lang of LANGS) for (const theme of THEMES) for (const width of WIDTHS) {
     const context = await browser.newContext({ viewport: { width, height: width < 600 ? 812 : 900 }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: lang, hasTouch: width < 600, isMobile: width < 600 });
@@ -79,8 +81,7 @@ function layoutProblems() {
     await shot('5-test');
     await context.close();
   }
-  await browser.close(); server.close();
   console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 5} snapshots in ${path.relative(root, outDir)}`);
   if (report.length) { console.log('Layout problems:\n  ' + [...new Set(report)].join('\n  ')); process.exitCode = 1; }
   else console.log('✓ No horizontal overflow or clipped text found');
-})().catch(err => { console.error(err); process.exitCode = 1; server.close(); });
+})().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());

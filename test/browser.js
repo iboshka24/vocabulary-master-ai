@@ -18,9 +18,11 @@ const server = http.createServer((req,res) => {
   fs.readFile(file, (err,data) => { if(err){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',mime[path.extname(file)] || 'application/octet-stream');res.end(data); });
 });
 let browser;
+const run = require('./harness.js')('test/browser.js', { deadlineMs: 240000 });
+run.server(server);
 (async () => {
   await new Promise(r => server.listen(0,'127.0.0.1',r));
-  browser = await chromium.launch({headless:true});
+  browser = run.browser(await chromium.launch({headless:true}));
   const page = await browser.newPage({viewport:{width:1440,height:1100},reducedMotion:'reduce'});
   const errors = []; page.on('pageerror',e=>errors.push(e.message));
   const csp = []; const watchCsp = pg => pg.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text().slice(0,200)); });
@@ -244,4 +246,4 @@ let browser;
   assert.deepEqual(csp,[],'no CSP violations with lottie, 3D motion and fonts');
   console.log('✓ Browser: learning, seamless simultaneous swap, preview identity/round boundary, mouse + mobile touch swipes, compositor-only frames, EffectCraft, reduced-motion');
   console.log('Screenshots: ' + output);
-})().catch(err=>{console.error(err);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.close();});
+})().catch(err=>{console.error(err);process.exitCode=1;}).finally(()=>run.finish());

@@ -106,10 +106,12 @@ function printCoverage(entries) {
 }
 
 let browser;
+const run = require('./harness.js')('test/e2e.js', { deadlineMs: 240000 });
+run.server(server);
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = 'http://127.0.0.1:' + server.address().port;
-  browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined });
+  browser = run.browser(await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined }));
   const context = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce', acceptDownloads: true, viewport: { width: 1280, height: 900 } });
   const thirdParty = [];
   await context.route(/fonts\.(googleapis|gstatic)\.com/, route => { thirdParty.push(route.request().url()); return route.abort(); });
@@ -471,4 +473,4 @@ let browser;
   assert.deepEqual(thirdParty, [], 'fonts are self-hosted: no requests to Google Fonts');
   if (COVERAGE) printCoverage(coverage.concat(await page.coverage.stopJSCoverage()));
   console.log('✓ E2E: service worker, SM-2 persistence, offline + resync, API failures, backup round-trip, storage quota, server AI contract, undo/swap/game/empty states, XSS, CSP, languages');
-})().catch(err => { console.error(err); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); server.close(); });
+})().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());
