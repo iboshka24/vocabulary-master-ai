@@ -1609,6 +1609,112 @@
     if (window.VMMotion) window.VMMotion.library();
   }
 
+  /* ---------------- Sharing a deck by link (#deck=…, never sent to a server) ---------------- */
+  var shareState = { deck: null, link: '', title: '', opener: null }, previewDeck = null, qrLoading = null;
+  function langCodes() { return LANGS.map(function (l) { return l.code; }); }
+  function pairLabel(d) { return langByCode(d.source).label + ' → ' + langByCode(d.target).label; }
+  function loadQr() {
+    if (window.qrcode) return Promise.resolve();
+    if (!qrLoading) qrLoading = new Promise(function (ok, fail) {
+      var s = document.createElement('script'); s.src = 'vendor/qrcode/qrcode.js'; s.onload = ok; s.onerror = function () { qrLoading = null; fail(); };
+      document.head.appendChild(s);
+    });
+    return qrLoading;
+  }
+  // QR as SVG: dark modules on a white plate (scanners need contrast in the dark theme too), one path, no style attributes.
+  function qrSvg(text) {
+    var qr = window.qrcode(0, 'L');
+    qr.addData(text, 'Byte'); qr.make();
+    var n = qr.getModuleCount(), q = 4, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+    return svg('svg', { viewBox: '0 0 ' + (n + 2 * q) + ' ' + (n + 2 * q), class: 'qr-svg', role: 'img', 'aria-label': tr('share.qrLabel'), 'shape-rendering': 'crispEdges' },
+      [svg('rect', { width: n + 2 * q, height: n + 2 * q, class: 'qr-plate' }), svg('path', { d: d, class: 'qr-dark' })]);
+  }
+  async function openShare(d, opener) {
+    var code;
+    try { code = await window.VMShare.encodeDeck(d); }
+    catch (e) { toast(tr(e.code === 'empty' ? 'shareErr.empty' : 'shareErr.encode'), 'err', 5000); return; }
+    var link = location.origin + location.pathname + '#deck=' + code;
+    shareState = { deck: d, link: link, title: pairLabel(d), opener: opener || null };
+    var words = window.VMShare.payloadOf(d).c.length, LIM = window.VMShare.LIMITS;
+    $('shareDeckName').textContent = pairLabel(d);
+    $('shareInfo').textContent = tr('share.info', { n: trn('words.count', words), k: Math.max(1, Math.round(link.length / 1024 * 10) / 10) });
+    var tooBig = link.length > LIM.linkChars;
+    $('shareReady').hidden = tooBig; $('shareTooBig').hidden = !tooBig;
+    $('shareTooBigText').textContent = tr('share.tooBig', { k: Math.round(link.length / 1024), max: Math.round(LIM.linkChars / 1024) });
+    $('shareLink').value = tooBig ? '' : link;
+    $('btnShareNative').hidden = tooBig || typeof navigator.share !== 'function';
+    var qrHost = $('shareQr'); qrHost.textContent = '';
+    $('shareDialog').hidden = false;
+    (tooBig ? $('btnShareFile') : $('btnShareCopy')).focus();
+    if (tooBig) return;
+    if (link.length > LIM.qrChars) { qrHost.appendChild(h('figcaption', { className: 'mini', text: tr('share.qrTooLong') })); return; }
+    try { await loadQr(); qrHost.appendChild(qrSvg(link)); qrHost.appendChild(h('figcaption', { className: 'mini', text: tr('share.qrHint') })); }
+    catch (e) { qrHost.appendChild(h('figcaption', { className: 'mini', text: tr('share.qrFailed') })); }
+  }
+  function closeShare() {
+    $('shareDialog').hidden = true;
+    if (shareState.opener && shareState.opener.focus) shareState.opener.focus();
+  }
+  async function copyShareLink() {
+    try { await navigator.clipboard.writeText(shareState.link); toast(tr('share.copied'), 'ok', 2500); }
+    catch (e) { $('shareLink').select(); toast(tr('share.copyManual'), 'err', 4000); }
+  }
+  function downloadShareFile() {
+    var data = { vmShare: 1, deck: window.VMShare.payloadOf(shareState.deck) };
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+    link.download = 'vocabulary-deck-' + shareState.deck.source + '-' + shareState.deck.target + '.json';
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+  }
+  // Reads #deck=…, removes it from the address bar right away (it is not kept in history), then previews.
+  async function openSharedLink() {
+    var code = window.VMShare && window.VMShare.codeFromHash(location.hash);
+    if (code == null) return;
+    try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) {}
+    var deck;
+    try { deck = await window.VMShare.decodeDeck(code, langCodes()); }
+    catch (e) { toast(tr('shareErr.' + (e.code || 'bad-link')), 'err', 7000); return; }
+    showPreview(deck);
+  }
+  function showPreview(deck) {
+    previewDeck = deck;
+    $('previewTitle').textContent = pairLabel(deck);
+    var key = deck.source + '-' + deck.target, known = Object.create(null);
+    ((library.decks[key] || {}).cards || []).forEach(function (c) { known[c.original.toLowerCase()] = true; });
+    var fresh = deck.cards.filter(function (c) { return !known[c.original.toLowerCase()]; }).length;
+    $('previewCount').textContent = trn('words.count', deck.cards.length) + (fresh < deck.cards.length ? ' · ' + tr('share.alreadyHave', { n: deck.cards.length - fresh }) : '');
+    var list = $('previewList'); list.textContent = '';
+    deck.cards.slice(0, 5).forEach(function (c) {
+      list.appendChild(h('li', {}, [h('strong', { text: c.original, lang: deck.source }), h('span', { text: c.translation, lang: deck.target })]));
+    });
+    $('previewMore').textContent = deck.cards.length > 5 ? tr('share.more', { n: deck.cards.length - 5 }) : '';
+    $('btnPreviewAdd').disabled = !fresh;
+    $('btnPreviewAdd').textContent = fresh ? tr('share.addN', { n: trn('words.count', fresh) }) : tr('share.nothingNew');
+    $('sharePreview').hidden = false;
+    (fresh ? $('btnPreviewAdd') : $('btnPreviewCancel')).focus();
+  }
+  function closePreview() { $('sharePreview').hidden = true; previewDeck = null; }
+  function addPreviewDeck() {
+    var deck = previewDeck;
+    if (!deck) return;
+    var previous = snapshotLibrary(), key = deck.source + '-' + deck.target;
+    var d = library.decks[key] || { source: deck.source, target: deck.target, cards: [], created: Date.now() };
+    var known = Object.create(null), added = 0;
+    d.cards.forEach(function (c) { known[c.original.toLowerCase()] = true; });
+    deck.cards.forEach(function (c) {
+      if (known[c.original.toLowerCase()]) return;
+      known[c.original.toLowerCase()] = true; added++;
+      d.cards.push({ original: c.original, translation: c.translation, hint: '', definition: '', examples: c.examples.slice(), streak: 0, fails: 0 });
+    });
+    library.decks[key] = d;
+    persistLibrary();
+    closePreview();
+    navigateLearning('screen-library');
+    offerUndo(trn('share.added', added), restoreLibrary(previous));
+  }
+
   var match = null;
   function stopMatch() { if (match && match.timer) { clearInterval(match.timer); match.timer = null; } }
   function matchBest() { try { return JSON.parse(localStorage.getItem('vm.match-best') || '{}'); } catch (e) { return {}; } }
@@ -1773,7 +1879,7 @@
       var panel = document.createElement('article'); panel.className = 'deck-item';
       panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track deck-progress"><i></i></div>' +
         '<div class="actions"><button class="btn primary" type="button" data-act="practice" title="' + tr('deck.practiceTitle') + '">' + (due ? tr('deck.practiceDue', { n: due }) : tr('deck.practiceAll')) + '</button><button class="btn" type="button" data-act="hard"' + (hard ? '' : ' disabled') + ' title="' + tr('deck.hardTitle') + '">' + tr('deck.hardBtn', { n: hard }) + '</button><button class="btn" type="button" data-act="add">' + tr('deck.add') + '</button></div>' +
-        '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button></div>' +
+        '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button><button class="link" type="button" data-act="share">' + tr('share.button') + '</button></div>' +
         '<details><summary>' + tr('deck.all') + '</summary><div class="word-list"></div><button class="link link-danger" type="button" data-act="delete">' + tr('deck.delete') + '</button></details>';
       panel.querySelector('.deck-progress i').style.width = Math.round(mastered / Math.max(1, d.cards.length) * 100) + '%';
       var list = panel.querySelector('.word-list');
@@ -1805,6 +1911,7 @@
       panel.querySelector('[data-act="hard"]').onclick = function () { practiceDeck(d, 'hard'); };
       panel.querySelector('[data-act="reverse"]').onclick = function () { reverseDeck(d); };
       panel.querySelector('[data-act="copy"]').onclick = function () { copyDeck(d); };
+      panel.querySelector('[data-act="share"]').onclick = function () { openShare(d, this); };
       panel.querySelector('[data-act="add"]').onclick = function () {
         state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
         $('sourceLang').value = d.source; $('targetLang').value = d.target; $('input').value = '';
@@ -1918,6 +2025,14 @@
     $('librarySearch').oninput = renderSearch;
     $('batchSize').onchange = function () { library.batch = Number(this.value) || 0; persistLibrary(); };
     $('btnUndo').onclick = undoAnswer;
+    $('btnShareClose').onclick = closeShare;
+    $('btnShareCopy').onclick = copyShareLink;
+    $('btnShareNative').onclick = function () { navigator.share({ title: 'Vocabulary Master AI', text: shareState.title, url: shareState.link }).catch(function () {}); };
+    $('btnShareFile').onclick = downloadShareFile;
+    $('btnPreviewAdd').onclick = addPreviewDeck;
+    $('btnPreviewCancel').onclick = closePreview;
+    window.addEventListener('hashchange', openSharedLink);
+    setTimeout(openSharedLink, 0);
     $('btnMatchStart').onclick = startMatch;
     $('btnQuizEmpty').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
     $('btnHint').onclick = showHint;
@@ -1938,6 +2053,12 @@
         if (file.size > 5000000) throw new Error(tr('err.fileBig'));
         var data;
         try { data = JSON.parse(await file.text()); } catch (parseErr) { throw new Error(tr('err.badJson')); }
+        if (data && data.vmShare === 1) {
+          var shared;
+          try { shared = window.VMShare.validatePayload(data.deck, langCodes()); } catch (e) { throw new Error(tr('shareErr.' + (e.code || 'bad-deck'))); }
+          showPreview(shared);
+          return;
+        }
         var restored;
         try { restored = L.restoreBackup(data, LANGS.map(function (l) { return l.code; })); }
         catch (e) { throw new Error(tr({ 'not-backup': 'err.notBackup', 'bad-deck': 'err.badDeck', 'bad-word': 'err.badWord' }[e.code] || 'err.readFile')); }
@@ -2248,6 +2369,10 @@
     document.addEventListener('keydown', function (e) {
       // Alt+X swaps languages on the setup screen, even while typing the word list.
       if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
+      if (!$('shareDialog').hidden || !$('sharePreview').hidden) {
+        if (e.key === 'Escape') { e.preventDefault(); if (!$('shareDialog').hidden) closeShare(); else closePreview(); }
+        return;
+      }
       if (e.target.matches('input,textarea,select')) return;
       var k = e.key;
       if (L && answerLocked) return;

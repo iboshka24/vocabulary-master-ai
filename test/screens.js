@@ -82,9 +82,18 @@ function layoutProblems() {
     await page.click('#navProgress');
     await page.locator('#screen-progress.active').waitFor();
     await shot('6-progress');
+    await page.click('#navLibrary');
+    await page.locator('.deck-item [data-act="share"]').first().click();
+    await page.locator('#shareQr svg').waitFor();
+    await shot('7-share');
+    const link = await page.inputValue('#shareLink');
+    await page.keyboard.press('Escape');
+    await page.goto(link);
+    await page.locator('#sharePreview:not([hidden])').waitFor();
+    await shot('8-preview');
     await context.close();
   }
-  console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 6} snapshots in ${path.relative(root, outDir)}`);
+  console.log(`Screens: ${LANGS.length * THEMES.length * WIDTHS.length * 8} snapshots in ${path.relative(root, outDir)}`);
   if (report.length) { console.log('Layout problems:\n  ' + [...new Set(report)].join('\n  ')); process.exitCode = 1; }
   else console.log('✓ No horizontal overflow or clipped text found');
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());

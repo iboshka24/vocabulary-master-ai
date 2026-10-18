@@ -201,3 +201,5 @@ assert.equal(L.longestStreak({}), 0);
 assert.deepEqual(Object.keys(L.trimHistory(hist, 730, '2026-10-18')).sort(), ['2026-10-15', '2026-10-17', '2026-10-18'], 'days older than two years are dropped');
 assert.equal(Object.keys(L.trimHistory(hist, 2, '2026-10-18')).length, 2);
 console.log('✓ Progress stats: forecast by calendar day, maturity buckets, weakest words, 30-day accuracy, longest streak, history trimming');
+assert.throws(() => L.restoreBackup({ version: 2, library: { decks: { k: { source: '__proto__', target: 'ru', cards: [] } }, history: {}, streak: {} } }, ['ru', 'en']), e => e.code === 'bad-deck', '"__proto__" is not a language');
+console.log('✓ Backups: prototype keys are never accepted as languages');

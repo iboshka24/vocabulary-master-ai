@@ -27,7 +27,7 @@
     if (body.source === body.target) throw fail('bad-request', 'Source and target languages must differ.');
     if (!Array.isArray(body.words) || !body.words.length) throw fail('bad-request', '"words" must be a non-empty array of strings.');
     if (body.words.length > LIMITS.words) throw fail('bad-request', 'At most ' + LIMITS.words + ' words per request.');
-    var seen = {}, words = [], total = 0;
+    var seen = Object.create(null), words = [], total = 0;
     body.words.forEach(function (w) {
       if (typeof w !== 'string') throw fail('bad-request', 'Every word must be a string.');
       var c = clean(w);
@@ -73,9 +73,9 @@
     var data = extractJSON(text);
     var list = data && (Array.isArray(data) ? data : data.items);
     if (!Array.isArray(list)) throw fail('bad-model-response', 'The model did not return the expected JSON.');
-    var asked = {};
+    var asked = Object.create(null);
     req.words.forEach(function (w) { asked[key(w)] = w; });
-    var out = [], used = {};
+    var out = [], used = Object.create(null);
     list.forEach(function (it) {
       if (!it || typeof it !== 'object' || typeof it.original !== 'string' || typeof it.translation !== 'string') return;
       var k = key(it.original), original = asked[k];

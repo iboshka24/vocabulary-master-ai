@@ -101,7 +101,7 @@
     }
     var words = cards.filter(function (c) { return c.translation && c.translation !== '—'; });
     return shuffle(words).map(function (c) {
-      var seen = {}; seen[normalize(c.original)] = true;
+      var seen = Object.create(null); seen[normalize(c.original)] = true;
       var others = shuffle(words).filter(function (w) {
         var k = normalize(w.original);
         if (seen[k] || normalize(w.translation) === normalize(c.translation)) return false;
@@ -213,7 +213,7 @@
   function pairs(cards, n, random) {
     var rand = random || Math.random, list = (cards || []).filter(function (c) { return c.translation && c.translation !== '—'; }).slice();
     for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var x = list[i]; list[i] = list[j]; list[j] = x; }
-    var seen = {}, out = [];
+    var seen = Object.create(null), out = [];
     list.forEach(function (c) {
       var a = normalize(c.original), b = normalize(c.translation);
       if (out.length >= n || seen[a] || seen[b] || a === b) return;
@@ -243,7 +243,7 @@
     function count(v) { return Math.max(0, Number(v) || 0); }
     var incoming = data && data.version === 2 && data.library;
     if (!incoming || typeof incoming !== 'object' || !incoming.decks || typeof incoming.decks !== 'object' || !incoming.history || !incoming.streak) throw fail('not-backup');
-    var langs = {};
+    var langs = Object.create(null); // a plain {} would accept "__proto__" as a language
     (langCodes || []).forEach(function (c) { langs[c] = true; });
     var decks = {};
     Object.keys(incoming.decks).forEach(function (key) {

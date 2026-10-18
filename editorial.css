@@ -394,3 +394,19 @@ mark { background:#b78a4b33; color:inherit; border-radius:2px; padding:0 1px; }
   /* soft edges show that the navigation scrolls sideways */
   .topnav { -webkit-mask-image:linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); mask-image:linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); padding:0 14px; }
 }
+
+/* v2.14 — share dialogs */
+.share-card { width:min(520px,100%); max-height:92vh; overflow:auto; text-align:left; display:flex; flex-direction:column; gap:12px; }
+.share-card h2 { font-size:26px; margin:0; }
+.share-card > .link { align-self:center; margin-top:4px; }
+.share-link { display:flex; gap:8px; }
+.share-link input { flex:1; min-width:0; padding:11px 12px; border:1px solid var(--stroke); border-radius:7px; background:var(--bg); color:var(--text); font:12px var(--font-mono); }
+.share-qr { margin:4px 0 0; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; }
+.qr-svg { width:min(240px,70vw); height:auto; border-radius:8px; }
+.qr-plate { fill:#fff; } .qr-dark { fill:#111; }
+.share-privacy { border-left:3px solid var(--emerald); padding-left:10px; }
+.preview-list { margin:0; padding-left:22px; display:flex; flex-direction:column; gap:6px; }
+.preview-list li { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; font-size:14px; }
+.preview-list strong { font-weight:600; overflow-wrap:anywhere; hyphens:auto; } .preview-list span { color:var(--muted); overflow-wrap:anywhere; hyphens:auto; }
+.btn.block { width:100%; }
+@media(max-width:720px) { .share-card { padding:22px 18px; } .preview-list li { grid-template-columns:1fr; gap:0; } }

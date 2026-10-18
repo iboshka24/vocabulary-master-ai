@@ -9,6 +9,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const vercelHeaders = require('../tools/vercel-headers.js');
+const jsQR = require('jsqr');
+const VMShare = require('../share.js');
 const LIB = 'vocabulary-master.library.v2';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
@@ -440,6 +442,106 @@ run.server(server);
   assert.match(await page.locator('#topPill').innerText(), new RegExp('^' + weakCount + ' '), 'practice starts with exactly the weakest words');
   await page.click('#btnExit'); await page.click('#btnNewSet');
 
+  step('share a deck: link + QR + copy → open elsewhere → preview → add; malicious, broken, offline and too-big links');
+  // Sender: a fresh profile with the 14-word demo deck.
+  const sendCtx = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce', acceptDownloads: true });
+  await sendCtx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
+  const sender = await sendCtx.newPage(); watch(sender); sender.on('pageerror', e => errors.push(e.message)); sender.on('dialog', d => d.accept());
+  await sender.goto(origin);
+  await sender.click('#btnDemo'); await sender.click('#btnExit'); await sender.click('#btnNewSet');
+  await sender.click('#navLibrary');
+  await sender.locator('.deck-item [data-act="share"]').first().click();
+  await sender.locator('#shareDialog:not([hidden])').waitFor();
+  const link = await sender.inputValue('#shareLink');
+  assert.match(link, new RegExp('^' + origin.replace(/[.]/g, '\\.') + '/#deck=1\\.[A-Za-z0-9_-]+$'), 'the deck travels in the fragment only');
+  await sender.locator('#shareQr svg').waitFor();
+  const qrPixels = await sender.evaluate(async () => {
+    const svgEl = document.querySelector('#shareQr svg');
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svgEl).replace('class="qr-plate"', 'fill="#fff"').replace('class="qr-dark"', 'fill="#111"'));
+    await img.decode();
+    const c = document.createElement('canvas'); c.width = c.height = 360;
+    const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0, 360, 360);
+    return Array.from(ctx.getImageData(0, 0, 360, 360).data);
+  });
+  const decoded = jsQR(Uint8ClampedArray.from(qrPixels), 360, 360);
+  assert(decoded, 'the QR code is readable'); assert.equal(decoded.data, link, 'the QR code contains exactly the link');
+  await sender.click('#btnShareCopy');
+  assert.equal(await sender.evaluate(() => navigator.clipboard.readText()), link, 'copy puts the link on the clipboard');
+  await sender.keyboard.press('Escape');
+  assert.equal(await sender.locator('#shareDialog').isHidden(), true);
+  assert.equal(await sender.evaluate(() => document.activeElement && document.activeElement.dataset.act), 'share', 'focus returns to the Share button');
+
+  // Receiver: another fresh profile opens the link.
+  const recvCtx = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
+  const receiver = await recvCtx.newPage(); watch(receiver); receiver.on('pageerror', e => errors.push(e.message)); receiver.on('dialog', d => d.accept());
+  const urlsSeen = [];
+  receiver.on('request', r => urlsSeen.push(r.url()));
+  await receiver.goto(link);
+  await receiver.locator('#sharePreview:not([hidden])').waitFor();
+  assert(!urlsSeen.some(u => u.includes('deck=')), 'the deck is never sent to the server');
+  assert.equal(await receiver.evaluate(() => location.hash), '', 'the fragment is cleared from the address bar');
+  assert.equal(await receiver.locator('#previewTitle').innerText(), 'English → Русский');
+  assert.match(await receiver.locator('#previewCount').innerText(), /^14 слов/);
+  assert.equal(await receiver.locator('#previewList li').count(), 5); assert.match(await receiver.locator('#previewMore').innerText(), /ещё 9/);
+  assert.equal(await receiver.evaluate(() => document.activeElement.id), 'btnPreviewAdd', 'focus goes to the main action');
+  await receiver.click('#btnPreviewAdd');
+  await receiver.waitForFunction(() => document.getElementById('toast').textContent.includes('Добавлено 14 слов'));
+  const got = await receiver.evaluate(() => JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).decks['en-ru'].cards);
+  assert.equal(got.length, 14);
+  assert(got.every(c => c.ease === undefined && c.interval === undefined && c.due === undefined && c.fails === 0), 'shared words arrive without anyone\'s progress');
+  await receiver.goto(link);
+  await receiver.locator('#sharePreview:not([hidden])').waitFor();
+  assert.equal(await receiver.locator('#btnPreviewAdd').isDisabled(), true, 'opening the same link again adds nothing');
+  await receiver.click('#btnPreviewCancel');
+
+  // Malicious words in a link stay text.
+  const evilLink = origin + '/#deck=' + await VMShare.encodeDeck({ source: 'en', target: 'ru', cards: [
+    { original: '<img src=x onerror="window.__xss=1">', translation: '<svg onload="window.__xss=2"></svg>', examples: ['<script>window.__xss=3</script>'] },
+    { original: 'calm', translation: 'спокойный', examples: [] }] });
+  await receiver.goto(evilLink);
+  await receiver.locator('#sharePreview:not([hidden])').waitFor();
+  assert.equal(await receiver.locator('#previewList li strong').first().innerText(), '<img src=x onerror="window.__xss=1">');
+  await receiver.click('#btnPreviewAdd');
+  await receiver.locator('.deck-item summary').first().click();
+  const injected = await receiver.evaluate(() => ({ flag: window.__xss, img: document.querySelectorAll('img[src="x"]').length, handlers: [...document.querySelectorAll('*')].filter(el => [...el.attributes].some(a => /^on/i.test(a.name))).length }));
+  assert.deepEqual(injected, { flag: undefined, img: 0, handlers: 0 }, 'a malicious link is shown as plain text');
+
+  // Damaged link: a clear message, nothing added.
+  await receiver.goto(origin + '/#deck=1.@@@broken');
+  await receiver.waitForFunction(() => document.getElementById('toast').textContent.includes('повреждена'));
+  assert.equal(await receiver.locator('#sharePreview').isHidden(), true);
+
+  // Too big for a link: the dialog offers a file; the file opens as a preview and adds words.
+  await sender.evaluate(() => {
+    const lib = JSON.parse(localStorage.getItem('vocabulary-master.library.v2'));
+    const rnd = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    lib.decks['de-ru'] = { source: 'de', target: 'ru', created: Date.now(), cards: Array.from({ length: 600 }, () => ({ original: rnd(), translation: rnd(), examples: [rnd() + ' ' + rnd()], streak: 0, fails: 0 })) };
+    localStorage.setItem('vocabulary-master.library.v2', JSON.stringify(lib));
+  });
+  await sender.reload();
+  await sender.click('#navLibrary');
+  await sender.locator('.deck-item', { hasText: 'Deutsch' }).locator('[data-act="share"]').click();
+  await sender.locator('#shareTooBig:not([hidden])').waitFor();
+  assert.match(await sender.locator('#shareTooBigText').innerText(), /слишком большая/);
+  const fileDownload = sender.waitForEvent('download');
+  await sender.click('#btnShareFile');
+  const deckFile = await (await fileDownload).path();
+  await receiver.click('#navLibrary');
+  await receiver.locator('#importLibrary').setInputFiles(deckFile);
+  await receiver.locator('#sharePreview:not([hidden])').waitFor();
+  assert.match(await receiver.locator('#previewCount').innerText(), /^600 слов/);
+  await receiver.click('#btnPreviewAdd');
+  await receiver.waitForFunction(() => (JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).decks['de-ru'] || { cards: [] }).cards.length === 600);
+  await sendCtx.close(); await recvCtx.close();
+
+  // Offline: the main page (service worker active) opens a link without network.
+  await context.setOffline(true);
+  await page.goto(origin + '/#deck=' + link.split('#deck=')[1]);
+  await page.locator('#sharePreview:not([hidden])').waitFor();
+  await page.click('#btnPreviewCancel');
+  await context.setOffline(false);
+
   step('XSS: a malicious backup renders as plain text in library, search, training, test and game');
   const xctx = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
   const xpage = await xctx.newPage();
@@ -503,5 +605,5 @@ run.server(server);
   assert.deepEqual(cspViolations, [], 'no Content-Security-Policy violations');
   assert.deepEqual(thirdParty, [], 'fonts are self-hosted: no requests to Google Fonts');
   if (COVERAGE) printCoverage(coverage.concat(await page.coverage.stopJSCoverage()));
-  console.log('✓ E2E: service worker, SM-2 persistence, offline + resync, API failures, backup round-trip, storage quota, server AI contract, undo/swap/game/empty states, progress, XSS, CSP, languages');
+  console.log('✓ E2E: service worker, SM-2 persistence, offline + resync, API failures, backup round-trip, storage quota, server AI contract, undo/swap/game/empty states, progress, deck links + QR, XSS, CSP, languages');
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(() => run.finish());

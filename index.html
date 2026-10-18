@@ -10,10 +10,10 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.13" />
-  <link rel="stylesheet" href="styles.css?v=2.13" />
-  <link rel="stylesheet" href="editorial.css?v=2.13" />
-  <link rel="stylesheet" href="motion.css?v=2.13" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.14" />
+  <link rel="stylesheet" href="styles.css?v=2.14" />
+  <link rel="stylesheet" href="editorial.css?v=2.14" />
+  <link rel="stylesheet" href="motion.css?v=2.14" />
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('vm.theme')||'light'}catch(e){}</script>
 </head>
 <body>
@@ -355,7 +355,7 @@
       </div>
     </section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.13</span></footer>
+  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.14</span></footer>
 
   <!-- ============ SUMMARY ============ -->
   <div class="overlay" id="summary" hidden>
@@ -373,14 +373,46 @@
     </div>
   </div>
 
+  <!-- ============ SHARE A DECK ============ -->
+  <div class="overlay" id="shareDialog" hidden role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+    <div class="panel share-card">
+      <span class="eyebrow" id="shareDeckName"></span>
+      <h2 id="shareTitle" data-i18n="share.title">Поделиться колодой</h2>
+      <p class="mini" id="shareInfo"></p>
+      <div id="shareReady">
+        <div class="share-link"><input id="shareLink" type="text" readonly aria-label="Ссылка на колоду" data-i18n-attr="aria-label:share.linkLabel" /><button class="btn" type="button" id="btnShareCopy" data-i18n="share.copy">Копировать</button></div>
+        <button class="btn primary block" type="button" id="btnShareNative" hidden data-i18n="share.native">Поделиться…</button>
+        <figure class="share-qr" id="shareQr"></figure>
+        <p class="mini share-privacy" data-i18n="share.privacy">Слова зашиты прямо в ссылку, после знака #: эта часть не уходит ни на какой сервер. Прогресс и ошибки не передаются.</p>
+      </div>
+      <div id="shareTooBig" hidden>
+        <p class="mini" id="shareTooBigText"></p>
+        <button class="btn primary" type="button" id="btnShareFile" data-i18n="share.file">Скачать колоду файлом</button>
+      </div>
+      <button class="link" type="button" id="btnShareClose" data-i18n="share.close">Закрыть</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="sharePreview" hidden role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+    <div class="panel share-card">
+      <span class="eyebrow" data-i18n="share.previewEyebrow">ВАМ ПРИСЛАЛИ КОЛОДУ</span>
+      <h2 id="previewTitle"></h2>
+      <p class="mini" id="previewCount"></p>
+      <ol class="preview-list" id="previewList"></ol>
+      <p class="mini" id="previewMore"></p>
+      <div class="actions"><button class="btn primary" type="button" id="btnPreviewAdd" data-i18n="share.add">Добавить в библиотеку</button><button class="btn" type="button" id="btnPreviewCancel" data-i18n="share.cancel">Отмена</button></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="i18n.js?v=2.13"></script>
-  <script defer src="motion.js?v=2.13"></script>
-  <script defer src="learning.js?v=2.13"></script>
-  <script defer src="ai-core.js?v=2.13"></script>
-  <script defer src="app.js?v=2.13"></script>
+  <script defer src="i18n.js?v=2.14"></script>
+  <script defer src="motion.js?v=2.14"></script>
+  <script defer src="learning.js?v=2.14"></script>
+  <script defer src="ai-core.js?v=2.14"></script>
+  <script defer src="share.js?v=2.14"></script>
+  <script defer src="app.js?v=2.14"></script>
 </body>
 </html>
