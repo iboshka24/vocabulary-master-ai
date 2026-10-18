@@ -24,7 +24,7 @@ let browser;
   await page.goto('http://127.0.0.1:' + server.address().port);
   await page.locator('#sourceLang option').first().waitFor({state:'attached'});
   assert.equal(await page.title(),'Vocabulary Master AI — слова становятся знаниями');
-  assert.equal(await page.locator('.bg').evaluate(el=>getComputedStyle(el).display),'none');
+  assert.equal(await page.locator('.bg, canvas#fx, .spot').count(),0,'no ambient background layers');
   await page.screenshot({path:path.join(output,'01-desktop.png'),fullPage:true});
   await page.click('#btnDemo');
   await page.locator('#screen-train.active').waitFor();

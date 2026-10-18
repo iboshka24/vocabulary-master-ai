@@ -18,7 +18,7 @@ body { background:var(--bg); line-height:1.5; }
 button,a,input,select,textarea { -webkit-tap-highlight-color:transparent; }
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:2px solid var(--amber); outline-offset:4px; }
 ::selection { background:#b78a4b33; }
-.bg,.spot,.orbit,.card-ring,.card-sheen,.sparkle,.float-label { display:none!important; }
+.orbit,.card-ring,.card-sheen,.sparkle,.float-label { display:none!important; }
 .topbar { max-width:1360px; margin:auto; position:relative; padding:25px 44px; background:none; backdrop-filter:none; border-bottom:1px solid var(--stroke); animation:none; }
 .logo { gap:12px; font-size:17px; }
 .logo-mark { width:36px; height:40px; background:var(--text); border-radius:5px; color:var(--bg); box-shadow:none; }
