@@ -271,6 +271,7 @@
 
   function saveCfg() {
     try { localStorage.setItem(CFG_KEY, JSON.stringify(state.cfg)); } catch (e) {}
+    if (account) account.changed();
     updateApiStatus();
   }
 
@@ -371,6 +372,7 @@
         var d = await r.json();
         state.serverHasKey = Boolean(d.serverKeyConfigured);
         state.serverProvider = d.provider || '';
+        if (d.account && window.VMAccount && L && !account) mountAccount(d.account);
         if (document.body) document.body.classList.toggle('server-ai', state.serverHasKey); // the site's own key: nothing to connect
         state.serverAvailable = true;
       } else {
@@ -1351,7 +1353,7 @@
   /* ---------------- Library, daily practice and lexical resource ---------------- */
   var LIBRARY_KEY = 'vocabulary-master.library.v2';
   var library = { decks: {}, history: {}, goal: 10, streak: { count: 0, last: null, freezes: 2, enabled: true } };
-  var pendingTypedAnswer = null, lexical = null, games = null;
+  var pendingTypedAnswer = null, lexical = null, games = null, account = null;
   var CONTEXT = {
     serendipity: ['The chance occurrence of a happy discovery.', 'Finding this little bookshop was pure serendipity.'],
     'to remember': ['To keep something in your memory.', 'I try to remember one new word every day.'],
@@ -1889,7 +1891,7 @@
   function isQuotaError(e) { return !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014); }
   function persistLibrary() {
     var json = JSON.stringify(library);
-    try { localStorage.setItem(LIBRARY_KEY, json); storageWarned = false; return true; }
+    try { localStorage.setItem(LIBRARY_KEY, json); storageWarned = false; if (account) account.changed(); return true; }
     catch (e) {
       try {
         if (localStorage.getItem('vm.translation-cache') === null) throw e;
@@ -2371,6 +2373,46 @@
     nat.focus();
   }
 
+  /* ---------------- account: the library and language choice follow the learner across devices ---------------- */
+  var CODES = LANGS.map(function (l) { return l.code; });
+  function syncData() {
+    var c = state.cfg;
+    return { v: 1, library: library, cfg: { source: c.source, target: c.target, dir: c.dir, mode: c.mode, simple: c.simple } }; // never the API key
+  }
+  function cleanLibrary(lib) { try { return L.restoreBackup(L.backupFile(lib), CODES); } catch (e) { return null; } }
+  function applySyncData(data) {
+    var lib = data && cleanLibrary(data.library);
+    if (!lib) return false;
+    library = lib;
+    L.reconcile(library.streak, L.day()); persistLibrary();
+    var c = data.cfg || {};
+    if (CODES.indexOf(c.source) >= 0 && CODES.indexOf(c.target) >= 0 && c.source !== c.target) {
+      state.cfg.source = c.source; state.cfg.target = c.target;
+      $('sourceLang').value = c.source; $('targetLang').value = c.target;
+    }
+    if (/^(mixed|fwd|rev)$/.test(c.dir)) setDir(c.dir);
+    if (/^(flashcard|typing|listen)$/.test(c.mode)) { state.cfg.mode = c.mode; document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === c.mode); }); }
+    if (typeof c.simple === 'boolean') { state.cfg.simple = c.simple; $('simpleMode').checked = c.simple; }
+    saveCfg();
+    try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) {}
+    renderDaily();
+    if ($('screen-library').classList.contains('active')) renderLibrary();
+    if ($('screen-progress').classList.contains('active')) renderProgress();
+    if ($('screen-test').classList.contains('active') && !lexical) fillQuizDecks();
+    if (games) games.refresh();
+    return true;
+  }
+  function mountAccount(cfg) {
+    account = window.VMAccount.mount(cfg, {
+      tr: tr, toast: toast, lang: function () { return I18N ? I18N.lang() : 'ru'; },
+      getData: syncData, setData: applySyncData,
+      merge: function (local, remote) {
+        var other = remote && cleanLibrary(remote.library);
+        return other ? { v: 1, library: L.mergeLibrary(local.library, other), cfg: local.cfg } : local;
+      }
+    });
+  }
+
   function refreshLanguage() {
     updateSoundUI(); updateApiStatus(); updateInputStat(true);
     var active = document.querySelector('.screen.active');
@@ -2381,6 +2423,7 @@
     if ($('screen-test').classList.contains('active') && !lexical) fillQuizDecks();
     if ($('screen-progress').classList.contains('active')) renderProgress();
     if (games) games.refresh();
+    if (account) account.refresh();
     if (state.cards.length) $('topPill').textContent = trn('pill.cards', state.cards.length);
     if (state.summaryMsg) $('summaryMsg').textContent = summaryMessage();
     if (state.current && $('screen-train').classList.contains('active') && !state.revealed && !answerLocked) renderCard();
@@ -2672,7 +2715,7 @@
     document.addEventListener('keydown', function (e) {
       // Alt+X swaps languages on the setup screen, even while typing the word list.
       if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
-      if (!$('onboarding').hidden) return;
+      if (!$('onboarding').hidden || !$('accountDialog').hidden) return;
       if (!$('sessionDialog').hidden) { if (e.key === 'Escape') { e.preventDefault(); closeSessionSettings(); } return; }
       if (!$('shareDialog').hidden || !$('sharePreview').hidden || !$('displayDialog').hidden) {
         if (e.key === 'Escape') { e.preventDefault(); if (!$('displayDialog').hidden) closeDisplay(); else if (!$('shareDialog').hidden) closeShare(); else closePreview(); }

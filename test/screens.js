@@ -20,7 +20,7 @@ const WIDTHS = [375, 1280];
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
   vercelHeaders.apply(res, url);
-  if (url.startsWith('/api/ai')) { res.setHeader('Content-Type', 'application/json'); res.end('{"status":"ok","serverKeyConfigured":false}'); return; }
+  if (url.startsWith('/api/ai')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ status: 'ok', serverKeyConfigured: false, account: { url: 'http://' + req.headers.host, key: 'anon' } })); return; }
   const file = path.resolve(root, '.' + decodeURIComponent(url === '/' ? '/index.html' : url));
   if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => { if (err) { res.writeHead(404); res.end(); return; } res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream'); res.end(data); });
@@ -74,6 +74,7 @@ function layoutProblems() {
       await page.keyboard.press('Escape');
     }
     await page.click('#btnSessionSettings'); await shot('1b-settings'); await page.click('#btnSessionClose');
+    await page.locator('#btnAccount:not([hidden])').waitFor(); await page.click('#btnAccount'); await page.click('#accTabUp'); await shot('1c-account'); await page.keyboard.press('Escape');
     await page.click('#btnDemo');
     await page.locator('#screen-train.active').waitFor();
     await page.click('#btnReveal');

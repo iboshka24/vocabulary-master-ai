@@ -16,6 +16,8 @@ Vercel → Project → Settings → Environment Variables. Всё необяза
 | `OPENAI_BASE_URL` | Куда ходит серверный ключ (любой OpenAI-совместимый HTTPS) | `https://api.openai.com/v1` |
 | `OPENAI_MODEL` | Модель для серверного ключа | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Серверный ключ Google Gemini (бесплатный, [aistudio.google.com/apikey](https://aistudio.google.com/apikey)). Используется, если `OPENAI_API_KEY` не задан; адрес и модель подставляются сами | `AIza…` |
+| `SUPABASE_URL` | Адрес проекта Supabase для аккаунтов (Settings → API → Project URL). Без него кнопки «Войти» нет | `https://abcd.supabase.co` |
+| `SUPABASE_ANON_KEY` | Публичный anon-ключ того же проекта. Его можно показывать браузеру: доступ к данным ограничивает RLS из `supabase/schema.sql` | `eyJhbGci…` |
 | `GEMINI_MODEL` | Модель Gemini для серверного ключа | `gemini-3.5-flash-lite` |
 | `ALLOWED_ORIGINS` | Другие сайты, которым можно вызывать `/api/ai` (через запятую). Всегда разрешены домен, на который пришёл запрос, и адреса этого деплоя (`VERCEL_URL`, production-домен) | `https://vocab.example.com` |
 | `AI_ALLOWED_HOSTS` | Дополнительные провайдеры для собственных ключей пользователей | `api.fireworks.ai` |
@@ -32,6 +34,35 @@ curl -s -X POST https://ВАШ-ДОМЕН/api/ai -H "Origin: https://ВАШ-ДО
 ```
 
 Ожидается `{"status":"ok","serverKeyConfigured":true,…}`. Запрос `GET` должен вернуть `405`, запрос с чужим `Origin` — `403`.
+
+## 2а. Аккаунты (Supabase)
+
+1. Создать проект на [supabase.com](https://supabase.com) (бесплатного плана хватает).
+2. SQL Editor → выполнить `supabase/schema.sql`. Он создаёт таблицу `progress` (одна строка на пользователя) и включает RLS: каждый видит только свою строку.
+3. Authentication → URL Configuration:
+   - **Site URL** — адрес сайта, например `https://vocablurymasterai.vercel.app`;
+   - в **Redirect URLs** добавить тот же адрес.
+
+   Ссылки из писем (подтверждение, сброс пароля) ведут сюда.
+4. Authentication → Sign In / Providers → Email:
+   - вход по почте и паролю должен быть включён;
+   - «Confirm email» можно оставить включённым: тогда новый пользователь входит по ссылке из письма.
+5. Settings → API: скопировать **Project URL** и **anon public key** в переменные Vercel `SUPABASE_URL` и `SUPABASE_ANON_KEY`, затем сделать Redeploy.
+
+**Что синхронизируется:**
+- библиотека: слова, SM-2, история, серия, цель;
+- выбор языков и режимов.
+
+**Что не уходит в облако:**
+- API-ключ из настроек;
+- настройки отображения.
+
+**Как разрешаются расхождения:**
+- При первом входе на устройстве его слова объединяются с облаком: для слова, которое есть на обоих, побеждает копия с бо́льшим числом повторений.
+- Дальше каждое устройство скачивает чужие изменения при открытии и отправляет свои через 3 секунды после правки.
+- Если два устройства правили одновременно, прогресс объединяется так же, как при первом входе.
+
+Почта: бесплатный SMTP Supabase шлёт мало писем в час. Для настоящих пользователей стоит подключить свой SMTP (Authentication → Emails → SMTP Settings).
 
 ## 3. Заголовки безопасности (CSP)
 

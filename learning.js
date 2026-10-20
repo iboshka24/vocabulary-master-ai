@@ -239,6 +239,44 @@
     return out;
   }
   var DATE = /^\d{4}-\d{2}-\d{2}$/;
+  // Two copies of one learner's library (this device and the cloud) become one: every word from
+  // both, and for a word known on both sides the copy with more reviews wins. Pure; inputs are not changed.
+  function mergeLibrary(a, b) {
+    function better(x, y) {
+      var rx = x.reps || 0, ry = y.reps || 0;
+      if (rx !== ry) return rx > ry ? x : y;
+      var tx = isTranslated(x), ty = isTranslated(y);
+      if (tx !== ty) return tx ? x : y;
+      return (y.due || 0) > (x.due || 0) ? y : x;
+    }
+    var decks = {}, history = {};
+    [a, b].forEach(function (lib) {
+      Object.keys(lib.decks || {}).forEach(function (key) {
+        var d = lib.decks[key], out = decks[key];
+        if (!out) out = decks[key] = { source: d.source, target: d.target, cards: [], created: d.created, index: Object.create(null) };
+        if (d.created && (!out.created || d.created < out.created)) out.created = d.created;
+        d.cards.forEach(function (c) {
+          var k = normalize(c.original), i = out.index[k];
+          if (i == null) { out.index[k] = out.cards.length; out.cards.push(Object.assign({}, c)); return; }
+          var prev = out.cards[i], win = Object.assign({}, better(prev, c));
+          var added = [prev.added, c.added].filter(function (v) { return v > 0; });
+          if (added.length) win.added = Math.min.apply(null, added);
+          out.cards[i] = win;
+        });
+      });
+      Object.keys(lib.history || {}).forEach(function (day) {
+        var h = lib.history[day], prev = history[day];
+        if (!prev || (h.answers || 0) > (prev.answers || 0)) history[day] = Object.assign({}, h, prev && prev.celebrated ? { celebrated: true } : {});
+        else if (h.celebrated) prev.celebrated = true;
+      });
+    });
+    Object.keys(decks).forEach(function (k) { delete decks[k].index; });
+    var sa = a.streak || {}, sb = b.streak || {};
+    var streak = Object.assign({}, (sb.count || 0) > (sa.count || 0) || ((sb.count || 0) === (sa.count || 0) && String(sb.last || '') > String(sa.last || '')) ? sb : sa);
+    var out = { decks: decks, history: history, goal: a.goal || b.goal || 10, streak: streak };
+    if (a.batch != null || b.batch != null) out.batch = a.batch != null ? a.batch : b.batch;
+    return out;
+  }
   function backupFile(library) { return { version: 2, library: library }; }
   // Validates a parsed backup file and returns a clean library. Nothing from the
   // file is trusted: unknown fields are dropped, numbers are clamped, and fields
@@ -282,5 +320,5 @@
     return { decks: keys.length, words: keys.reduce(function (n, k) { return n + library.decks[k].cards.length; }, 0) };
   }
   return { forecast: forecast, maturity: maturity, weakest: weakest, accuracy: accuracy, longestStreak: longestStreak, trimHistory: trimHistory,
-    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity, status: status };
+    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity, status: status, mergeLibrary: mergeLibrary };
 });

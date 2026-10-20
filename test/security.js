@@ -25,7 +25,7 @@ assert.equal(csp['script-src'].length, 1 + inline.length, 'script-src lists only
 
 // connect-src matches the providers the server accepts for own keys, plus the free translator
 const providers = read('api/ai.js').match(/PROVIDER_HOSTS = \[([^\]]+)\]/)[1].match(/'([^']+)'/g).map(h => 'https://' + h.slice(1, -1));
-assert.deepEqual(csp['connect-src'].slice().sort(), ["'self'", 'https://api.mymemory.translated.net', ...providers].sort());
+assert.deepEqual(csp['connect-src'].slice().sort(), ["'self'", 'https://api.mymemory.translated.net', 'https://*.supabase.co', ...providers].sort());
 
 // other headers
 assert.equal(page['X-Content-Type-Options'], 'nosniff');
@@ -41,7 +41,7 @@ assert.equal(headersFor('/swXjs')['Cache-Control'], undefined, 'dots in sources 
 // markup that would need unsafe-inline under this policy
 assert(!/\son[a-z]+\s*=/i.test(html), 'no inline event handlers in index.html');
 assert(!/\sstyle\s*=/i.test(html), 'no style attributes in index.html');
-for (const f of ['app.js', 'motion.js', 'i18n.js']) {
+for (const f of ['app.js', 'motion.js', 'i18n.js', 'games.js', 'account.js']) {
   const src = read(f);
   assert(!/style=\\?["']/.test(src), f + ': no style attributes in generated markup');
   assert(!/\son[a-z]+=\\?["']/.test(src), f + ': no inline handlers in generated markup');

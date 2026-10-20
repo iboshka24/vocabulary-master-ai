@@ -233,6 +233,20 @@ function noSecrets(res) {
   assert.equal(lastCall.body.model, 'gemini-2.5-pro', 'GEMINI_MODEL overrides the model');
   noSecrets(r);
   delete process.env.GEMINI_API_KEY; delete process.env.GEMINI_MODEL;
+  // accounts are offered only with a complete, plain HTTPS Supabase config
+  const accountOf = async () => (await call(h, request({ body: { action: 'status' } }))).body.account;
+  assert.equal(await accountOf(), null, 'no Supabase config: no accounts');
+  process.env.SUPABASE_URL = 'https://demo.supabase.co/'; process.env.SUPABASE_ANON_KEY = 'anon-key';
+  assert.deepEqual(await accountOf(), { url: 'https://demo.supabase.co', key: 'anon-key' });
+  for (const bad of ['http://demo.supabase.co', 'https://user:pw@demo.supabase.co', 'https://demo.supabase.co/?x=1', 'not a url']) {
+    process.env.SUPABASE_URL = bad;
+    assert.equal(await accountOf(), null, 'rejected: ' + bad);
+  }
+  process.env.SUPABASE_URL = 'http://127.0.0.1:3000';
+  assert.equal((await accountOf()).url, 'http://127.0.0.1:3000', 'a local test server is allowed');
+  delete process.env.SUPABASE_ANON_KEY;
+  assert.equal(await accountOf(), null, 'the key is required too');
+  delete process.env.SUPABASE_URL;
   h = freshHandler();
   r = await call(h, request({ body: { words: ['apple'], source: 'en', target: 'ru', apiKey: USER_KEY } }));
   assert.equal(r.statusCode, 200); assert.equal(lastCall.options.headers.Authorization, 'Bearer ' + USER_KEY, 'a key in the body still works for old clients');

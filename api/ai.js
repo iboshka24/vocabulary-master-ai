@@ -12,6 +12,7 @@
  *   OPENAI_MODEL          model for the server key
  *   GEMINI_API_KEY        alternative server key for Google Gemini (free tier at aistudio.google.com); used when
  *                         OPENAI_API_KEY is not set. GEMINI_MODEL picks the model (default gemini-3.5-flash-lite)
+ *   SUPABASE_URL / SUPABASE_ANON_KEY   accounts and cloud progress (public values; access is limited by RLS, see supabase/schema.sql)
  *   ALLOWED_ORIGINS       extra comma-separated origins allowed to call (the deployment's own host always is)
  *   AI_ALLOWED_HOSTS      extra provider hosts for "bring your own key" requests
  *   AI_RATE_LIMIT / AI_RATE_LIMIT_BYOK / AI_RATE_WINDOW_MS   per-IP limits (default 30 / 120 per 10 min)
@@ -75,6 +76,18 @@ function rateLimit(ip, limit) {
   return 0;
 }
 
+// Accounts are offered only when both values are set and the URL is plain HTTPS (or a local test server).
+function accountConfig() {
+  const url = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, ''), key = String(process.env.SUPABASE_ANON_KEY || '').trim();
+  if (!url || !key || key.length > 2000) return null;
+  try {
+    const u = new URL(url);
+    const local = u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost');
+    if ((u.protocol !== 'https:' && !local) || u.username || u.password || u.search || u.hash) return null;
+  } catch (e) { return null; }
+  return { url, key };
+}
+
 function providerHosts() {
   return PROVIDER_HOSTS.concat(String(process.env.AI_ALLOWED_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 }
@@ -122,7 +135,7 @@ module.exports = async (req, res) => {
   const serverKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || '';
 
   if (body.action === 'status') {
-    return send(res, 200, { status: 'ok', serverKeyConfigured: Boolean(serverKey), provider: geminiServer ? 'gemini' : serverKey ? 'openai-compatible' : null, limits: { words: core.LIMITS.words, wordLength: core.LIMITS.wordLength } });
+    return send(res, 200, { status: 'ok', serverKeyConfigured: Boolean(serverKey), provider: geminiServer ? 'gemini' : serverKey ? 'openai-compatible' : null, account: accountConfig(), limits: { words: core.LIMITS.words, wordLength: core.LIMITS.wordLength } });
   }
 
   const bearer = header(req, 'authorization').replace(/^Bearer\s+/i, '').trim();

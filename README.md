@@ -58,6 +58,7 @@ npm run dev
 | `OPENAI_API_KEY` | Серверный ключ |
 | `OPENAI_BASE_URL` | По умолчанию `https://api.openai.com/v1` |
 | `OPENAI_MODEL` | По умолчанию `gpt-4o-mini` |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Аккаунты и прогресс в облаке (настройка — DEPLOY.md, раздел 2а) |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | Серверный ключ Google Gemini вместо OpenAI (модель по умолчанию `gemini-3.5-flash-lite`) |
 | `ALLOWED_ORIGINS` | Дополнительные сайты (через запятую), которым можно вызывать API; собственный домен деплоя разрешён всегда |
 | `AI_ALLOWED_HOSTS` | Дополнительные хосты провайдеров для запросов с собственным ключом |

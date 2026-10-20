@@ -10,11 +10,11 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.17" />
-  <link rel="stylesheet" href="styles.css?v=2.17" />
-  <link rel="stylesheet" href="editorial.css?v=2.17" />
-  <link rel="stylesheet" href="shell.css?v=2.17" />
-  <link rel="stylesheet" href="motion.css?v=2.17" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.18" />
+  <link rel="stylesheet" href="styles.css?v=2.18" />
+  <link rel="stylesheet" href="editorial.css?v=2.18" />
+  <link rel="stylesheet" href="shell.css?v=2.18" />
+  <link rel="stylesheet" href="motion.css?v=2.18" />
   <script>try{var r=document.documentElement,s=JSON.parse(localStorage.getItem('vm.display')||'null')||{},t=/^(system|light|dark)$/.test(s.theme)?s.theme:localStorage.getItem('vm.theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t==='dark'?'dark':'light';if(/^(s|l|xl)$/.test(s.size))r.dataset.size=s.size;if(s.contrast===true)r.dataset.contrast='high';if(s.spacing===true)r.dataset.spacing='wide'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
@@ -63,6 +63,7 @@
     <div class="crumbs"><span class="crumb-root" data-i18n="crumb.root">Учебная зона</span><span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-here" id="crumbHere">Учить слова</span></div>
     <div class="topbar-right">
       <span class="streak-indicator" title="Дни с завершённой тренировкой" data-i18n-attr="title:top.streak"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c1 5-4 6-4 10a4 4 0 0 0 8 0c0-1-1-3-1-3 5 3 6 10 0 12C3 25 1 12 12 3Z"/></svg><span id="streakCount">0 дней</span></span>
+      <button class="acc-btn" id="btnAccount" type="button" hidden aria-haspopup="dialog"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="accountLabel">Войти</span></button>
       <div class="lang-pills" id="uiLang" role="group" aria-label="Язык интерфейса" data-i18n-attr="aria-label:top.uiLang"><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button><button type="button" data-lang="uz" lang="uz" aria-pressed="false">UZ</button><button type="button" data-lang="ru" lang="ru" aria-pressed="true">RU</button></div>
       <button class="icon-btn" id="btnInstall" type="button" hidden title="Установить приложение" aria-label="Установить приложение" data-i18n-attr="title:top.install,aria-label:top.install"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg></button>
       <button class="icon-btn" id="btnTheme" type="button" title="Сменить тему" aria-label="Сменить тему" data-i18n-attr="title:top.theme,aria-label:top.theme">◐</button>
@@ -452,6 +453,32 @@
       <div class="actions"><button class="btn primary big" type="submit" id="btnOnboardGo" data-i18n="onb.go">Начать</button></div>
     </form>
   </div>
+  <div class="overlay" id="accountDialog" hidden role="dialog" aria-modal="true" aria-labelledby="accTitle">
+    <div class="panel share-card account-card">
+      <button class="icon-btn acc-close" id="accClose" type="button" aria-label="Закрыть" data-i18n-attr="aria-label:acc.close">✕</button>
+      <h2 id="accTitle" data-i18n="acc.title">Аккаунт</h2>
+      <div id="accOut">
+        <p class="mini" data-i18n="acc.why">Войди, чтобы прогресс хранился в облаке и был на всех твоих устройствах.</p>
+        <div class="lib-tabs" role="tablist" aria-label="Аккаунт" data-i18n-attr="aria-label:acc.title"><button type="button" role="tab" id="accTabIn" aria-selected="true" data-i18n="acc.signIn">Войти</button><button type="button" role="tab" id="accTabUp" aria-selected="false" data-i18n="acc.signUp">Создать аккаунт</button></div>
+        <form id="accForm" novalidate>
+          <label class="field"><span data-i18n="acc.email">Эл. почта</span><input id="accEmail" type="email" autocomplete="email" required maxlength="254" spellcheck="false" /></label>
+          <label class="field"><span data-i18n="acc.password">Пароль</span><input id="accPassword" type="password" autocomplete="current-password" required maxlength="72" /></label>
+          <button class="btn primary big" id="accSubmit" type="submit" data-i18n="acc.signIn">Войти</button>
+          <button class="link" type="button" id="accForgot" data-i18n="acc.forgot">Забыли пароль?</button>
+        </form>
+      </div>
+      <div id="accSent" hidden><p id="accSentText" role="status"></p><button class="btn" type="button" id="accBack" data-i18n="acc.back">← Ко входу</button></div>
+      <form id="accReset" hidden><p class="mini" data-i18n="acc.resetHint">Придумай новый пароль — не короче 8 символов.</p><label class="field"><span data-i18n="acc.newPassword">Новый пароль</span><input id="accNewPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" required /></label><button class="btn primary" type="submit" data-i18n="acc.savePassword">Сохранить пароль</button></form>
+      <div id="accIn" hidden>
+        <p class="acc-user"><span data-i18n="acc.signedInLabel">Ты вошёл как</span> <strong id="accEmailShown"></strong></p>
+        <p class="acc-sync" id="accSyncState" role="status"></p>
+        <div class="row-gap"><button class="btn primary" type="button" id="btnSyncNow" data-i18n="acc.syncNow">Синхронизировать сейчас</button><button class="btn" type="button" id="btnSignOut" data-i18n="acc.signOut">Выйти</button></div>
+        <p class="mini" data-i18n="acc.signOutNote">После выхода слова останутся и на этом устройстве.</p>
+        <button class="link link-danger" type="button" id="btnWipeCloud" data-i18n="acc.wipe">Удалить мой прогресс из облака</button>
+      </div>
+      <p class="acc-error" id="accError" role="alert"></p>
+    </div>
+  </div>
   <div class="overlay" id="displayDialog" hidden role="dialog" aria-modal="true" aria-labelledby="displayTitle">
     <div class="panel share-card display-card">
       <h2 id="displayTitle" data-i18n="disp.title">Отображение</h2>
@@ -514,13 +541,14 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="display.js?v=2.17"></script>
-  <script defer src="i18n.js?v=2.17"></script>
-  <script defer src="motion.js?v=2.17"></script>
-  <script defer src="learning.js?v=2.17"></script>
-  <script defer src="ai-core.js?v=2.17"></script>
-  <script defer src="share.js?v=2.17"></script>
-  <script defer src="games.js?v=2.17"></script>
-  <script defer src="app.js?v=2.17"></script>
+  <script defer src="display.js?v=2.18"></script>
+  <script defer src="i18n.js?v=2.18"></script>
+  <script defer src="motion.js?v=2.18"></script>
+  <script defer src="learning.js?v=2.18"></script>
+  <script defer src="ai-core.js?v=2.18"></script>
+  <script defer src="share.js?v=2.18"></script>
+  <script defer src="games.js?v=2.18"></script>
+  <script defer src="account.js?v=2.18"></script>
+  <script defer src="app.js?v=2.18"></script>
 </body>
 </html>

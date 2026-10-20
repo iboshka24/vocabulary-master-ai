@@ -35,10 +35,22 @@ global.fetch = async (url, options) => {
   return { ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: { content: JSON.stringify({ items }) } }] }) };
 };
 let serverDown = false;
+const supa = require('./fake-supabase.js')({ key: 'anon-e2e-key' }); // accounts: Supabase stand-in on the same origin
 
 const server = http.createServer((req, res) => {
   if (serverDown) { req.socket.destroy(); return; }
   vercelHeaders.apply(res, req.url.split('?')[0]); // run under the production CSP
+  if (/^\/(auth|rest)\/v1\//.test(req.url)) {
+    let body = '';
+    req.on('data', c => { body += c; });
+    req.on('end', () => {
+      let json = null; try { json = body ? JSON.parse(body) : null; } catch (e) {}
+      const [status, out] = supa.handle(req.method, req.url, req.headers, json);
+      res.statusCode = status; res.setHeader('Content-Type', 'application/json');
+      res.end(out == null ? '' : JSON.stringify(out));
+    });
+    return;
+  }
   if (req.url.startsWith('/api/ai')) {
     // The real serverless function; the AI provider behind it is faked below.
     let body = '';
@@ -113,6 +125,7 @@ run.server(server);
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = 'http://127.0.0.1:' + server.address().port;
+  process.env.SUPABASE_URL = origin; process.env.SUPABASE_ANON_KEY = supa.KEY;
   browser = run.browser(await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || undefined }));
   const context = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce', acceptDownloads: true, viewport: { width: 1280, height: 900 } });
   await context.addInitScript(() => { try { localStorage.setItem('vm.onboarded', '1'); } catch (e) {} }); // first-run questions have their own step
@@ -759,6 +772,89 @@ run.server(server);
   assert.deepEqual(az, az.slice().sort((a, b) => a.localeCompare(b)), 'A to Z sorting');
   await onb.keyboard.press('ArrowLeft');
   await onbCtx.close();
+
+  step('accounts: sign up on one device, sign in on another, progress merges both ways, nothing secret leaves');
+  const lib = (decks) => JSON.stringify({ decks, history: { '2026-01-05': { answers: 4, correct: 3 } }, goal: 10, streak: { count: 1, last: '2026-01-05', freezes: 2, enabled: true } });
+  const deviceA = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
+  const deviceB = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
+  for (const [ctx, decks] of [[deviceA, { 'en-ru': { source: 'en', target: 'ru', created: 1, cards: [{ original: 'lantern', translation: 'фонарь', examples: [], streak: 0, fails: 0, reps: 2, interval: 3, due: 1, ease: 2.5 }] } }],
+    [deviceB, { 'en-ru': { source: 'en', target: 'ru', created: 2, cards: [{ original: 'meadow', translation: 'луг', examples: [], streak: 0, fails: 0 }] } }]]) {
+    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
+    await ctx.addInitScript(([l]) => { try { if (!localStorage.getItem('vm.onboarded')) { localStorage.setItem('vm.onboarded', '1'); localStorage.setItem('vocabulary-master.library.v2', l); localStorage.setItem('wordloop.cfg', JSON.stringify({ apiKey: 'sk-local-SECRET', source: 'en', target: 'ru' })); } } catch (e) {} }, [lib(decks)]);
+  }
+  const a = await deviceA.newPage(); watch(a); a.on('pageerror', e => errors.push(e.message));
+  await a.goto(origin);
+  await a.locator('#btnAccount:not([hidden])').waitFor();
+  assert.equal(await a.locator('#accountLabel').innerText(), 'Войти');
+  await a.click('#btnAccount');
+  await a.click('#accTabUp');
+  await a.fill('#accEmail', 'learner@example.com');
+  await a.fill('#accPassword', 'short');
+  await a.click('#accSubmit');
+  assert.match(await a.locator('#accError').innerText(), /8 символов/, 'short passwords are refused before any request');
+  await a.fill('#accPassword', 'long enough pass');
+  await a.click('#accSubmit');
+  await a.locator('#accIn:not([hidden])').waitFor();
+  await a.waitForFunction(() => /Сохранено в облаке/.test(document.getElementById('accSyncState').textContent));
+  assert.equal(await a.locator('#accountLabel').innerText(), 'learner');
+  const userA = [...supa.users.values()].find(u => u.email === 'learner@example.com');
+  const cloud = () => supa.rows.get(userA.id).data;
+  assert.deepEqual(cloud().library.decks['en-ru'].cards.map(c => c.original), ['lantern'], 'the first device uploads its words');
+  assert(!JSON.stringify(cloud()).includes('SECRET'), 'the API key never goes to the cloud');
+  assert(!(await a.evaluate(() => JSON.stringify(localStorage))).includes('long enough pass'), 'the password is not stored');
+  await a.keyboard.press('Escape');
+  assert(await a.locator('#accountDialog').isHidden());
+
+  const b = await deviceB.newPage(); watch(b); b.on('pageerror', e => errors.push(e.message));
+  await b.goto(origin);
+  await b.locator('#btnAccount:not([hidden])').waitFor();
+  await b.click('#btnAccount');
+  await b.fill('#accEmail', 'learner@example.com');
+  await b.fill('#accPassword', 'wrong password');
+  await b.click('#accSubmit');
+  await b.waitForFunction(() => /Неверная почта или пароль/.test(document.getElementById('accError').textContent));
+  await b.fill('#accPassword', 'long enough pass');
+  await b.click('#accSubmit');
+  await b.locator('#accIn:not([hidden])').waitFor();
+  await b.waitForFunction(() => /Сохранено в облаке/.test(document.getElementById('accSyncState').textContent));
+  await waitToast(b, 'объединён с облаком');
+  const words = pg => pg.evaluate(() => JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).decks['en-ru'].cards.map(c => c.original).sort());
+  assert.deepEqual(await words(b), ['lantern', 'meadow'], 'signing in on a second device merges both libraries');
+  assert.deepEqual(cloud().library.decks['en-ru'].cards.map(c => c.original).sort(), ['lantern', 'meadow'], 'and the merge goes back to the cloud');
+  assert.equal((await b.evaluate(() => JSON.parse(localStorage.getItem('vocabulary-master.library.v2')))).decks['en-ru'].cards.find(c => c.original === 'lantern').reps, 2, 'learning progress travels with the word');
+  await b.keyboard.press('Escape');
+
+  // device B adds a word; device A gets it on its next load
+  await b.click('#navLibrary');
+  await b.locator('.deck-item [data-act="reverse"]').first().click();
+  for (let i = 0; i < 40 && !cloud().library.decks['ru-en']; i++) await b.waitForTimeout(250);
+  assert(cloud().library.decks['ru-en'], 'a change on device B is uploaded a few seconds later');
+  await a.reload(); await a.locator('#screen-setup.active').waitFor();
+  await a.waitForFunction(() => !!JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).decks['ru-en']);
+  assert.deepEqual(await words(a), ['lantern', 'meadow'], 'device A downloads what device B saved');
+
+  // sign out keeps local words; the session is gone
+  await b.click('#btnAccount');
+  await b.click('#btnSignOut');
+  await b.locator('#accOut:not([hidden])').waitFor();
+  assert.equal(await b.evaluate(() => localStorage.getItem('vm.auth')), null);
+  assert.deepEqual(await words(b), ['lantern', 'meadow'], 'signing out does not delete the words on the device');
+  await b.keyboard.press('Escape');
+  assert.equal(await b.locator('#accountLabel').innerText(), 'Войти');
+
+  // password reset link: opens the "new password" form and drops the tokens from the address bar
+  await b.click('#btnAccount'); await b.fill('#accEmail', 'learner@example.com'); await b.click('#accForgot');
+  await b.locator('#accSent:not([hidden])').waitFor();
+  const mail = supa.state.mails.filter(m => m.kind === 'recovery').pop();
+  assert.equal(mail.redirect, origin + '/', 'the reset link returns to the site');
+  await b.goto(origin + '/' + mail.link);
+  await b.locator('#accReset:not([hidden])').waitFor();
+  assert(!(await b.evaluate(() => location.hash)).includes('access_token'), 'tokens are removed from the address bar at once');
+  await b.fill('#accNewPassword', 'a fresh password');
+  await b.click('#accReset button[type="submit"]');
+  await b.locator('#accIn:not([hidden])').waitFor();
+  assert.equal(userA.password, 'a fresh password');
+  await deviceA.close(); await deviceB.close();
 
   step('interface language: RU → EN → UZ, choice survives a reload');
   await page.click('#navStudy');
