@@ -246,6 +246,9 @@ function noSecrets(res) {
   assert.equal((await accountOf()).url, 'http://127.0.0.1:3000', 'a local test server is allowed');
   delete process.env.SUPABASE_ANON_KEY;
   assert.equal(await accountOf(), null, 'the key is required too');
+  process.env.SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_x';
+  assert.equal((await accountOf()).key, 'sb_publishable_x', 'new publishable keys and Vercel-integration names work too');
+  delete process.env.SUPABASE_PUBLISHABLE_KEY;
   delete process.env.SUPABASE_URL;
   h = freshHandler();
   r = await call(h, request({ body: { words: ['apple'], source: 'en', target: 'ru', apiKey: USER_KEY } }));

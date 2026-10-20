@@ -35,7 +35,9 @@
 
     async function req(path, o) {
       o = o || {};
-      var headers = { apikey: key, 'Content-Type': 'application/json', Authorization: 'Bearer ' + (o.token || key) };
+      // Only a user's own token goes in Authorization: new publishable keys (sb_publishable_…) are not JWTs.
+      var headers = { apikey: key, 'Content-Type': 'application/json' };
+      if (o.token) headers.Authorization = 'Bearer ' + o.token;
       Object.keys(o.headers || {}).forEach(function (h) { headers[h] = o.headers[h]; });
       var res;
       try {

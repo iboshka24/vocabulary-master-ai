@@ -78,7 +78,9 @@ function rateLimit(ip, limit) {
 
 // Accounts are offered only when both values are set and the URL is plain HTTPS (or a local test server).
 function accountConfig() {
-  const url = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, ''), key = String(process.env.SUPABASE_ANON_KEY || '').trim();
+  const env = process.env;
+  const url = String(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const key = String(env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
   if (!url || !key || key.length > 2000) return null;
   try {
     const u = new URL(url);

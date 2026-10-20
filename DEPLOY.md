@@ -17,7 +17,7 @@ Vercel → Project → Settings → Environment Variables. Всё необяза
 | `OPENAI_MODEL` | Модель для серверного ключа | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Серверный ключ Google Gemini (бесплатный, [aistudio.google.com/apikey](https://aistudio.google.com/apikey)). Используется, если `OPENAI_API_KEY` не задан; адрес и модель подставляются сами | `AIza…` |
 | `SUPABASE_URL` | Адрес проекта Supabase для аккаунтов (Settings → API → Project URL). Без него кнопки «Войти» нет | `https://abcd.supabase.co` |
-| `SUPABASE_ANON_KEY` | Публичный anon-ключ того же проекта. Его можно показывать браузеру: доступ к данным ограничивает RLS из `supabase/schema.sql` | `eyJhbGci…` |
+| `SUPABASE_ANON_KEY` | Публичный ключ того же проекта: anon key или новый publishable key (`sb_publishable_…`); подходят и имена `SUPABASE_PUBLISHABLE_KEY` / `NEXT_PUBLIC_SUPABASE_*` от интеграции Vercel. Его можно показывать браузеру: доступ к данным ограничивает RLS из `supabase/schema.sql` | `eyJhbGci…` |
 | `GEMINI_MODEL` | Модель Gemini для серверного ключа | `gemini-3.5-flash-lite` |
 | `ALLOWED_ORIGINS` | Другие сайты, которым можно вызывать `/api/ai` (через запятую). Всегда разрешены домен, на который пришёл запрос, и адреса этого деплоя (`VERCEL_URL`, production-домен) | `https://vocab.example.com` |
 | `AI_ALLOWED_HOSTS` | Дополнительные провайдеры для собственных ключей пользователей | `api.fireworks.ai` |

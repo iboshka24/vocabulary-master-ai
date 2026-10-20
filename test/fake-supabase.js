@@ -23,6 +23,7 @@ function fakeSupabase(opts) {
     const u = new URL(url, 'http://x'), p = u.pathname, q = u.searchParams;
     log.push(method + ' ' + p + (u.search || ''));
     if (headers.apikey !== KEY) return [401, { message: 'Invalid API key' }];
+    if (headers.authorization && !bearer(headers) && !/^\/auth\/v1\/logout/.test(u.pathname)) return [401, { code: 401, error_code: 'bad_jwt', msg: 'invalid JWT: unable to parse or verify signature' }];
     if (p === '/auth/v1/signup' && method === 'POST') {
       if (users.has(body.email)) return [200, { id: 'obfuscated', email: body.email, identities: [] }];
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email || '')) return [400, { error_code: 'email_address_invalid', msg: 'Unable to validate email address: invalid format' }];
