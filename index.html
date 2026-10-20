@@ -10,11 +10,11 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.16" />
-  <link rel="stylesheet" href="styles.css?v=2.16" />
-  <link rel="stylesheet" href="editorial.css?v=2.16" />
-  <link rel="stylesheet" href="shell.css?v=2.16" />
-  <link rel="stylesheet" href="motion.css?v=2.16" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.17" />
+  <link rel="stylesheet" href="styles.css?v=2.17" />
+  <link rel="stylesheet" href="editorial.css?v=2.17" />
+  <link rel="stylesheet" href="shell.css?v=2.17" />
+  <link rel="stylesheet" href="motion.css?v=2.17" />
   <script>try{var r=document.documentElement,s=JSON.parse(localStorage.getItem('vm.display')||'null')||{},t=/^(system|light|dark)$/.test(s.theme)?s.theme:localStorage.getItem('vm.theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t==='dark'?'dark':'light';if(/^(s|l|xl)$/.test(s.size))r.dataset.size=s.size;if(s.contrast===true)r.dataset.contrast='high';if(s.spacing===true)r.dataset.spacing='wide'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
@@ -29,11 +29,13 @@
       </span>
       <span class="logo-text">Vocabulary<em>Master AI</em></span>
     </a>
+    <p class="side-slogan" data-i18n="footer.tag">Меньше шума. Больше смысла.</p>
     <nav class="side-nav" aria-label="Основная навигация" data-i18n-attr="aria-label:nav.aria">
       <p class="side-group" data-i18n="side.learning">Обучение</p>
       <button type="button" class="nav-link active" id="navStudy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav.study">Учить слова</span></button>
       <button type="button" class="nav-link" id="navLibrary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2"/><path d="M8 7h7"/></svg><span data-i18n="nav.library">Моя библиотека</span></button>
       <button type="button" class="nav-link" id="navTest"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg><span data-i18n="nav.test">Лексический тест</span></button>
+      <button type="button" class="nav-link" id="navGames"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="12" rx="4"/><path d="M7 11v4M5 13h4"/><circle cx="15.5" cy="12" r="1"/><circle cx="18" cy="14.5" r="1"/></svg><span data-i18n="nav.games">Игры</span></button>
       <button type="button" class="nav-link" id="navProgress"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span data-i18n="nav.progress">Прогресс</span></button>
       <p class="side-group" data-i18n="side.tools">Инструменты</p>
       <button class="side-link" id="btnSettings" type="button" title="Настройки API" data-i18n-attr="title:top.settings">
@@ -81,6 +83,7 @@
           <h1 data-i18n-html="hero.h1">Не просто слова.<br><em>Твои новые мысли.</em></h1>
           <p class="sub" data-i18n="hero.sub">Собирай слова, которые нужны именно тебе. Вспоминай, ошибайся и пробуй снова — мы вернём сложное в нужный момент.</p>
           <div class="hero-note"><span data-i18n="hero.n1">Твой темп</span><span data-i18n="hero.n2">Умные повторения</span><span data-i18n="hero.n3">Без регистрации</span></div>
+          <div class="hero-actions"><button class="btn hero-cta" id="btnHeroDemo" type="button" data-i18n="hero.demo">Попробовать демо-колоду</button><button class="btn hero-ghost" id="btnHeroOwn" type="button" data-i18n="hero.own">Добавить свои слова ↓</button></div>
         </div>
         <div class="paper-scene">
           <div class="paper-grid"></div>
@@ -123,7 +126,7 @@
         <div class="panel panel-session">
           <div class="panel-head">
             <h2><span class="dot"></span><span data-i18n="session.title">Настройки сессии</span></h2>
-            <span class="status-indicator" id="statusIndicator">● Готов к работе</span>
+            <div class="row-gap"><span class="status-indicator" id="statusIndicator">● Готов к работе</span><button class="chip-btn gear-btn" id="btnSessionSettings" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="set.open">Настройки</span></button></div>
           </div>
 
           <div class="lang-pair">
@@ -134,75 +137,13 @@
             <label class="field"><span data-i18n="lang.native">Мой родной язык</span><span class="select-wrap"><select id="targetLang"></select></span></label>
           </div>
 
-          <div class="field">
-            <span data-i18n="dir.label">Направление карточек</span>
-            <div class="segmented" id="dirSeg">
-              <button type="button" data-dir="mixed" class="on" data-i18n="dir.mixed">Смешанное</button>
-              <button type="button" data-dir="fwd" data-i18n="dir.fwd">Слово → перевод</button>
-              <button type="button" data-dir="rev" data-i18n="dir.rev">Перевод → слово</button>
-            </div>
-          </div>
-
-          <div class="field"><span data-i18n="mode.label">Как отвечать</span><div class="segmented" id="modeSeg"><button type="button" data-mode="flashcard" class="on" data-i18n="mode.flashcard">Карточки</button><button type="button" data-mode="typing" data-i18n="mode.typing">Написать ответ</button><button type="button" data-mode="listen" data-i18n="mode.listen">🎧 На слух</button></div></div>
-          <div class="settings-switches"><label><input id="simpleMode" type="checkbox"> <span data-i18n="mode.simple">Только слово и перевод</span></label></div>
-
-          <details class="api-box" id="apiBox">
-            <summary>
-              <span class="api-title">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.2-8.2 3 3-2 2-2-2-1.5 1.5" /></svg>
-                <span data-i18n="api.title">ИИ-провайдер</span>
-              </span>
-              <span class="api-summary-status" id="apiSummaryStatus" data-i18n="api.auto">Авто-режим</span>
-            </summary>
-            <div class="api-body">
-              <div class="server-ai-note" id="serverAiNote" hidden>
-                <strong data-i18n="api.serverH">ИИ уже подключён</strong>
-                <p id="serverAiText">Сайт переводит через ИИ своим ключом. Ничего вводить не нужно — просто добавь слова и нажми «Создать тренировку».</p>
-                <button type="button" class="link" id="btnOwnKey" aria-expanded="false" aria-controls="apiOwn" data-i18n="api.ownKey">Использовать свой ключ (необязательно)</button>
-              </div>
-              <div id="apiOwn">
-              <p class="hint" id="apiHint" data-i18n-html="api.hint">
-                <strong>Ключ можно дать позже.</strong> Без ключа работает встроенный бесплатный авто-переводчик. Для умных мнемоник и фильтрации подключи любой OpenAI-совместимый API — OpenAI, Groq, OpenRouter или DeepSeek.
-              </p>
-
-              <div class="provider-row">
-                <span class="provider-title" data-i18n="api.quick">Быстрый выбор</span>
-                <button type="button" class="prov-chip active" data-prov="free" data-i18n="api.free">Без ключа</button>
-                <button type="button" class="prov-chip prov-best" data-prov="gemini">Gemini</button>
-                <button type="button" class="prov-chip" data-prov="openai">OpenAI</button>
-                <button type="button" class="prov-chip" data-prov="groq">Groq</button>
-                <button type="button" class="prov-chip" data-prov="openrouter">OpenRouter</button>
-              </div>
-
-              <label class="field">
-                <span>Base URL</span>
-                <input id="cfgBaseUrl" type="text" placeholder="https://api.openai.com/v1" />
-              </label>
-
-              <label class="field">
-                <span data-i18n="api.model">Модель</span>
-                <input id="cfgModel" type="text" placeholder="gpt-4o-mini" />
-              </label>
-
-              <label class="field">
-                <span data-i18n-html="api.key">API-ключ <em>хранится только локально в браузере</em></span>
-                <input id="cfgKey" type="password" placeholder="sk-... — оставь пустым для авто-режима" data-i18n-attr="placeholder:api.keyPh" autocomplete="off" />
-              </label>
-
-              <div class="row-gap">
-                <button class="chip-btn" id="btnSaveCfg" type="button" data-i18n="api.save">Сохранить</button>
-                <button class="chip-btn" id="btnResetCfg" type="button" data-i18n="api.reset">Сбросить</button>
-              </div>
-              </div>
-            </div>
-          </details>
 
           <div class="actions">
             <button class="btn primary big" id="btnStart" type="button">
               <span data-i18n="setup.start">Создать тренировку</span>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
             </button>
-            <button class="btn ghost block" id="btnDemo" type="button" data-i18n="setup.demo">Демо-колода на 14 слов</button>
+            <button class="btn ghost block" id="btnDemo" type="button" data-i18n="setup.demo">Попробовать демо-колоду (14 слов)</button>
           </div>
           <p class="mini resume" id="resumeBox" hidden><span data-i18n="setup.resume">Продолжить прошлую сессию — </span><button class="link" id="btnResume" type="button" data-i18n="setup.resumeLink">открыть сохранённую колоду</button></p>
         </div>
@@ -354,12 +295,39 @@
       </div>
       <div class="search-results" id="searchResults" hidden></div>
       <div class="filter-row" id="libraryFilters"><label class="filter-field"><span data-i18n="filter.lang">Язык</span><span class="select-wrap"><select id="filterLang"><option value="" data-i18n="filter.any">Все</option></select></span></label><label class="filter-field"><span data-i18n="filter.status">Статус</span><span class="select-wrap"><select id="filterStatus"><option value="" data-i18n="filter.any">Все</option><option value="due" data-i18n="filter.due">Пора повторить</option><option value="hard" data-i18n="filter.hard">Есть трудные</option><option value="mastered" data-i18n="filter.mastered">Почти выучены</option></select></span></label><button type="button" class="link" id="btnClearFilters" data-i18n="filter.clear">Сбросить фильтры</button></div>
+      <div class="lib-tabs" role="tablist" aria-label="Библиотека" data-i18n-attr="aria-label:nav.library"><button type="button" role="tab" id="tabDecks" aria-selected="true" aria-controls="decksPanel" data-i18n="lib.tabDecks">Колоды</button><button type="button" role="tab" id="tabVault" aria-selected="false" aria-controls="vaultPanel" tabindex="-1" data-i18n="lib.tabVault">Все слова</button></div>
+      <div id="decksPanel" role="tabpanel" aria-labelledby="tabDecks">
       <div class="grid-head"><h2 data-i18n="lib.explore">Твои колоды</h2><span id="deckCount"></span></div>
       <div class="library-grid" id="libraryGrid"></div>
       <p class="quiz-empty" id="filterEmpty" hidden data-i18n="filter.none">Под фильтры не подошла ни одна колода.</p>
+      </div>
+      <div id="vaultPanel" role="tabpanel" aria-labelledby="tabVault" hidden>
+        <div class="grid-head"><h2 data-i18n="vault.title">Все твои слова</h2><span id="vaultCount"></span></div>
+        <div class="vault-tools"><label class="filter-field"><span data-i18n="vault.sort">Порядок</span><span class="select-wrap"><select id="vaultSort"><option value="new" data-i18n="vault.sortNew">Сначала новые</option><option value="old" data-i18n="vault.sortOld">Сначала старые</option><option value="az" data-i18n="vault.sortAz">По алфавиту</option><option value="status" data-i18n="vault.sortStatus">По статусу</option></select></span></label></div>
+        <div class="vault-wrap"><table class="vault-table" id="vaultTable"><thead><tr><th scope="col" data-i18n="vault.word">Слово</th><th scope="col" data-i18n="vault.translation">Перевод</th><th scope="col" data-i18n="vault.deck">Колода</th><th scope="col" data-i18n="vault.added">Добавлено</th><th scope="col" data-i18n="vault.status">Статус</th></tr></thead><tbody id="vaultBody"></tbody></table></div>
+        <button class="btn ghost" type="button" id="btnVaultMore" hidden data-i18n="vault.more">Показать ещё</button>
+      </div>
       <details class="motion-details"><summary data-i18n="motion.summary">За кулисами: Native motion / EffectCraft</summary><p data-i18n="motion.p">Спокойное движение интерфейса — CSS. Ниже — сохранённый рендер композиции из EffectCraft CLI; это отдельный motion-этюд, не стиль приложения.</p><div class="motion-comparison"><div class="motion-native"><b data-i18n="motion.native">Слово за словом.</b></div><video src="motion/streak-celebration.mp4" controls preload="none" playsinline aria-label="Композиция EffectCraft" data-i18n-attr="aria-label:motion.video"></video></div></details>
     </section>
     <section class="screen" id="screen-test"><div class="library-intro"><div><span class="eyebrow" data-i18n="test.eyebrow">ЛЕКСИЧЕСКИЙ ЗАПАС</span><h1 data-i18n="test.h1">Проверь глубину словаря</h1><p data-i18n="test.sub">Контекстные вопросы и точное значение. Четыре варианта, один ответ.</p></div></div><div class="panel quiz-panel"><p class="quiz-empty" id="quizEmpty" hidden><span data-i18n="test.empty">Для теста и игры нужна колода хотя бы из 4 слов.</span> <button class="link" type="button" id="btnQuizEmpty" data-i18n="lib.emptyBtn">Добавить слова →</button></p><label class="field"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="quizDeck"></select></span></label><button class="btn primary" id="btnQuizStart" type="button" data-i18n="test.start">Начать мини-тест →</button><p class="mini" data-i18n="test.note">Нужно минимум 4 разных слова. Если есть примеры — используем пропуски в предложениях, иначе проверим значение.</p><div id="quizBody" hidden><span class="eyebrow" id="quizProgress"></span><h2 id="quizQuestion"></h2><div class="quiz-options" id="quizOptions"></div><div class="quiz-answer" id="quizAnswer" role="status"></div><button class="btn" id="btnQuizNext" type="button" hidden data-i18n="btn.next">Дальше →</button></div></div><div class="panel match-panel"><div class="match-head"><div><span class="eyebrow" data-i18n="match.eyebrow">МИНИ-ИГРА</span><h2 data-i18n="match.title">Найди пару</h2><p class="mini" data-i18n="match.sub">Соедини слово с переводом как можно быстрее. Колода — та же, что выбрана выше.</p></div><button class="btn primary" id="btnMatchStart" type="button" data-i18n="match.start">Играть →</button></div><div class="match-stats" id="matchStats" hidden><span id="matchTime">0:00</span><span id="matchMistakes"></span><span id="matchBest"></span></div><div class="match-grid" id="matchGrid"></div></div></section>
+    <section class="screen" id="screen-games">
+      <div class="library-intro"><div><span class="eyebrow" data-i18n="games.eyebrow">ИГРАЙ СО СВОИМИ СЛОВАМИ</span><h1 data-i18n="games.h1">Игры</h1><p data-i18n="games.sub">Короткие игры из твоей библиотеки. Каждый ответ идёт в дневную цель.</p></div></div>
+      <p class="quiz-empty" id="gamesEmpty" hidden><span data-i18n="test.empty">Для теста и игры нужна колода хотя бы из 4 слов.</span> <button class="link" type="button" id="btnGamesDemo" data-i18n="hero.demo">Попробовать демо-колоду</button></p>
+      <label class="field games-pick" id="gamesPick"><span data-i18n="test.deck">Выбери колоду</span><span class="select-wrap"><select id="gameDeck"></select></span></label>
+      <div class="games-hub" id="gamesHub">
+        <button type="button" class="game-tile tile-context" data-game="context"><span class="game-icon" aria-hidden="true">“_”</span><strong data-i18n="game.context">Слово в контексте</strong><span data-i18n="game.contextSub">Вставь пропущенное слово в предложение</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-scramble" data-game="scramble"><span class="game-icon" aria-hidden="true">A·Z</span><strong data-i18n="game.scramble">Собери слово</strong><span data-i18n="game.scrambleSub">Расставь буквы по порядку по переводу</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-truefalse" data-game="truefalse"><span class="game-icon" aria-hidden="true">60″</span><strong data-i18n="game.truefalse">Верно или нет</strong><span data-i18n="game.truefalseSub">60 секунд: правильный ли перевод?</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-match" data-game="match"><span class="game-icon" aria-hidden="true">⇄</span><strong data-i18n="match.title">Найди пару</strong><span data-i18n="game.matchSub">Соедини слова с переводами на время</span></button>
+      </div>
+      <div class="panel game-stage" id="gameStage" hidden>
+        <div class="game-head"><h2 id="gameTitle"></h2><span class="pill" id="gameScore"></span><button class="link" type="button" id="gameQuit" data-i18n="game.quit">Выйти (Esc)</button></div>
+        <div class="game-meter"><span class="eyebrow" id="gameProgress"></span><div class="daily-track"><i id="gameBar"></i></div></div>
+        <div id="gameBody"></div>
+        <p class="game-feedback" id="gameFeedback" role="status" aria-live="polite"></p>
+        <button class="btn primary" type="button" id="gameNext" hidden data-i18n="btn.next">Дальше →</button>
+      </div>
+    </section>
     <section class="screen" id="screen-progress">
       <div class="library-intro"><div><span class="eyebrow" data-i18n="prog.eyebrow">ПРОГРЕСС</span><h1 data-i18n="prog.h1">Как идёт обучение</h1><p data-i18n="prog.sub">Что ждёт впереди, насколько прочно держатся слова и где нужна помощь.</p></div></div>
       <p class="quiz-empty" id="progEmpty" hidden><span data-i18n="prog.empty">Статистика появится после первых ответов.</span> <button class="link" type="button" id="btnProgEmpty" data-i18n="lib.emptyBtn">Добавить слова →</button></p>
@@ -405,6 +373,85 @@
   </div>
 
   <!-- ============ DISPLAY SETTINGS ============ -->
+  <div class="overlay" id="sessionDialog" hidden role="dialog" aria-modal="true" aria-labelledby="sessionDialogTitle">
+    <div class="panel share-card settings-card">
+      <h2 id="sessionDialogTitle" data-i18n="set.title">Настройки тренировки</h2>
+      <div class="field">
+        <span data-i18n="dir.label">Направление карточек</span>
+        <div class="segmented" id="dirSeg">
+          <button type="button" data-dir="mixed" class="on" data-i18n="dir.mixed">Смешанное</button>
+          <button type="button" data-dir="fwd" data-i18n="dir.fwd">Слово → перевод</button>
+          <button type="button" data-dir="rev" data-i18n="dir.rev">Перевод → слово</button>
+        </div>
+      </div>
+
+      <div class="field"><span data-i18n="mode.label">Как отвечать</span><div class="segmented" id="modeSeg"><button type="button" data-mode="flashcard" class="on" data-i18n="mode.flashcard">Карточки</button><button type="button" data-mode="typing" data-i18n="mode.typing">Написать ответ</button><button type="button" data-mode="listen" data-i18n="mode.listen">🎧 На слух</button></div></div>
+      <div class="settings-switches"><label><input id="simpleMode" type="checkbox"> <span data-i18n="mode.simple">Только слово и перевод</span></label></div>
+
+      <details class="api-box" id="apiBox">
+        <summary>
+          <span class="api-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.2-8.2 3 3-2 2-2-2-1.5 1.5" /></svg>
+            <span data-i18n="api.title">ИИ-провайдер</span>
+          </span>
+          <span class="api-summary-status" id="apiSummaryStatus" data-i18n="api.auto">Авто-режим</span>
+        </summary>
+        <div class="api-body">
+          <div class="server-ai-note" id="serverAiNote" hidden>
+            <strong data-i18n="api.serverH">ИИ уже подключён</strong>
+            <p id="serverAiText">Сайт переводит через ИИ своим ключом. Ничего вводить не нужно — просто добавь слова и нажми «Создать тренировку».</p>
+            <button type="button" class="link" id="btnOwnKey" aria-expanded="false" aria-controls="apiOwn" data-i18n="api.ownKey">Использовать свой ключ (необязательно)</button>
+          </div>
+          <div id="apiOwn">
+          <p class="hint" id="apiHint" data-i18n-html="api.hint">
+            <strong>Ключ можно дать позже.</strong> Без ключа работает встроенный бесплатный авто-переводчик. Для умных мнемоник и фильтрации подключи любой OpenAI-совместимый API — OpenAI, Groq, OpenRouter или DeepSeek.
+          </p>
+
+          <div class="provider-row">
+            <span class="provider-title" data-i18n="api.quick">Быстрый выбор</span>
+            <button type="button" class="prov-chip active" data-prov="free" data-i18n="api.free">Без ключа</button>
+            <button type="button" class="prov-chip prov-best" data-prov="gemini">Gemini</button>
+            <button type="button" class="prov-chip" data-prov="openai">OpenAI</button>
+            <button type="button" class="prov-chip" data-prov="groq">Groq</button>
+            <button type="button" class="prov-chip" data-prov="openrouter">OpenRouter</button>
+          </div>
+
+          <label class="field">
+            <span>Base URL</span>
+            <input id="cfgBaseUrl" type="text" placeholder="https://api.openai.com/v1" />
+          </label>
+
+          <label class="field">
+            <span data-i18n="api.model">Модель</span>
+            <input id="cfgModel" type="text" placeholder="gpt-4o-mini" />
+          </label>
+
+          <label class="field">
+            <span data-i18n-html="api.key">API-ключ <em>хранится только локально в браузере</em></span>
+            <input id="cfgKey" type="password" placeholder="sk-... — оставь пустым для авто-режима" data-i18n-attr="placeholder:api.keyPh" autocomplete="off" />
+          </label>
+
+          <div class="row-gap">
+            <button class="chip-btn" id="btnSaveCfg" type="button" data-i18n="api.save">Сохранить</button>
+            <button class="chip-btn" id="btnResetCfg" type="button" data-i18n="api.reset">Сбросить</button>
+          </div>
+          </div>
+        </div>
+      </details>
+      <div class="actions"><button class="btn primary" type="button" id="btnSessionClose" data-i18n="set.done">Готово</button></div>
+    </div>
+  </div>
+  <div class="overlay onboard" id="onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="onboardTitle">
+    <form class="panel share-card onboard-card" id="onboardForm">
+      <span class="eyebrow" data-i18n="hero.eyebrow">МАЛЕНЬКАЯ ПРИВЫЧКА. БОЛЬШОЙ СЛОВАРЬ.</span>
+      <h2 id="onboardTitle" data-i18n="onb.title">Добро пожаловать!</h2>
+      <p class="mini" data-i18n="onb.sub">Два вопроса — и можно начинать. Поменять можно в любой момент.</p>
+      <label class="field"><span data-i18n="onb.native">Мой родной язык</span><span class="select-wrap"><select id="onbNative" required></select></span></label>
+      <label class="field"><span data-i18n="onb.learn">Я хочу выучить</span><span class="select-wrap"><select id="onbLearn" required></select></span></label>
+      <p class="mini onb-ui" id="onbUiNote" hidden></p>
+      <div class="actions"><button class="btn primary big" type="submit" id="btnOnboardGo" data-i18n="onb.go">Начать</button></div>
+    </form>
+  </div>
   <div class="overlay" id="displayDialog" hidden role="dialog" aria-modal="true" aria-labelledby="displayTitle">
     <div class="panel share-card display-card">
       <h2 id="displayTitle" data-i18n="disp.title">Отображение</h2>
@@ -467,12 +514,13 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="display.js?v=2.16"></script>
-  <script defer src="i18n.js?v=2.16"></script>
-  <script defer src="motion.js?v=2.16"></script>
-  <script defer src="learning.js?v=2.16"></script>
-  <script defer src="ai-core.js?v=2.16"></script>
-  <script defer src="share.js?v=2.16"></script>
-  <script defer src="app.js?v=2.16"></script>
+  <script defer src="display.js?v=2.17"></script>
+  <script defer src="i18n.js?v=2.17"></script>
+  <script defer src="motion.js?v=2.17"></script>
+  <script defer src="learning.js?v=2.17"></script>
+  <script defer src="ai-core.js?v=2.17"></script>
+  <script defer src="share.js?v=2.17"></script>
+  <script defer src="games.js?v=2.17"></script>
+  <script defer src="app.js?v=2.17"></script>
 </body>
 </html>

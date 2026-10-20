@@ -191,8 +191,8 @@
 
   /* ---------------- utils ---------------- */
 
-  var NAV_FOR = { 'screen-setup': 'navStudy', 'screen-library': 'navLibrary', 'screen-test': 'navTest', 'screen-progress': 'navProgress' };
-  var CRUMB_FOR = { 'screen-setup': 'nav.study', 'screen-library': 'nav.library', 'screen-test': 'nav.test', 'screen-progress': 'nav.progress', 'screen-train': 'crumb.train', 'screen-loading': 'crumb.loading' };
+  var NAV_FOR = { 'screen-setup': 'navStudy', 'screen-library': 'navLibrary', 'screen-games': 'navGames', 'screen-test': 'navTest', 'screen-progress': 'navProgress' };
+  var CRUMB_FOR = { 'screen-setup': 'nav.study', 'screen-library': 'nav.library', 'screen-games': 'nav.games', 'screen-test': 'nav.test', 'screen-progress': 'nav.progress', 'screen-train': 'crumb.train', 'screen-loading': 'crumb.loading' };
   function updateShell(id) {
     document.querySelectorAll('.nav-link').forEach(function (b) {
       var on = b.id === NAV_FOR[id];
@@ -1331,6 +1331,7 @@
       var missing = cards.filter(function (c) { return ready.indexOf(c) < 0; });
       // Untranslated words go to the library and are retried when the network is back.
       if (L && missing.length) saveUntranslated(missing);
+      if (L) clearDraft();
       if (L && !ready.length) {
         show('screen-setup');
         toast(tr(navigator.onLine === false ? 'toast.allOffline' : 'toast.allFailed'), 'err', 8000);
@@ -1350,7 +1351,7 @@
   /* ---------------- Library, daily practice and lexical resource ---------------- */
   var LIBRARY_KEY = 'vocabulary-master.library.v2';
   var library = { decks: {}, history: {}, goal: 10, streak: { count: 0, last: null, freezes: 2, enabled: true } };
-  var pendingTypedAnswer = null, lexical = null;
+  var pendingTypedAnswer = null, lexical = null, games = null;
   var CONTEXT = {
     serendipity: ['The chance occurrence of a happy discovery.', 'Finding this little bookshop was pure serendipity.'],
     'to remember': ['To keep something in your memory.', 'I try to remember one new word every day.'],
@@ -1430,7 +1431,7 @@
     var added = 0;
     L.reverseCards(d.cards).forEach(function (c) {
       if (rev.cards.some(function (x) { return x.original.toLowerCase() === c.original.toLowerCase(); })) return;
-      rev.cards.push(c); added++;
+      c.added = Date.now(); rev.cards.push(c); added++;
     });
     library.decks[key] = rev; persistLibrary(); renderLibrary();
     toast(added ? tr('toast.reversed', { p: langByCode(rev.source).label + ' → ' + langByCode(rev.target).label, n: trn('words.count', added) }) : tr('toast.reverseSame'), 'ok');
@@ -1502,7 +1503,7 @@
     var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
     cards.forEach(function (card) {
       var known = d.cards.some(function (c) { return c.original.toLowerCase() === card.original.toLowerCase(); });
-      if (!known) d.cards.push({ original: card.original, translation: '—', hint: '', definition: '', examples: [], streak: 0, fails: 0 });
+      if (!known) d.cards.push({ original: card.original, translation: '—', hint: '', definition: '', examples: [], streak: 0, fails: 0, added: Date.now() });
     });
     library.decks[key] = d;
     persistLibrary();
@@ -1802,7 +1803,7 @@
     deck.cards.forEach(function (c) {
       if (known[c.original.toLowerCase()]) return;
       known[c.original.toLowerCase()] = true; added++;
-      d.cards.push({ original: c.original, translation: c.translation, hint: '', definition: '', examples: c.examples.slice(), streak: 0, fails: 0 });
+      d.cards.push({ original: c.original, translation: c.translation, hint: '', definition: '', examples: c.examples.slice(), streak: 0, fails: 0, added: Date.now() });
     });
     library.decks[key] = d;
     persistLibrary();
@@ -1913,7 +1914,7 @@
     var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
     state.cards.forEach(function (card) {
       var idx = d.cards.findIndex(function (c) { return L.validate(c.original, card.original) && c.original.toLowerCase() === card.original.toLowerCase(); });
-      if (idx < 0) d.cards.push(Object.assign({}, card)); else d.cards[idx] = Object.assign({}, card);
+      if (idx < 0) d.cards.push(Object.assign({ added: Date.now() }, card)); else d.cards[idx] = Object.assign({ added: d.cards[idx].added }, card);
     });
     library.decks[key] = d;
     persistLibrary();
@@ -1948,7 +1949,9 @@
     if (state.answers && !summaryRecorded) { L.complete(library.streak, L.day()); summaryRecorded = true; persistLibrary(); }
     hideSummary();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (games && id !== 'screen-games') games.leave();
     show(id); renderDaily();
+    if (id === 'screen-games' && games) games.refresh();
     if (id === 'screen-library') renderLibrary();
     if (id === 'screen-test') fillQuizDecks();
     if (id === 'screen-progress') renderProgress();
@@ -1967,6 +1970,49 @@
     Object.keys(seen).forEach(function (code) { sel.appendChild(h('option', { value: code, text: langByCode(code).label })); });
     sel.value = seen[keep] ? keep : '';
   }
+  /* ---------------- word vault: every saved word in one table ---------------- */
+  var VAULT_PAGE = 200, vaultShown = VAULT_PAGE;
+  var STATUS_ORDER = { due: 0, pending: 1, new: 2, learning: 3, mastered: 4 };
+  function vaultRows() {
+    var rows = [], now = Date.now();
+    Object.keys(library.decks).forEach(function (key) {
+      var d = library.decks[key];
+      d.cards.forEach(function (c) { rows.push({ c: c, d: d, status: L.status(c, now), added: c.added || 0 }); });
+    });
+    var sort = $('vaultSort').value;
+    rows.sort(function (a, b) {
+      if (sort === 'az') return a.c.original.localeCompare(b.c.original);
+      if (sort === 'old') return a.added - b.added;
+      if (sort === 'status') return STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.added - a.added;
+      return b.added - a.added;
+    });
+    return rows;
+  }
+  function renderVault() {
+    var rows = vaultRows(), body = $('vaultBody'), fmt;
+    try { fmt = new Intl.DateTimeFormat(I18N ? I18N.lang() : 'ru', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { fmt = null; }
+    body.innerHTML = '';
+    $('vaultCount').textContent = trn('words.count', rows.length);
+    rows.slice(0, vaultShown).forEach(function (r) {
+      body.appendChild(h('tr', {}, [
+        h('th', { scope: 'row', lang: r.d.source, text: r.c.original }),
+        h('td', { lang: r.d.target, text: r.c.translation }),
+        h('td', { className: 'vault-deck', text: r.d.source.toUpperCase() + ' → ' + r.d.target.toUpperCase() }),
+        h('td', { className: 'vault-date', text: r.added && fmt ? fmt.format(new Date(r.added)) : '—' }),
+        h('td', {}, [h('span', { className: 'status-pill st-' + r.status, text: tr('vault.st.' + r.status) })])
+      ]));
+    });
+    if (!rows.length) body.appendChild(h('tr', {}, [h('td', { colspan: '5', className: 'vault-empty', text: tr('vault.empty') })]));
+    $('btnVaultMore').hidden = rows.length <= vaultShown;
+  }
+  function showLibraryTab(vault) {
+    $('tabDecks').setAttribute('aria-selected', String(!vault)); $('tabVault').setAttribute('aria-selected', String(vault));
+    $('tabDecks').tabIndex = vault ? -1 : 0; $('tabVault').tabIndex = vault ? 0 : -1;
+    $('decksPanel').hidden = vault; $('vaultPanel').hidden = !vault;
+    $('libraryFilters').classList.toggle('is-off', vault);
+    if (vault) renderVault();
+  }
+
   function renderLibrary() {
     var host = $('libraryGrid'); host.innerHTML = '';
     renderActivity(); renderSearch();
@@ -2052,6 +2098,7 @@
       };
       host.appendChild(panel);
     });
+    if (!$('vaultPanel').hidden) renderVault();
     if (window.VMMotion) window.VMMotion.library();
   }
   function showAnswerFeedback(text, wrong) {
@@ -2135,6 +2182,28 @@
     $('navLibrary').onclick = function () { navigateLearning('screen-library'); };
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
     $('navProgress').onclick = function () { navigateLearning('screen-progress'); };
+    $('navGames').onclick = function () { navigateLearning('screen-games'); };
+    $('tabDecks').onclick = function () { showLibraryTab(false); };
+    $('tabVault').onclick = function () { vaultShown = VAULT_PAGE; showLibraryTab(true); };
+    [$('tabDecks'), $('tabVault')].forEach(function (t) {
+      t.onkeydown = function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault(); var other = t.id === 'tabDecks' ? $('tabVault') : $('tabDecks'); other.click(); other.focus();
+      };
+    });
+    $('vaultSort').onchange = renderVault;
+    $('btnVaultMore').onclick = function () { vaultShown += VAULT_PAGE; renderVault(); };
+    $('btnGamesDemo').onclick = function () { $('gameDeck').value = addDemoDeck(); if (games) games.refresh(); $('gameDeck').value = 'en-ru'; toast(tr('toast.demoAdded'), 'ok'); };
+    if (window.VMGames) games = window.VMGames.mount({
+      decks: function () { return library.decks; },
+      langLabel: function (code) { return langByCode(code).label; },
+      tr: tr, trn: trn, toast: toast,
+      answer: function (card, ok, grade) { if (grade) L.grade(card, ok); recordAnswer(ok); },
+      sound: function (ok) { if (ok) playSuccessSound(); else playForgotSound(); },
+      complete: function () { L.complete(library.streak, L.day()); persistLibrary(); renderDaily(); },
+      moreSentences: function (d) { return function (c) { var ctx = d.source === 'en' && CONTEXT[c.original.toLowerCase()]; return ctx ? [ctx[1]] : []; }; },
+      openMatch: function (key) { navigateLearning('screen-test'); if (library.decks[key]) $('quizDeck').value = key; $('btnMatchStart').click(); }
+    });
     $('btnProgEmpty').onclick = function () { navigateLearning('screen-setup'); $('input').focus(); };
     var progressResize = null;
     window.addEventListener('resize', function () { clearTimeout(progressResize); progressResize = setTimeout(function () { if ($('screen-progress').classList.contains('active')) renderProgress(); }, 150); });
@@ -2226,6 +2295,82 @@
 
   /* ---------------- init ---------------- */
 
+  var DRAFT_KEY = 'vm.draft';
+  function saveDraft() { try { if ($('input').value.trim()) localStorage.setItem(DRAFT_KEY, $('input').value); else localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  function restoreDraft() {
+    try { var v = localStorage.getItem(DRAFT_KEY); if (v && !$('input').value.trim()) { $('input').value = v; updateInputStat(true); } } catch (e) {}
+  }
+
+  // The demo words go straight into the library so games and tests can be tried at once.
+  function addDemoDeck() {
+    var cards = demoCards();
+    var src = state.cfg.source, tgt = state.cfg.target;
+    state.cfg.source = 'en'; state.cfg.target = 'ru';
+    enrichLocalContext(cards);
+    state.cfg.source = src; state.cfg.target = tgt;
+    var d = library.decks['en-ru'] || { source: 'en', target: 'ru', cards: [], created: Date.now() };
+    cards.forEach(function (c) {
+      if (d.cards.some(function (x) { return x.original.toLowerCase() === c.original.toLowerCase(); })) return;
+      d.cards.push({ original: c.original, translation: c.translation, hint: c.hint || '', definition: c.definition || '', examples: c.examples || [], streak: 0, fails: 0, added: Date.now() });
+    });
+    library.decks['en-ru'] = d; persistLibrary();
+    return 'en-ru';
+  }
+
+  var sessionOpener = null;
+  function openSessionSettings(api) {
+    sessionOpener = document.activeElement;
+    $('sessionDialog').hidden = false;
+    if (api) { $('apiBox').open = true; }
+    var focus = api ? $('apiBox').querySelector('summary') : $('dirSeg').querySelector('button.on') || $('btnSessionClose');
+    if (focus) focus.focus();
+  }
+  function closeSessionSettings() {
+    $('sessionDialog').hidden = true;
+    if (sessionOpener && sessionOpener.focus && document.contains(sessionOpener)) sessionOpener.focus();
+  }
+
+  // First visit: ask which language the learner speaks and which one they learn. Asked once.
+  var ONBOARD_KEY = 'vm.onboarded';
+  function onboardingDone() { try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) {} }
+  function maybeOnboard() {
+    var seen = null;
+    try { seen = localStorage.getItem(ONBOARD_KEY); } catch (e) { return; }
+    if (seen) return;
+    if (Object.keys(library.decks).length || localStorage.getItem(SESSION_KEY)) { onboardingDone(); return; } // existing learners
+    var nat = $('onbNative'), learn = $('onbLearn');
+    LANGS.forEach(function (l) {
+      nat.appendChild(h('option', { value: l.code, text: l.label }));
+      learn.appendChild(h('option', { value: l.code, text: l.label }));
+    });
+    var ui = I18N ? I18N.lang() : 'ru';
+    nat.value = ui; learn.value = ui === 'en' ? 'ru' : 'en';
+    var note = function () {
+      var supported = ['ru', 'en', 'uz'].indexOf(nat.value) >= 0;
+      $('onbUiNote').hidden = supported;
+      if (!supported) $('onbUiNote').textContent = tr('onb.uiNote');
+    };
+    nat.onchange = function () {
+      if (learn.value === nat.value) learn.value = nat.value === 'en' ? 'ru' : 'en';
+      if (I18N && ['ru', 'en', 'uz'].indexOf(nat.value) >= 0) I18N.set(nat.value);
+      note();
+    };
+    learn.onchange = function () { if (learn.value === nat.value) nat.value = learn.value === 'en' ? 'ru' : 'en'; note(); };
+    note();
+    $('onboardForm').onsubmit = function (e) {
+      e.preventDefault();
+      state.cfg.target = nat.value; state.cfg.source = learn.value; saveCfg();
+      $('targetLang').value = nat.value; $('sourceLang').value = learn.value;
+      onboardingDone();
+      $('onboarding').hidden = true;
+      toast(tr('onb.done', { l: langByCode(learn.value).label }), 'ok', 3000);
+      $('input').focus({ preventScroll: true });
+    };
+    $('onboarding').hidden = false;
+    nat.focus();
+  }
+
   function refreshLanguage() {
     updateSoundUI(); updateApiStatus(); updateInputStat(true);
     var active = document.querySelector('.screen.active');
@@ -2235,6 +2380,7 @@
     if ($('screen-library').classList.contains('active')) renderLibrary();
     if ($('screen-test').classList.contains('active') && !lexical) fillQuizDecks();
     if ($('screen-progress').classList.contains('active')) renderProgress();
+    if (games) games.refresh();
     if (state.cards.length) $('topPill').textContent = trn('pill.cards', state.cards.length);
     if (state.summaryMsg) $('summaryMsg').textContent = summaryMessage();
     if (state.current && $('screen-train').classList.contains('active') && !state.revealed && !answerLocked) renderCard();
@@ -2275,6 +2421,7 @@
     updateSoundUI();
     checkServerStatus();
     if (L) initLearningUI();
+    if (L) maybeOnboard();
 
     var sel = $('targetLang');
     LANGS.forEach(function (l) {
@@ -2298,6 +2445,8 @@
 
     /* setup events */
     $('input').addEventListener('input', updateInputStat);
+    $('input').addEventListener('input', saveDraft);
+    if (L) restoreDraft();
     $('btnClear').addEventListener('click', function () {
       var previous = $('input').value;
       $('input').value = '';
@@ -2419,11 +2568,12 @@
 
     $('btnSound').addEventListener('click', toggleSound);
 
-    $('btnSettings').addEventListener('click', function () {
-      show('screen-setup');
-      $('apiBox').open = true;
-      setTimeout(function () { $('apiBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120);
-    });
+    $('btnSettings').addEventListener('click', function () { openSessionSettings(true); });
+    $('btnSessionSettings').addEventListener('click', function () { openSessionSettings(false); });
+    $('btnSessionClose').addEventListener('click', closeSessionSettings);
+    $('sessionDialog').addEventListener('click', function (e) { if (e.target === this) closeSessionSettings(); });
+    $('btnHeroDemo').addEventListener('click', function () { $('btnDemo').click(); });
+    $('btnHeroOwn').addEventListener('click', function () { $('input').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('input').focus({ preventScroll: true }); });
 
     $('btnOwnKey').addEventListener('click', function () { ownKeyOpen = !ownKeyOpen; updateApiStatus(); if (ownKeyOpen) $('cfgKey').focus(); });
     $('btnMenu').addEventListener('click', function () { setSidebar(!document.body.classList.contains('side-open')); });
@@ -2522,10 +2672,13 @@
     document.addEventListener('keydown', function (e) {
       // Alt+X swaps languages on the setup screen, even while typing the word list.
       if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
+      if (!$('onboarding').hidden) return;
+      if (!$('sessionDialog').hidden) { if (e.key === 'Escape') { e.preventDefault(); closeSessionSettings(); } return; }
       if (!$('shareDialog').hidden || !$('sharePreview').hidden || !$('displayDialog').hidden) {
         if (e.key === 'Escape') { e.preventDefault(); if (!$('displayDialog').hidden) closeDisplay(); else if (!$('shareDialog').hidden) closeShare(); else closePreview(); }
         return;
       }
+      if (games && games.active()) return;
       if (e.target.matches('input,textarea,select')) return;
       var k = e.key;
       if (L && answerLocked) return;

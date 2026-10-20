@@ -51,7 +51,7 @@ function layoutProblems() {
     .concat(LANGS.map(lang => ({ lang, theme: 'light', width: 375, size: 'xl' })));
   for (const { lang, theme, width, size } of combos) {
     const context = await browser.newContext({ viewport: { width, height: width < 600 ? 812 : 900 }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: lang, hasTouch: width < 600, isMobile: width < 600 });
-    await context.addInitScript(([l, t, z]) => { try { localStorage.setItem('vm.ui-lang', l); localStorage.setItem('vm.display', JSON.stringify({ theme: t, size: z })); } catch (e) {} }, [lang, theme, size]);
+    await context.addInitScript(([l, t, z]) => { try { localStorage.setItem('vm.onboarded', '1'); localStorage.setItem('vm.ui-lang', l); localStorage.setItem('vm.display', JSON.stringify({ theme: t, size: z })); } catch (e) {} }, [lang, theme, size]);
     const page = await context.newPage();
     const shot = async scene => {
       await page.evaluate(() => document.fonts.ready);
@@ -73,6 +73,7 @@ function layoutProblems() {
       await shot('0-menu');
       await page.keyboard.press('Escape');
     }
+    await page.click('#btnSessionSettings'); await shot('1b-settings'); await page.click('#btnSessionClose');
     await page.click('#btnDemo');
     await page.locator('#screen-train.active').waitFor();
     await page.click('#btnReveal');
@@ -88,10 +89,15 @@ function layoutProblems() {
     await page.locator('.deck-item').first().waitFor();
     await page.locator('.deck-item summary').first().click();
     await shot('4-library');
+    await page.click('#tabVault'); await shot('4b-vault'); await page.click('#tabDecks');
     await nav('#navTest');
     await page.click('#btnMatchStart');
     await page.locator('.match-tile').first().waitFor();
     await shot('5-test');
+    await nav('#navGames'); await page.locator('#gamesHub:not([hidden])').waitFor(); await shot('5b-games');
+    await page.click('[data-game="context"]'); await page.locator('.context-sentence').waitFor(); await page.keyboard.press('1'); await shot('5c-context');
+    await page.keyboard.press('Escape');
+    await page.click('[data-game="scramble"]'); await page.locator('.scramble-clue').waitFor(); await shot('5d-scramble'); await page.keyboard.press('Escape');
     await nav('#navProgress');
     await page.locator('#screen-progress.active').waitFor();
     await shot('6-progress');

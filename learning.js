@@ -154,6 +154,13 @@
   // A card that was never answered has no schedule at all.
   function isNew(c) { return !(c.reps > 0) && c.interval == null && !c.box && !c.due; }
   function intervalOf(c) { return c.interval != null ? c.interval : LEGACY[Math.min(5, c.box || 0)]; }
+  // One word's state for the word vault: pending (no translation yet), new, due, learning or mastered.
+  function status(c, now) {
+    if (!isTranslated(c)) return 'pending';
+    if (isNew(c)) return 'new';
+    if (!c.due || c.due <= (now || Date.now())) return 'due';
+    return intervalOf(c) >= 21 ? 'mastered' : 'learning';
+  }
   // Reviews due per calendar day: index 0 is today and includes everything overdue.
   function forecast(cards, days, now) {
     var t = now == null ? Date.now() : now, today = day(new Date(t)), out = [];
@@ -254,7 +261,7 @@
         return { original: c.original, translation: c.translation, hint: String(c.hint || '').slice(0, 1000), definition: String(c.definition || '').slice(0, 2000),
           examples: Array.isArray(c.examples) ? c.examples.filter(function (x) { return typeof x === 'string'; }).slice(0, 2).map(function (x) { return x.slice(0, 1000); }) : [],
           streak: count(c.streak), fails: count(c.fails), box: opt(c.box, 0, 5), due: opt(c.due, 0, 1e14), ease: opt(c.ease, 1.3, 5),
-          interval: opt(c.interval, 0, 3650), reps: opt(c.reps, 0, 1e6), lapses: opt(c.lapses, 0, 1e6) };
+          interval: opt(c.interval, 0, 3650), reps: opt(c.reps, 0, 1e6), lapses: opt(c.lapses, 0, 1e6), added: opt(c.added, 0, 1e14) };
       });
       decks[d.source + '-' + d.target] = { source: d.source, target: d.target, cards: cards, created: opt(d.created, 0, 1e14) || Date.now() };
     });
@@ -275,5 +282,5 @@
     return { decks: keys.length, words: keys.reduce(function (n, k) { return n + library.decks[k].cards.length; }, 0) };
   }
   return { forecast: forecast, maturity: maturity, weakest: weakest, accuracy: accuracy, longestStreak: longestStreak, trimHistory: trimHistory,
-    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity };
+    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity, status: status };
 });
