@@ -203,3 +203,27 @@ assert.equal(Object.keys(L.trimHistory(hist, 2, '2026-10-18')).length, 2);
 console.log('✓ Progress stats: forecast by calendar day, maturity buckets, weakest words, 30-day accuracy, longest streak, history trimming');
 assert.throws(() => L.restoreBackup({ version: 2, library: { decks: { k: { source: '__proto__', target: 'ru', cards: [] } }, history: {}, streak: {} } }, ['ru', 'en']), e => e.code === 'bad-deck', '"__proto__" is not a language');
 console.log('✓ Backups: prototype keys are never accepted as languages');
+
+// Named decks: several decks per language pair survive a backup; keys that do not match their pair are repaired.
+{
+  const lib = { decks: {
+    'en-ru': { source: 'en', target: 'ru', cards: [{ original: 'a', translation: 'б' }], created: 1 },
+    'en-ru:b2course': { source: 'en', target: 'ru', name: '  English   B2 ', cards: [{ original: 'c', translation: 'д' }], created: 2 },
+    'de-ru:x': { source: 'en', target: 'ru', name: 'wrong pair in key', cards: [{ original: 'e', translation: 'ж' }] },
+    'en-ru:WEIRD KEY!': { source: 'en', target: 'ru', name: 'x'.repeat(100), cards: [{ original: 'g', translation: 'з' }] }
+  }, history: {}, streak: { count: 0 } };
+  const r = L.restoreBackup(L.backupFile(lib), ['en', 'ru', 'de']);
+  assert.deepEqual(Object.keys(r.decks).sort(), ['en-ru', 'en-ru:b2course'], 'good keys stay; bad keys fall back to the plain pair key');
+  assert.equal(r.decks['en-ru:b2course'].name, 'English B2', 'names are trimmed');
+  assert.equal(r.decks['en-ru'].name.length, 60, 'the last bad-keyed deck wins the plain key and its name is capped');
+  assert.equal(r.decks['en-ru'].cards[0].original, 'g');
+  assert.match(L.deckKey('en', 'ru', L.deckId(() => 0.5)), L.DECK_KEY);
+  assert.equal(L.deckKey('en', 'ru'), 'en-ru');
+  assert.equal(L.keyFor('en-ru:abc', { source: 'en', target: 'ru' }), 'en-ru:abc');
+  assert.equal(L.keyFor('en-ru:abc', { source: 'de', target: 'ru' }), 'de-ru');
+  assert.equal(L.cleanName('\u0000Deutsch\n A2\t'), 'Deutsch A2');
+  const m = L.mergeLibrary({ decks: { 'en-ru:n1': { source: 'en', target: 'ru', cards: [] } }, history: {}, streak: {} },
+    { decks: { 'en-ru:n1': { source: 'en', target: 'ru', name: 'Named', cards: [] } }, history: {}, streak: {} });
+  assert.equal(m.decks['en-ru:n1'].name, 'Named', 'merging keeps the name whichever side has it');
+  console.log('✓ Named decks: multiple decks per language pair, key repair, name clean-up, merge keeps names');
+}

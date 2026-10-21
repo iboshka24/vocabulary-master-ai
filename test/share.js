@@ -36,6 +36,11 @@ async function rawLink(obj) { // a link built from an arbitrary payload, bypassi
   assert(demoCode.length < S.LIMITS.qrChars, 'a 14-word deck with examples fits a QR code (' + demoCode.length + ' chars)');
   await assert.rejects(S.encodeDeck({ source: 'en', target: 'ru', cards: [{ original: 'x', translation: '—' }] }), e => e.code === 'empty');
 
+  const named = await S.decodeDeck(await S.encodeDeck({ source: 'en', target: 'ru', name: '  English  B2 ', cards: [{ original: 'apple', translation: 'яблоко', examples: [] }] }), CODES);
+  assert.equal(named.name, 'English B2', 'a deck name travels with the link');
+  assert.equal(JSON.stringify(S.payloadOf({ source: 'en', target: 'ru', cards: [] })).includes('"n"'), false, 'no name, no field');
+  await rejects(await rawLink({ v: 1, s: 'en', t: 'ru', n: 'x'.repeat(61), c: [['a', 'b']] }), 'bad-deck', 'over-long name');
+  await rejects(await rawLink({ v: 1, s: 'en', t: 'ru', n: 5, c: [['a', 'b']] }), 'bad-deck', 'non-string name');
   assert.equal(S.codeFromHash('#deck=1.abc'), '1.abc'); assert.equal(S.codeFromHash('#other'), null); assert.equal(S.codeFromHash(''), null);
   await rejects('', 'bad-link', 'empty');
   await rejects('1.', 'bad-link', 'no data');

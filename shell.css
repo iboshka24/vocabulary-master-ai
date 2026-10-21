@@ -262,3 +262,87 @@
   .acc-btn { width:36px; padding:0; justify-content:center; }
   .acc-btn span { display:none; }
 }
+
+/* v2.19 — named decks */
+.side-group-row { display:flex; align-items:center; justify-content:space-between; padding-right:6px; }
+.side-group-row .side-group { margin-right:0; }
+.side-plus { width:26px; height:26px; margin-top:10px; border:1px solid var(--stroke); border-radius:50%; background:var(--navy); color:var(--on-navy); font:600 17px/1 var(--font-ui); cursor:pointer; display:grid; place-items:center; padding:0 0 2px; }
+.side-plus:hover { background:var(--navy-2); }
+.deck-field { margin-bottom:16px; }
+.deck-row { display:flex; gap:8px; align-items:stretch; }
+.deck-row .select-wrap { flex:1; min-width:0; }
+.deck-row .chip-btn { white-space:nowrap; }
+.deck-note { margin:6px 0 0; }
+.btn.deck-practice { margin-top:10px; }
+.deck-langs { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.deck-card textarea { width:100%; min-height:96px; resize:vertical; }
+.deck-card .actions { display:flex; gap:10px; }
+.deck-item h2.deck-name { overflow-wrap:anywhere; }
+.prog-deck { min-width:220px; }
+.library-intro .prog-deck { align-self:end; }
+@media (max-width:720px) { .deck-langs { grid-template-columns:1fr; } .deck-row { flex-wrap:wrap; } .deck-row .chip-btn { flex:1; } }
+
+/* v2.19 — arcade games: vibrant high-contrast stage, combo counter, chests, boss bars, particles */
+.tile-heist { background:linear-gradient(135deg,#3b1d5e,#b8463c); }
+.tile-boss { background:linear-gradient(135deg,#6b0f1a,#c9402a); }
+.tile-factory { background:linear-gradient(135deg,#0f4c5c,#1d9a6c); }
+.game-stage.arcade { position:relative; overflow:hidden; background:#141a2e; color:#f4f1ea; border-color:#2a3356; --muted:#aab2cf; --stroke:#2a3356; --stroke-soft:#222a47; --bg:#1a2140; --surface:#1f2749; --text:#f4f1ea; --amber:#ffd166; --emerald:#5ee6a8; --rose:#ff7b6b; }
+.game-stage.arcade .pill { color:#ffd166; border-color:#ffd16655; }
+.game-stage.arcade .quiz-option { background:#1f2749; border-color:#2a3356; color:#f4f1ea; }
+.game-stage.arcade .quiz-option:hover:not(:disabled) { border-color:#ffd166; }
+.game-stage.arcade .quiz-option.correct { background:#1e5a45; border-color:#5ee6a8; }
+.game-stage.arcade .quiz-option.wrong { background:#5a2a2a; border-color:#ff7b6b; }
+.game-stage.arcade .quiz-option.eliminated { opacity:.3; text-decoration:line-through; }
+.game-stage.arcade .btn.primary, .game-stage.arcade .btn.primary:hover { background:#ffd166; border-color:#ffd166; color:#1a1f33; }
+.game-stage.arcade .btn, .game-stage.arcade .chip-btn { background:#1f2749; border-color:#2a3356; color:#f4f1ea; }
+.game-stage.arcade .daily-track { background:#2a3356; } .game-stage.arcade .daily-track i { background:#ffd166; }
+.arc-hud { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; margin:0 0 18px; }
+.arc-stat { display:flex; flex-direction:column; min-width:72px; }
+.arc-stat-label { font:600 10px var(--font-ui); letter-spacing:.14em; text-transform:uppercase; color:#aab2cf; }
+.arc-stat strong { font:700 28px var(--font-mono); line-height:1.1; }
+.arc-coins strong { color:#ffd166; }
+.arc-combo strong { transition:transform .15s; }
+.arc-combo strong.hot { color:#ff9f43; text-shadow:0 0 14px #ff9f4388; }
+.arc-combo strong.bump { animation:arcBump .3s var(--ease); }
+@keyframes arcBump { 0% { transform:scale(1); } 40% { transform:scale(1.35); } 100% { transform:scale(1); } }
+.arc-perks { display:flex; gap:8px; margin-left:auto; }
+.arc-perk { padding:4px 10px; border-radius:999px; font:700 11px var(--font-mono); letter-spacing:.06em; }
+.arc-perk.shield { background:#1b4b7a; color:#8fd3ff; } .arc-perk.mult { background:#5a3a0f; color:#ffd166; }
+.arc-bar { flex:1 1 220px; min-width:200px; }
+.arc-bar-top { display:flex; justify-content:space-between; font:600 12px var(--font-ui); margin-bottom:6px; }
+.arc-bar-value { font-family:var(--font-mono); }
+.arc-track { height:14px; border-radius:999px; background:#2a3356; overflow:hidden; }
+.arc-track i { display:block; height:100%; border-radius:999px; transition:width .3s var(--ease); }
+.arc-bar.boss .arc-track i { background:linear-gradient(90deg,#ff4d4d,#ff9f43); }
+.arc-bar.player .arc-track i { background:linear-gradient(90deg,#5ee6a8,#8fd3ff); }
+.arc-qtrack { height:4px; margin:-10px -24px 14px; background:#2a3356; } .arc-qtrack i { display:block; height:100%; background:#ffd166; transition:width .1s linear; }
+.game-stage.arcade .context-card { background:#1a2140; border-color:#2a3356; }
+.game-stage.arcade .context-gap { color:#aab2cf; border-color:#ffd166; }
+.arc-chests { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:14px 0 6px; }
+.arc-chest { position:relative; height:112px; border:2px solid #8a5a1a; border-radius:14px; background:linear-gradient(180deg,#a86a1d,#6b3f0e); color:#ffe9b0; font:700 28px var(--font-mono); cursor:pointer; overflow:hidden; transition:transform .15s; }
+.arc-chest:hover:not(:disabled) { transform:translateY(-4px) scale(1.03); }
+.arc-chest:focus-visible { outline:3px solid #ffd166; outline-offset:3px; }
+.arc-chest-lid { position:absolute; inset:0 0 auto 0; height:38%; background:linear-gradient(180deg,#d08a2a,#a86a1d); border-bottom:3px solid #5a3109; transform-origin:top; transition:transform .35s var(--ease); }
+.arc-chest.open .arc-chest-lid { transform:rotateX(-110deg); }
+.arc-chest-body { position:absolute; inset:0; display:grid; place-items:center; padding-top:14px; }
+.arc-chest.open.coins { background:linear-gradient(180deg,#ffd166,#c7901a); color:#2a1a00; }
+.arc-chest.open.shield { background:linear-gradient(180deg,#8fd3ff,#1b4b7a); color:#06243d; font-size:20px; }
+.arc-chest.open.multiplier { background:linear-gradient(180deg,#ff9f43,#b8463c); color:#2a0a00; }
+.arc-chest:disabled:not(.open) { opacity:.45; cursor:default; }
+.arc-lock { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:14px; padding:14px; border-radius:12px; background:#5a2a2a; color:#ffb4a8; font-weight:700; }
+.arc-lock b { font:700 28px var(--font-mono); }
+.arc-hint { margin-top:12px; }
+.arc-store { margin:18px auto 0; max-width:560px; text-align:left; padding:16px; border-radius:14px; background:#1a2140; border:1px solid #2a3356; }
+.arc-store h3 { margin:0 0 4px; font:600 17px var(--font-ui); }
+.arc-upgrades { display:grid; gap:10px; margin-top:12px; }
+.arc-upgrade { display:grid; grid-template-columns:1fr auto; grid-template-areas:"name buy" "sub buy" "lvl buy"; gap:2px 14px; align-items:center; padding:12px; border-radius:10px; background:#1f2749; }
+.arc-upgrade strong { grid-area:name; } .arc-upgrade .mini { grid-area:sub; margin:0; color:#aab2cf; } .arc-level { grid-area:lvl; font:700 12px var(--font-mono); color:#ffd166; } .arc-upgrade .btn { grid-area:buy; white-space:nowrap; }
+.arc-result .game-result-score { color:#ffd166; }
+.arc-particle { position:absolute; left:50%; top:55%; width:10px; height:10px; border-radius:2px; background:#ffd166; pointer-events:none; animation:arcFly var(--d,.8s) ease-out forwards; }
+.arc-particle.crit { background:#ff4d4d; width:6px; height:18px; } .arc-particle.spark { background:#8fd3ff; width:6px; height:6px; border-radius:50%; }
+@keyframes arcFly { 0% { opacity:1; transform:translate(0,0) rotate(0); } 100% { opacity:0; transform:translate(var(--x),var(--y)) rotate(var(--r)); } }
+.arc-shake { animation:arcShake .35s; } @keyframes arcShake { 0%,100% { transform:none; } 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+.arc-crit { animation:arcCrit .4s; } @keyframes arcCrit { 0% { box-shadow:0 0 0 0 #ff4d4d99; } 100% { box-shadow:0 0 0 24px transparent; } }
+.arc-hitflash { animation:arcHit .3s; } @keyframes arcHit { 0% { box-shadow:0 0 0 0 #ffd16699; } 100% { box-shadow:0 0 0 14px transparent; } }
+@media (max-width:720px) { .arc-chests { gap:8px; } .arc-chest { height:88px; font-size:22px; } .arc-stat strong { font-size:22px; } .arc-upgrade { grid-template-columns:1fr; grid-template-areas:"name" "sub" "lvl" "buy"; } }
+@media (prefers-reduced-motion:reduce) { .arc-particle, .arc-shake, .arc-crit, .arc-hitflash, .arc-combo strong.bump { animation:none; } .arc-chest-lid, .arc-track i { transition:none; } }

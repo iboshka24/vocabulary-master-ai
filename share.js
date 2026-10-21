@@ -51,7 +51,10 @@
       seen[original.toLowerCase()] = true;
       rows.push([original, translation].concat((c.examples || []).filter(function (x) { return typeof x === 'string' && clean(x); }).slice(0, LIMITS.examples).map(function (x) { return cut(x, LIMITS.example); })));
     });
-    return { v: VERSION, s: deck.source, t: deck.target, c: rows };
+    var payload = { v: VERSION, s: deck.source, t: deck.target, c: rows };
+    var name = typeof deck.name === 'string' ? clean(deck.name).slice(0, 60) : '';
+    if (name) payload.n = name;
+    return payload;
   }
   async function encodeDeck(deck) {
     var payload = payloadOf(deck);
@@ -79,7 +82,13 @@
       seen[original.toLowerCase()] = true;
       cards.push({ original: original, translation: translation, examples: examples });
     });
-    return { source: data.s, target: data.t, cards: cards };
+    var out = { source: data.s, target: data.t, cards: cards };
+    if (data.n !== undefined) {
+      if (typeof data.n !== 'string' || data.n.length > 60) throw fail('bad-deck');
+      var name = clean(data.n);
+      if (name) out.name = name;
+    }
+    return out;
   }
   // Throws .code: 'bad-link' (not ours / damaged), 'unsupported-version', 'too-large', 'bad-deck'.
   async function decodeDeck(code, langCodes) {

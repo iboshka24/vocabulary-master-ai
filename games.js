@@ -105,6 +105,66 @@
     return out;
   }
 
+
+  /* ---------------- arcade engine: pure rules shared by Word Heist, Boss Battle and Sentence Factory ---------------- */
+
+  // A stream of `n` quick questions: a gap-fill when the card has a usable sentence, otherwise
+  // "which word means …" (translation shown, four originals offered). Cycles through the deck when it is short.
+  function questions(cards, n, rand, more) {
+    var pool = (cards || []).filter(usable);
+    if (pool.length < 4) return [];
+    var out = [], order = [];
+    while (out.length < (n || 20)) {
+      if (!order.length) order = shuffle(pool, rand);
+      var c = order.pop(), wrong = distractors(c, pool, 3, rand);
+      if (wrong.length < 3) return out;
+      var sentences = (c.examples || []).concat(more ? more(c) || [] : []), q = null;
+      for (var i = 0; i < sentences.length && !q; i++) {
+        var at = findWord(sentences[i], c.original);
+        if (at) q = { type: 'context', before: sentences[i].slice(0, at.start), gap: sentences[i].slice(at.start, at.end), after: sentences[i].slice(at.end) };
+      }
+      if (!q) q = { type: 'meaning', prompt: c.translation };
+      q.card = c; q.answer = base(c.original);
+      q.options = shuffle([q.answer].concat(wrong.map(function (o) { return base(o.original); })), rand);
+      out.push(q);
+    }
+    return out;
+  }
+
+  // Word Heist: a right answer opens one of three chests.
+  var CHESTS = [{ type: 'coins', value: 100 }, { type: 'coins', value: 200 }, { type: 'coins', value: 300 }, { type: 'coins', value: 400 }, { type: 'coins', value: 500 }, { type: 'shield' }, { type: 'multiplier', value: 2 }];
+  function chests(rand) {
+    var r = rand || Math.random;
+    return [0, 1, 2].map(function () { return CHESTS[Math.floor(r() * CHESTS.length)]; });
+  }
+  function heistPenalty(coins) { return Math.floor(Math.max(0, coins) * 0.1); }
+  var HEIST = { seconds: 120, target: 5000, lockoutMs: 3000 };
+
+  // Boss Battle: faster answers hit harder; mistakes and expired questions hurt the player.
+  var BOSS = { hp: 1500, playerHp: 100, seconds: 60, questionMs: 8000, crit: 300, hit: 100, hurt: 20 };
+  function bossHit(ms, correct) {
+    if (!correct) return { damage: 0, crit: false, hurt: BOSS.hurt };
+    return ms < 2000 ? { damage: BOSS.crit, crit: true, hurt: 0 } : { damage: BOSS.hit, crit: false, hurt: 0 };
+  }
+
+  // Sentence Factory: tokens buy permanent upgrades. State lives in localStorage ('vm.factory').
+  var FACTORY = {
+    multiplier: { max: 5, cost: function (level) { return 150 * Math.pow(2, level); } },
+    autohint: { max: 1, cost: function () { return 400; } },
+    saver: { max: 3, cost: function () { return 120; } }
+  };
+  function factoryDefaults() { return { tokens: 0, multiplier: 0, autohint: 0, saver: 0, earned: 0 }; }
+  function factoryCost(state, id) { var u = FACTORY[id]; return u && state[id] < u.max ? u.cost(state[id]) : null; }
+  // Returns the new state, or null when the upgrade is maxed out or unaffordable. Never mutates.
+  function factoryBuy(state, id) {
+    var cost = factoryCost(state, id);
+    if (cost == null || state.tokens < cost) return null;
+    var next = Object.assign({}, state); next.tokens -= cost; next[id] += 1;
+    return next;
+  }
+  function factoryEarn(state, combo) { return Math.round(10 * (1 + 0.5 * (state.multiplier || 0))) + (combo >= 3 ? 5 : 0); }
+  var FACTORY_PENALTY = 5, FACTORY_ROUND = 10, HINT_EVERY = 5;
+
   /* ---------------- screen ---------------- */
 
   var ROUNDS = { context: 10, scramble: 8, truefalse: 60 }; // truefalse: seconds
@@ -123,7 +183,7 @@
       var sel = $('gameDeck'), keep = sel.value, decks = api.decks(), keys = Object.keys(decks);
       sel.innerHTML = '';
       keys.sort(function (a, b) { return decks[b].cards.length - decks[a].cards.length; }).forEach(function (k) {
-        var d = decks[k], o = el('option', null, api.langLabel(d.source) + ' → ' + api.langLabel(d.target) + ' · ' + api.trn('words.count', d.cards.length));
+        var d = decks[k], o = el('option', null, api.deckLabel(d) + ' · ' + api.trn('words.count', d.cards.length));
         o.value = k; sel.appendChild(o);
       });
       if (keys.indexOf(keep) >= 0) sel.value = keep;
@@ -131,16 +191,17 @@
       $('gamesHub').hidden = !keys.length;
       document.querySelectorAll('#gamesHub [data-game]').forEach(function (b) {
         var k = b.dataset.game, rec = b.querySelector('.game-best');
-        if (rec) rec.textContent = best(k) ? api.tr('game.best', { n: best(k) }) : '';
+        if (rec) rec.textContent = k === 'factory' ? api.tr('arc.tokensShort', { n: loadFactory().tokens }) : best(k) ? api.tr('game.best', { n: best(k) }) : '';
       });
     }
     function stop() { clearInterval(timer); timer = null; doc.removeEventListener('keydown', onKey); }
-    function leave() { stop(); game = null; $('gameStage').hidden = true; $('gamesHub').hidden = false; $('gamesPick').hidden = false; fillDecks(); }
+    function leave() { stop(); game = null; $('gameStage').className = 'panel game-stage'; $('gameStage').hidden = true; $('gamesHub').hidden = false; $('gamesPick').hidden = false; fillDecks(); }
 
     function start(kind) {
       if (kind === 'match') { api.openMatch($('gameDeck').value); return; }
       var d = deck();
       if (!d) { api.toast(api.tr('toast.createDeck'), 'err'); return; }
+      if (ARCADE[kind]) { startArcade(kind, d); return; }
       var items = kind === 'context' ? cloze(d.cards, ROUNDS.context, null, api.moreSentences(d))
         : kind === 'scramble' ? scramble(d.cards, ROUNDS.scramble) : trueFalse(d.cards, 200);
       if (!items.length) { api.toast(api.tr(kind === 'context' ? 'game.needExamples' : kind === 'scramble' ? 'game.needWords' : 'toast.needMatch'), 'err', 5000); return; }
@@ -175,6 +236,7 @@
     }
     function next() {
       if (!game) return;
+      if (game.arcade) { nextArcade(); return; }
       game.i++;
       if (game.i >= game.items.length) finish(); else render();
     }
@@ -318,6 +380,13 @@
         return;
       }
       if (e.key === 'Enter' && !$('gameNext').hidden && e.target === doc.body) { e.preventDefault(); next(); return; }
+      if (game.arcade) {
+        var chestRow = $('arcChests');
+        if (chestRow && /^[1-3]$/.test(e.key)) { var ch = chestRow.querySelectorAll('button')[Number(e.key) - 1]; if (ch && !ch.disabled) { e.preventDefault(); ch.click(); } return; }
+        if (/^[1-4]$/.test(e.key) && !game.done) { var ob = $('gameBody').querySelectorAll('#arcOptions .quiz-option')[Number(e.key) - 1]; if (ob && !ob.disabled) { e.preventDefault(); ob.click(); } }
+        if (e.key.toLowerCase() === 'h' && $('arcHint') && !$('arcHint').disabled) { e.preventDefault(); $('arcHint').click(); }
+        return;
+      }
       var q = game.items[game.i];
       if (game.kind === 'context' && /^[1-4]$/.test(e.key) && !game.done) {
         var b = $('gameBody').querySelectorAll('.quiz-option')[Number(e.key) - 1]; if (b) { e.preventDefault(); b.click(); }
@@ -329,11 +398,299 @@
       }
     }
 
+
+    /* ---------------- arcade modes ---------------- */
+    var ARCADE = { heist: true, boss: true, factory: true };
+    function loadFactory() { try { return Object.assign(factoryDefaults(), JSON.parse(localStorage.getItem('vm.factory') || '{}')); } catch (e) { return factoryDefaults(); } }
+    function saveFactory(f) { try { localStorage.setItem('vm.factory', JSON.stringify(f)); } catch (e) {} }
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function burst(kind, n) {
+      if (reduced) return;
+      var stage = $('gameStage');
+      for (var i = 0; i < (n || 14); i++) {
+        var p = el('span', 'arc-particle ' + (kind || ''));
+        p.style.setProperty('--x', ((Math.random() - 0.5) * 360).toFixed(0) + 'px');
+        p.style.setProperty('--y', (-80 - Math.random() * 220).toFixed(0) + 'px');
+        p.style.setProperty('--r', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+        p.style.setProperty('--d', (0.6 + Math.random() * 0.5).toFixed(2) + 's');
+        stage.appendChild(p);
+        p.addEventListener('animationend', function () { this.remove(); });
+      }
+    }
+    function flash(cls) { var s = $('gameStage'); s.classList.remove(cls); void s.offsetWidth; s.classList.add(cls); }
+    function fx(kind) { if (api.fx) api.fx(kind); else api.sound(kind === 'bad' || kind === 'hit' || kind === 'lose' ? false : true); }
+
+    // Delayed steps belong to the game that scheduled them; leaving or finishing a round cancels them.
+    function later(g, fn, ms) { setTimeout(function () { if (game === g) fn(); }, ms); }
+    function startArcade(kind, d) {
+      var items = questions(d.cards, kind === 'factory' ? FACTORY_ROUND : 400, null, api.moreSentences(d));
+      if (items.length < 4) { api.toast(api.tr('toast.needMatch'), 'err', 5000); return; }
+      stop();
+      var now = Date.now();
+      game = { kind: kind, arcade: true, items: items, i: 0, score: 0, answered: 0, correct: 0, combo: 0, bestCombo: 0, deck: d, done: false,
+        ends: kind === 'heist' ? now + HEIST.seconds * 1000 : kind === 'boss' ? now + BOSS.seconds * 1000 : 0, duration: kind === 'heist' ? HEIST.seconds : BOSS.seconds };
+      if (kind === 'heist') { game.coins = 0; game.mult = 1; game.shield = 0; game.lockUntil = 0; }
+      if (kind === 'boss') { game.bossHp = BOSS.hp; game.playerHp = BOSS.playerHp; }
+      if (kind === 'factory') { game.factory = loadFactory(); game.tokens = 0; game.hintIn = HINT_EVERY; game.hintUsed = false; }
+      $('gamesHub').hidden = true; $('gamesPick').hidden = true; $('gameStage').hidden = false;
+      $('gameStage').classList.add('arcade', 'arc-' + kind);
+      $('gameTitle').textContent = api.tr('game.' + kind);
+      doc.addEventListener('keydown', onKey);
+      if (game.ends) timer = setInterval(arcadeTick, 100);
+      renderArcade();
+    }
+    function arcadeTick() {
+      if (!game || !game.arcade) return stop();
+      var now = Date.now(), left = Math.max(0, (game.ends - now) / 1000);
+      $('gameProgress').textContent = api.tr('game.timeLeft', { s: Math.ceil(left) });
+      $('gameBar').style.width = (left / game.duration * 100) + '%';
+      if (left <= 3 && Math.ceil(left) !== game.lastTick) { game.lastTick = Math.ceil(left); fx('tick'); }
+      if (game.kind === 'heist' && game.lockUntil) {
+        var lock = $('arcLock');
+        if (now >= game.lockUntil) { game.lockUntil = 0; if (lock) lock.remove(); nextArcade(); }
+        else if (lock) lock.querySelector('b').textContent = (Math.ceil((game.lockUntil - now) / 1000)) + '';
+      }
+      if (game.kind === 'boss' && game.qStart && !game.done) {
+        var qLeft = Math.max(0, game.qStart + BOSS.questionMs - now);
+        var qb = $('arcQBar'); if (qb) qb.style.width = (qLeft / BOSS.questionMs * 100) + '%';
+        if (qLeft <= 0) answerArcade(null); // expired
+      }
+      if (left <= 0) finishArcade(game.kind === 'boss' ? false : null);
+    }
+    function hud() {
+      var g = game, host = $('arcHud');
+      if (!host) { host = el('div', 'arc-hud'); host.id = 'arcHud'; $('gameBody').appendChild(host); }
+      host.innerHTML = '';
+      if (g.kind === 'heist') {
+        host.appendChild(stat('arc-coins', api.tr('arc.coins'), String(g.coins), 'arcCoins'));
+        host.appendChild(stat('arc-combo', api.tr('arc.combo'), 'x' + g.combo, 'arcCombo'));
+        host.appendChild(stat('arc-goal', api.tr('arc.goal'), String(HEIST.target)));
+        var perks = el('div', 'arc-perks');
+        if (g.shield) perks.appendChild(el('span', 'arc-perk shield', api.tr('arc.shield')));
+        if (g.mult > 1) perks.appendChild(el('span', 'arc-perk mult', 'x' + g.mult + ' ' + api.tr('arc.multiplier')));
+        host.appendChild(perks);
+      } else if (g.kind === 'boss') {
+        host.appendChild(bar('boss', api.tr('arc.boss'), g.bossHp, BOSS.hp));
+        host.appendChild(bar('player', api.tr('arc.you'), g.playerHp, BOSS.playerHp));
+        host.appendChild(stat('arc-combo', api.tr('arc.combo'), 'x' + g.combo, 'arcCombo'));
+      } else {
+        host.appendChild(stat('arc-coins', api.tr('arc.tokens'), String(g.factory.tokens + g.tokens), 'arcCoins'));
+        host.appendChild(stat('arc-combo', api.tr('arc.combo'), 'x' + g.combo, 'arcCombo'));
+        var perks2 = el('div', 'arc-perks');
+        if (g.factory.multiplier) perks2.appendChild(el('span', 'arc-perk mult', 'x' + (1 + 0.5 * g.factory.multiplier).toFixed(1) + ' ' + api.tr('arc.tokens')));
+        if (g.factory.saver) perks2.appendChild(el('span', 'arc-perk shield', api.tr('arc.saverLeft', { n: g.factory.saver })));
+        host.appendChild(perks2);
+      }
+      $('gameScore').textContent = g.kind === 'boss' ? api.tr('arc.damage', { n: g.score }) : api.tr('game.score', { n: g.kind === 'heist' ? g.coins : g.factory.tokens + g.tokens });
+    }
+    function stat(cls, label, value, id) {
+      var s = el('div', 'arc-stat ' + cls); s.appendChild(el('span', 'arc-stat-label', label));
+      var v = el('strong', null, value); if (id) v.id = id; s.appendChild(v); return s;
+    }
+    function bar(cls, label, value, max) {
+      var b = el('div', 'arc-bar ' + cls);
+      var top = el('div', 'arc-bar-top'); top.appendChild(el('span', null, label)); top.appendChild(el('span', 'arc-bar-value', value + ' / ' + max)); b.appendChild(top);
+      var track = el('div', 'arc-track'); var fill = el('i'); fill.style.width = (Math.max(0, value) / max * 100) + '%'; track.appendChild(fill); b.appendChild(track);
+      b.setAttribute('role', 'progressbar'); b.setAttribute('aria-valuenow', String(Math.max(0, value))); b.setAttribute('aria-valuemax', String(max)); b.setAttribute('aria-label', label);
+      return b;
+    }
+    function renderArcade() {
+      var body = $('gameBody'); body.innerHTML = ''; $('gameFeedback').textContent = ''; $('gameNext').hidden = true;
+      game.done = false; game.hinted = false;
+      hud();
+      if (game.ends) arcadeTick(); else { $('gameProgress').textContent = api.tr('quiz.progress', { i: game.i + 1, n: game.items.length }); $('gameBar').style.width = (game.i / game.items.length * 100) + '%'; }
+      var q = game.items[game.i];
+      var card = el('div', 'context-card arc-question');
+      if (game.kind === 'boss') { var qt = el('div', 'arc-qtrack'); var qf = el('i'); qf.id = 'arcQBar'; qf.style.width = '100%'; qt.appendChild(qf); card.appendChild(qt); }
+      card.appendChild(el('span', 'eyebrow', api.tr(q.type === 'context' ? 'game.contextAsk' : 'arc.meaningAsk')));
+      var p = el('p', 'context-sentence');
+      if (q.type === 'context') {
+        p.lang = game.deck.source; p.appendChild(doc.createTextNode(q.before));
+        var gap = el('span', 'context-gap', '_____'); gap.id = 'arcGap'; gap.setAttribute('aria-label', api.tr('game.gap'));
+        p.appendChild(gap); p.appendChild(doc.createTextNode(q.after));
+      } else { p.lang = game.deck.target; p.textContent = q.prompt; }
+      card.appendChild(p); body.appendChild(card);
+      var opts = el('div', 'quiz-options game-options'); opts.id = 'arcOptions';
+      q.options.forEach(function (o, idx) {
+        var b = el('button', 'quiz-option', (idx + 1) + '.  ' + o); b.type = 'button'; b.lang = game.deck.source; b.dataset.value = o;
+        b.onclick = function () { answerArcade(o); };
+        opts.appendChild(b);
+      });
+      body.appendChild(opts);
+      if (game.kind === 'factory' && game.factory.autohint) {
+        var hint = el('button', 'chip-btn arc-hint', api.tr('arc.hint') + (game.hintIn > 0 ? ' · ' + api.tr('arc.hintIn', { n: game.hintIn }) : '')); hint.type = 'button'; hint.id = 'arcHint';
+        hint.disabled = game.hintIn > 0;
+        hint.onclick = function () {
+          if (game.done || game.hintIn > 0 || game.hinted) return;
+          game.hinted = true; game.hintIn = HINT_EVERY; hint.disabled = true;
+          var removed = 0;
+          opts.querySelectorAll('button').forEach(function (x) { if (removed < 2 && x.dataset.value !== q.answer) { x.disabled = true; x.classList.add('eliminated'); removed++; } });
+          fx('chest');
+        };
+        body.appendChild(hint);
+      }
+      game.qStart = Date.now();
+      var first = opts.querySelector('button'); if (first) first.focus({ preventScroll: true });
+    }
+    function answerArcade(value) {
+      var g = game; if (!g || g.done || g.lockUntil) return;
+      g.done = true;
+      var q = g.items[g.i], ok = value === q.answer, ms = Date.now() - g.qStart;
+      g.answered++;
+      var opts = $('arcOptions');
+      if (opts) opts.querySelectorAll('button').forEach(function (x) { x.disabled = true; if (x.dataset.value === q.answer) x.classList.add('correct'); else if (x.dataset.value === value) x.classList.add('wrong'); });
+      var gap = $('arcGap'); if (gap) { gap.textContent = q.gap; gap.classList.add(ok ? 'filled-ok' : 'filled-bad'); }
+      api.answer(q.card, ok, true);
+      if (ok) { g.correct++; g.combo++; g.bestCombo = Math.max(g.bestCombo, g.combo); }
+      if (g.kind === 'heist') heistAnswer(ok, q);
+      else if (g.kind === 'boss') bossAnswer(ok, ms, q, value === null);
+      else factoryAnswer(ok, q);
+    }
+    function feedback(ok, text) {
+      $('gameFeedback').textContent = text;
+      $('gameFeedback').className = 'game-feedback ' + (ok ? 'ok' : 'bad');
+      var combo = $('arcCombo'); if (combo) { combo.textContent = 'x' + game.combo; combo.classList.toggle('hot', game.combo >= 3); if (ok) { combo.classList.remove('bump'); void combo.offsetWidth; combo.classList.add('bump'); } }
+    }
+    function nextArcade() {
+      if (!game) return;
+      game.i++;
+      if (game.i >= game.items.length) { finishArcade(game.kind === 'boss' ? false : null); return; }
+      renderArcade();
+    }
+    function heistAnswer(ok, q) {
+      var g = game;
+      if (!ok) {
+        if (g.shield) { g.shield = 0; feedback(false, api.tr('arc.shieldSaved', { w: q.answer })); fx('bad'); hud(); later(g, nextArcade, 900); return; }
+        var lost = heistPenalty(g.coins); g.coins -= lost; g.combo = 0;
+        feedback(false, api.tr('arc.heistWrong', { w: q.answer, t: q.card.translation, n: lost }));
+        fx('bad'); flash('arc-shake');
+        g.lockUntil = Date.now() + HEIST.lockoutMs;
+        var lock = el('div', 'arc-lock'); lock.id = 'arcLock'; lock.setAttribute('role', 'status');
+        lock.appendChild(el('span', null, api.tr('arc.lockout'))); lock.appendChild(el('b', null, '3'));
+        $('gameBody').appendChild(lock); hud();
+        return;
+      }
+      fx('ok'); burst('gold', 10);
+      feedback(true, api.tr('arc.pickChest'));
+      var picked = chests(), row = el('div', 'arc-chests'); row.id = 'arcChests';
+      picked.forEach(function (c, i) {
+        var b = el('button', 'arc-chest', ''); b.type = 'button'; b.setAttribute('aria-label', api.tr('arc.chestN', { n: i + 1 }));
+        b.appendChild(el('span', 'arc-chest-lid')); b.appendChild(el('span', 'arc-chest-body', '?'));
+        b.onclick = function () { openChest(row, b, c); };
+        row.appendChild(b);
+      });
+      $('gameBody').appendChild(row);
+      var first = row.querySelector('button'); if (first) first.focus({ preventScroll: true });
+    }
+    function openChest(row, b, c) {
+      var g = game; if (!g || g.chestOpen) return;
+      g.chestOpen = true;
+      row.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+      b.classList.add('open');
+      var text;
+      if (c.type === 'coins') { var gain = c.value * g.mult; g.coins += gain; text = '+' + gain; if (g.mult > 1) g.mult = 1; burst('gold', 18); fx('chest'); }
+      else if (c.type === 'shield') { g.shield = 1; text = api.tr('arc.shield'); fx('chest'); }
+      else { g.mult = c.value; text = 'x' + c.value; fx('crit'); }
+      b.querySelector('.arc-chest-body').textContent = text;
+      b.classList.add(c.type);
+      hud();
+      $('gameFeedback').textContent = c.type === 'coins' ? api.tr('arc.gotCoins', { n: text }) : c.type === 'shield' ? api.tr('arc.gotShield') : api.tr('arc.gotMult');
+      if (g.coins >= HEIST.target) { later(g, function () { finishArcade(true); }, 700); return; }
+      later(g, function () { g.chestOpen = false; nextArcade(); }, 900);
+    }
+    function bossAnswer(ok, ms, q, expired) {
+      var g = game, hit = bossHit(ms, ok);
+      if (ok) {
+        g.bossHp = Math.max(0, g.bossHp - hit.damage); g.score += hit.damage;
+        feedback(true, (hit.crit ? api.tr('arc.crit', { n: hit.damage }) : api.tr('arc.hit', { n: hit.damage })) + ' · ' + (ms / 1000).toFixed(1) + ' ' + api.tr('arc.sec'));
+        fx(hit.crit ? 'crit' : 'hit'); flash(hit.crit ? 'arc-crit' : 'arc-hitflash'); burst(hit.crit ? 'crit' : 'spark', hit.crit ? 20 : 8);
+      } else {
+        g.playerHp = Math.max(0, g.playerHp - hit.hurt); g.combo = 0;
+        feedback(false, (expired ? api.tr('arc.expired') : api.tr('quiz.answerWas') + q.answer + ' — ' + q.card.translation) + ' · −' + hit.hurt + ' HP');
+        fx('bad'); flash('arc-shake');
+      }
+      hud();
+      if (g.bossHp <= 0) { later(g, function () { finishArcade(true); }, 600); return; }
+      if (g.playerHp <= 0) { later(g, function () { finishArcade(false); }, 600); return; }
+      later(g, nextArcade, ok ? 500 : 1100);
+    }
+    function factoryAnswer(ok, q) {
+      var g = game, f = g.factory;
+      if (ok) {
+        var earn = factoryEarn(f, g.combo); g.tokens += earn;
+        feedback(true, api.tr('arc.earned', { n: earn })); fx('ok'); burst('gold', 8);
+      } else if (f.saver > 0) {
+        f.saver--; saveFactory(f);
+        feedback(false, api.tr('arc.saverUsed', { w: q.answer })); fx('bad');
+      } else {
+        g.combo = 0; g.tokens -= Math.min(FACTORY_PENALTY, Math.max(0, f.tokens + g.tokens));
+        feedback(false, api.tr('quiz.answerWas') + q.answer + ' — ' + q.card.translation + ' · −' + FACTORY_PENALTY); fx('bad'); flash('arc-shake');
+      }
+      if (g.hintIn > 0) g.hintIn--;
+      hud();
+      $('gameNext').hidden = false;
+      $('gameNext').textContent = api.tr(g.i + 1 >= g.items.length ? 'game.finish' : 'btn.next');
+      $('gameNext').focus({ preventScroll: true });
+    }
+    function finishArcade(won) {
+      var g = game; if (!g) return;
+      stop();
+      var lock = $('arcLock'); if (lock) lock.remove();
+      var score = g.kind === 'heist' ? g.coins : g.kind === 'boss' ? g.score : g.tokens;
+      var record = saveBest(g.kind, score);
+      if (g.kind === 'factory') { g.factory.tokens = Math.max(0, g.factory.tokens + g.tokens); g.factory.earned = (g.factory.earned || 0) + Math.max(0, g.tokens); saveFactory(g.factory); }
+      api.complete();
+      var body = $('gameBody'); body.innerHTML = '';
+      $('gameBar').style.width = '100%'; $('gameProgress').textContent = api.tr(won === true ? 'arc.won' : won === false ? 'arc.lost' : 'game.over');
+      var res = el('div', 'game-result arc-result');
+      res.appendChild(el('strong', 'game-result-score', g.kind === 'heist' ? g.coins + ' ◈' : g.kind === 'boss' ? String(g.score) : '+' + Math.max(0, g.tokens)));
+      res.appendChild(el('p', null, g.kind === 'heist' ? api.tr(won ? 'arc.heistWon' : 'arc.heistEnd', { n: g.coins, c: g.correct, a: g.answered })
+        : g.kind === 'boss' ? api.tr(won ? 'arc.bossWon' : 'arc.bossLost', { n: g.score, s: Math.max(0, Math.round((g.ends - Date.now()) / 1000)) })
+        : api.tr('arc.factoryEnd', { n: Math.max(0, g.tokens), t: g.factory.tokens })));
+      res.appendChild(el('p', 'mini', api.tr('arc.bestCombo', { n: g.bestCombo })));
+      if (record && score > 0) res.appendChild(el('p', 'game-record', api.tr('game.record')));
+      if (g.kind === 'factory') res.appendChild(store(g.factory));
+      var row = el('div', 'row-gap');
+      var again = el('button', 'btn primary', api.tr('game.again')); again.type = 'button'; again.onclick = function () { start(g.kind); };
+      var back = el('button', 'btn', api.tr('game.back')); back.type = 'button'; back.onclick = leave;
+      row.appendChild(again); row.appendChild(back); res.appendChild(row);
+      body.appendChild(res);
+      $('gameFeedback').textContent = ''; $('gameNext').hidden = true;
+      if (won === true) { fx('win'); burst('gold', 30); } else if (won === false) fx('lose');
+      again.focus({ preventScroll: true });
+      game = null;
+    }
+    // The upgrade store of the Sentence Factory; `f` is saved on every purchase.
+    function store(f) {
+      var box = el('div', 'arc-store'); box.id = 'arcStore';
+      box.appendChild(el('h3', null, api.tr('arc.store')));
+      box.appendChild(el('p', 'mini', api.tr('arc.storeTokens', { n: f.tokens })));
+      var list = el('div', 'arc-upgrades');
+      Object.keys(FACTORY).forEach(function (id) {
+        var cost = factoryCost(f, id), item = el('div', 'arc-upgrade');
+        item.appendChild(el('strong', null, api.tr('arc.up.' + id)));
+        item.appendChild(el('span', 'mini', api.tr('arc.up.' + id + 'Sub')));
+        item.appendChild(el('span', 'arc-level', id === 'multiplier' ? 'x' + (1 + 0.5 * f.multiplier).toFixed(1) : id === 'saver' ? api.tr('arc.saverLeft', { n: f.saver }) : (f.autohint ? api.tr('arc.owned') : '')));
+        var buy = el('button', 'btn', cost == null ? api.tr('arc.maxed') : api.tr('arc.buy', { n: cost })); buy.type = 'button'; buy.dataset.upgrade = id;
+        buy.disabled = cost == null || f.tokens < cost;
+        buy.onclick = function () {
+          var next = factoryBuy(f, id); if (!next) return;
+          Object.assign(f, next); saveFactory(f); fx('chest'); burst('gold', 10);
+          var fresh = store(f); box.replaceWith(fresh); var again = fresh.querySelector('[data-upgrade="' + id + '"]'); if (again) again.focus();
+        };
+        item.appendChild(buy); list.appendChild(item);
+      });
+      box.appendChild(list);
+      return box;
+    }
+
     $('gamesHub').addEventListener('click', function (e) { var b = e.target.closest('[data-game]'); if (b) start(b.dataset.game); });
     $('gameNext').onclick = next;
     $('gameQuit').onclick = leave;
     return { refresh: function () { if (!game) fillDecks(); }, leave: function () { if (game) leave(); }, active: function () { return Boolean(game); } };
   }
 
-  return { findWord: findWord, cloze: cloze, scramble: scramble, trueFalse: trueFalse, base: base, mount: mount };
+  return { findWord: findWord, cloze: cloze, scramble: scramble, trueFalse: trueFalse, base: base, mount: mount,
+    questions: questions, chests: chests, CHESTS: CHESTS, heistPenalty: heistPenalty, HEIST: HEIST, BOSS: BOSS, bossHit: bossHit,
+    FACTORY: FACTORY, factoryDefaults: factoryDefaults, factoryCost: factoryCost, factoryBuy: factoryBuy, factoryEarn: factoryEarn };
 });

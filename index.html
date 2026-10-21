@@ -10,11 +10,11 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.18" />
-  <link rel="stylesheet" href="styles.css?v=2.18" />
-  <link rel="stylesheet" href="editorial.css?v=2.18" />
-  <link rel="stylesheet" href="shell.css?v=2.18" />
-  <link rel="stylesheet" href="motion.css?v=2.18" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.19" />
+  <link rel="stylesheet" href="styles.css?v=2.19" />
+  <link rel="stylesheet" href="editorial.css?v=2.19" />
+  <link rel="stylesheet" href="shell.css?v=2.19" />
+  <link rel="stylesheet" href="motion.css?v=2.19" />
   <script>try{var r=document.documentElement,s=JSON.parse(localStorage.getItem('vm.display')||'null')||{},t=/^(system|light|dark)$/.test(s.theme)?s.theme:localStorage.getItem('vm.theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t==='dark'?'dark':'light';if(/^(s|l|xl)$/.test(s.size))r.dataset.size=s.size;if(s.contrast===true)r.dataset.contrast='high';if(s.spacing===true)r.dataset.spacing='wide'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
@@ -31,7 +31,7 @@
     </a>
     <p class="side-slogan" data-i18n="footer.tag">Меньше шума. Больше смысла.</p>
     <nav class="side-nav" aria-label="Основная навигация" data-i18n-attr="aria-label:nav.aria">
-      <p class="side-group" data-i18n="side.learning">Обучение</p>
+      <div class="side-group-row"><p class="side-group" data-i18n="side.learning">Обучение</p><button class="side-plus" id="btnNewDeck" type="button" title="Создать новую колоду" aria-label="Создать новую колоду" data-i18n-attr="title:deck.new,aria-label:deck.new">+</button></div>
       <button type="button" class="nav-link active" id="navStudy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav.study">Учить слова</span></button>
       <button type="button" class="nav-link" id="navLibrary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2"/><path d="M8 7h7"/></svg><span data-i18n="nav.library">Моя библиотека</span></button>
       <button type="button" class="nav-link" id="navTest"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg><span data-i18n="nav.test">Лексический тест</span></button>
@@ -130,6 +130,12 @@
             <div class="row-gap"><span class="status-indicator" id="statusIndicator">● Готов к работе</span><button class="chip-btn gear-btn" id="btnSessionSettings" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="set.open">Настройки</span></button></div>
           </div>
 
+          <div class="field deck-field">
+            <span data-i18n="home.deck">Колода</span>
+            <div class="deck-row"><span class="select-wrap"><select id="homeDeck" aria-label="Колода" data-i18n-attr="aria-label:home.deck"></select></span><button class="chip-btn" id="btnHomeNewDeck" type="button" data-i18n="deck.newShort">+ Новая</button></div>
+            <p class="mini deck-note" id="homeDeckNote" hidden></p>
+            <button class="btn block deck-practice" id="btnHomePractice" type="button" hidden></button>
+          </div>
           <div class="lang-pair">
             <label class="field"><span data-i18n="lang.learn">Я изучаю</span><span class="select-wrap"><select id="sourceLang"></select></span></label>
             <button class="swap-btn" id="btnSwapLang" type="button" title="Поменять языки местами (Alt+X)" aria-label="Поменять языки местами" data-i18n-attr="title:lang.swap,aria-label:lang.swapAria">
@@ -319,6 +325,9 @@
         <button type="button" class="game-tile tile-context" data-game="context"><span class="game-icon" aria-hidden="true">“_”</span><strong data-i18n="game.context">Слово в контексте</strong><span data-i18n="game.contextSub">Вставь пропущенное слово в предложение</span><span class="game-best"></span></button>
         <button type="button" class="game-tile tile-scramble" data-game="scramble"><span class="game-icon" aria-hidden="true">A·Z</span><strong data-i18n="game.scramble">Собери слово</strong><span data-i18n="game.scrambleSub">Расставь буквы по порядку по переводу</span><span class="game-best"></span></button>
         <button type="button" class="game-tile tile-truefalse" data-game="truefalse"><span class="game-icon" aria-hidden="true">60″</span><strong data-i18n="game.truefalse">Верно или нет</strong><span data-i18n="game.truefalseSub">60 секунд: правильный ли перевод?</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-heist" data-game="heist"><span class="game-icon" aria-hidden="true">◈</span><strong data-i18n="game.heist">Word Heist</strong><span data-i18n="game.heistSub">2 минуты: отвечай, открывай сундуки, собери 5000 монет</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-boss" data-game="boss"><span class="game-icon" aria-hidden="true">⚔</span><strong data-i18n="game.boss">Босс на время</strong><span data-i18n="game.bossSub">60 секунд: быстрые ответы бьют сильнее</span><span class="game-best"></span></button>
+        <button type="button" class="game-tile tile-factory" data-game="factory"><span class="game-icon" aria-hidden="true">⚙</span><strong data-i18n="game.factory">Фабрика предложений</strong><span data-i18n="game.factorySub">Зарабатывай жетоны и покупай улучшения</span><span class="game-best"></span></button>
         <button type="button" class="game-tile tile-match" data-game="match"><span class="game-icon" aria-hidden="true">⇄</span><strong data-i18n="match.title">Найди пару</strong><span data-i18n="game.matchSub">Соедини слова с переводами на время</span></button>
       </div>
       <div class="panel game-stage" id="gameStage" hidden>
@@ -330,7 +339,7 @@
       </div>
     </section>
     <section class="screen" id="screen-progress">
-      <div class="library-intro"><div><span class="eyebrow" data-i18n="prog.eyebrow">ПРОГРЕСС</span><h1 data-i18n="prog.h1">Как идёт обучение</h1><p data-i18n="prog.sub">Что ждёт впереди, насколько прочно держатся слова и где нужна помощь.</p></div></div>
+      <div class="library-intro"><div><span class="eyebrow" data-i18n="prog.eyebrow">ПРОГРЕСС</span><h1 data-i18n="prog.h1">Как идёт обучение</h1><p data-i18n="prog.sub">Что ждёт впереди, насколько прочно держатся слова и где нужна помощь.</p></div><label class="filter-field prog-deck"><span data-i18n="home.deck">Колода</span><span class="select-wrap"><select id="progDeck"></select></span></label></div>
       <p class="quiz-empty" id="progEmpty" hidden><span data-i18n="prog.empty">Статистика появится после первых ответов.</span> <button class="link" type="button" id="btnProgEmpty" data-i18n="lib.emptyBtn">Добавить слова →</button></p>
       <div id="progBody">
         <div class="prog-tiles" id="progTiles"></div>
@@ -479,6 +488,16 @@
       <p class="acc-error" id="accError" role="alert"></p>
     </div>
   </div>
+  <div class="overlay" id="deckDialog" hidden role="dialog" aria-modal="true" aria-labelledby="deckDialogTitle">
+    <form class="panel share-card settings-card deck-card" id="deckForm" novalidate>
+      <h2 id="deckDialogTitle" data-i18n="deck.newTitle">Новая колода</h2>
+      <label class="field"><span data-i18n="deck.name">Название</span><input id="deckName" type="text" maxlength="60" placeholder="English B2 · Deutsch A2 · Глаголы" autocomplete="off" /></label>
+      <div class="deck-langs"><label class="field"><span data-i18n="lang.learn">Я изучаю</span><span class="select-wrap"><select id="deckSource"></select></span></label><label class="field"><span data-i18n="lang.native">Мой родной язык</span><span class="select-wrap"><select id="deckTarget"></select></span></label></div>
+      <label class="field"><span data-i18n="deck.words">Первые слова (необязательно)</span><textarea id="deckWords" rows="4" spellcheck="false" data-i18n-attr="placeholder:words.placeholder" placeholder="serendipity&#10;apple - яблоко"></textarea></label>
+      <p class="acc-error" id="deckError" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit" data-i18n="deck.create">Создать колоду</button><button class="btn" type="button" id="deckCancel" data-i18n="share.cancel">Отмена</button></div>
+    </form>
+  </div>
   <div class="overlay" id="displayDialog" hidden role="dialog" aria-modal="true" aria-labelledby="displayTitle">
     <div class="panel share-card display-card">
       <h2 id="displayTitle" data-i18n="disp.title">Отображение</h2>
@@ -541,14 +560,14 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="display.js?v=2.18"></script>
-  <script defer src="i18n.js?v=2.18"></script>
-  <script defer src="motion.js?v=2.18"></script>
-  <script defer src="learning.js?v=2.18"></script>
-  <script defer src="ai-core.js?v=2.18"></script>
-  <script defer src="share.js?v=2.18"></script>
-  <script defer src="games.js?v=2.18"></script>
-  <script defer src="account.js?v=2.18"></script>
-  <script defer src="app.js?v=2.18"></script>
+  <script defer src="display.js?v=2.19"></script>
+  <script defer src="i18n.js?v=2.19"></script>
+  <script defer src="motion.js?v=2.19"></script>
+  <script defer src="learning.js?v=2.19"></script>
+  <script defer src="ai-core.js?v=2.19"></script>
+  <script defer src="share.js?v=2.19"></script>
+  <script defer src="games.js?v=2.19"></script>
+  <script defer src="account.js?v=2.19"></script>
+  <script defer src="app.js?v=2.19"></script>
 </body>
 </html>

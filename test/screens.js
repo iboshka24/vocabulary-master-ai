@@ -13,6 +13,22 @@ const root = path.resolve(__dirname, '..');
 const outDir = path.join(__dirname, 'screens');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
+// Finds the right option of the current arcade question from the library (so tests never guess), clicks it — or a wrong one.
+const ARC_PICK = `window.arcPick = function (wrong) {
+  const lib = JSON.parse(localStorage.getItem('vocabulary-master.library.v2'));
+  const cards = Object.values(lib.decks).flatMap(d => d.cards);
+  const opts = [...document.querySelectorAll('#arcOptions .quiz-option')];
+  const p = document.querySelector('.arc-question .context-sentence'), gap = document.getElementById('arcGap');
+  let answer = null;
+  if (gap) {
+    const before = gap.previousSibling ? gap.previousSibling.textContent : '', after = gap.nextSibling ? gap.nextSibling.textContent : '';
+    for (const c of cards) for (const ex of (c.examples || [])) if (ex.startsWith(before) && ex.endsWith(after)) answer = c.original.replace(/^to /, '');
+  } else { const c = cards.find(c => c.translation === p.textContent); answer = c && c.original.replace(/^to /, ''); }
+  const b = opts.find(o => wrong ? o.dataset.value !== answer : o.dataset.value === answer);
+  if (!b) throw new Error('no option for ' + answer);
+  b.click();
+  return answer;
+};`;
 const LANGS = (process.env.SCREENS_LANGS || 'ru,en,uz').split(',');
 const THEMES = ['light', 'dark'];
 const WIDTHS = [375, 1280];
@@ -74,6 +90,7 @@ function layoutProblems() {
       await page.keyboard.press('Escape');
     }
     await page.click('#btnSessionSettings'); await shot('1b-settings'); await page.click('#btnSessionClose');
+    await nav('#btnNewDeck'); await page.locator('#deckDialog:not([hidden])').waitFor(); await shot('1d-deck'); await page.keyboard.press('Escape');
     await page.locator('#btnAccount:not([hidden])').waitFor(); await page.click('#btnAccount'); await page.click('#accTabUp'); await shot('1c-account'); await page.keyboard.press('Escape');
     await page.click('#btnDemo');
     await page.locator('#screen-train.active').waitFor();
@@ -99,6 +116,9 @@ function layoutProblems() {
     await page.click('[data-game="context"]'); await page.locator('.context-sentence').waitFor(); await page.keyboard.press('1'); await shot('5c-context');
     await page.keyboard.press('Escape');
     await page.click('[data-game="scramble"]'); await page.locator('.scramble-clue').waitFor(); await shot('5d-scramble'); await page.keyboard.press('Escape');
+    await page.evaluate(ARC_PICK);
+    await page.click('[data-game="heist"]'); await page.locator('#arcOptions').waitFor(); await page.evaluate(() => window.arcPick(false)); await page.locator('#arcChests').waitFor(); await shot('5e-heist'); await page.keyboard.press('Escape');
+    await page.click('[data-game="boss"]'); await page.locator('.arc-bar.boss').waitFor(); await page.evaluate(() => window.arcPick(false)); await page.waitForTimeout(250); await shot('5f-boss'); await page.keyboard.press('Escape');
     await nav('#navProgress');
     await page.locator('#screen-progress.active').waitFor();
     await shot('6-progress');

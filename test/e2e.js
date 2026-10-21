@@ -19,6 +19,22 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 const DICT = { 'to wander': 'бродить', 'to gather': 'собирать', lantern: 'фонарь', meadow: 'луг', harbor: 'гавань',
   'to whisper': 'шептать', pebble: 'галька', candle: 'свеча', 'to blossom': 'цвести', thunder: 'гром', compass: 'компас' };
 const api = { mode: 'ok', calls: 0 }; // ok | down (network error) | error (HTTP 500)
+// Finds the right option of the current arcade question from the library (so tests never guess), clicks it — or a wrong one.
+const ARC_PICK = `window.arcPick = function (wrong) {
+  const lib = JSON.parse(localStorage.getItem('vocabulary-master.library.v2'));
+  const cards = Object.values(lib.decks).flatMap(d => d.cards);
+  const opts = [...document.querySelectorAll('#arcOptions .quiz-option')];
+  const p = document.querySelector('.arc-question .context-sentence'), gap = document.getElementById('arcGap');
+  let answer = null;
+  if (gap) {
+    const before = gap.previousSibling ? gap.previousSibling.textContent : '', after = gap.nextSibling ? gap.nextSibling.textContent : '';
+    for (const c of cards) for (const ex of (c.examples || [])) if (ex.startsWith(before) && ex.endsWith(after)) answer = c.original.replace(/^to /, '');
+  } else { const c = cards.find(c => c.translation === p.textContent); answer = c && c.original.replace(/^to /, ''); }
+  const b = opts.find(o => wrong ? o.dataset.value !== answer : o.dataset.value === answer);
+  if (!b) throw new Error('no option for ' + answer);
+  b.click();
+  return answer;
+};`;
 const aiHandler = require('../api/ai.js');
 // Fake LLM provider for api/ai.js (runs in this Node process). Echoes the words it was given,
 // plus one invented word that the server must drop.
@@ -694,11 +710,70 @@ run.server(server);
   assert(await page.locator('#screen-test.active').count());
   await page.setViewportSize({ width: 1280, height: 900 });
 
+  step('named decks: the + button creates a deck, two decks share a language pair, home picker, progress stays separate');
+  await page.click('#navStudy');
+  await page.click('#btnNewDeck');
+  await page.locator('#deckDialog:not([hidden])').waitFor();
+  await page.fill('#deckName', '  Deutsch   A2 ');
+  await page.selectOption('#deckSource', 'de'); await page.selectOption('#deckTarget', 'de');
+  await page.click('#deckForm button[type="submit"]');
+  assert.match(await page.locator('#deckError').innerText(), /разных языка/, 'the same language twice is refused');
+  await page.selectOption('#deckTarget', 'ru');
+  await page.fill('#deckWords', 'Haus - дом\nBaum - дерево\nFluss - река\nBerg - гора');
+  await page.click('#deckForm button[type="submit"]');
+  await page.locator('#screen-train.active').waitFor(); // ready pairs start a training at once
+  await page.click('#btnExit'); await page.click('#btnNewSet');
+  const libNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('vocabulary-master.library.v2')));
+  let libD = await libNow();
+  const a2 = Object.entries(libD.decks).find(([, d]) => d.name === 'Deutsch A2');
+  assert(a2 && /^de-ru:[a-z0-9]+$/.test(a2[0]), 'a named deck gets its own key (' + (a2 && a2[0]) + ')');
+  assert.equal(a2[1].cards.length, 4);
+  await page.click('#btnHomeNewDeck');
+  await page.fill('#deckName', 'Deutsch B1'); await page.selectOption('#deckSource', 'de'); await page.selectOption('#deckTarget', 'ru');
+  await page.fill('#deckWords', 'Wald - лес\nStadt - город\nBrot - хлеб\nZeit - время');
+  await page.click('#deckForm button[type="submit"]');
+  await page.locator('#screen-train.active').waitFor();
+  await page.click('#btnReveal'); await page.click('#btnKnew2'); await page.waitForTimeout(400);
+  await page.click('#btnExit'); await page.click('#btnNewSet');
+  libD = await libNow();
+  const deRu = Object.entries(libD.decks).filter(([, d]) => d.source === 'de' && d.target === 'ru');
+  assert.equal(deRu.length, 2, 'two decks share the de → ru pair');
+  const b1 = deRu.find(([, d]) => d.name === 'Deutsch B1'), a2d = deRu.find(([, d]) => d.name === 'Deutsch A2');
+  assert(b1[1].cards.some(c => c.reps > 0), 'the practised deck records progress');
+  assert(!a2d[1].cards.some(c => c.reps > 0), 'the other deck of the same pair is untouched');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('wordloop.cfg')).deck), b1[0], 'the deck just created is the active one');
+  const homeOptions = await page.locator('#homeDeck option').allInnerTexts();
+  assert(homeOptions.some(o => o.startsWith('Deutsch A2')) && homeOptions.some(o => o.startsWith('Deutsch B1')), 'the home picker lists both decks by name');
+  await page.selectOption('#homeDeck', a2d[0]);
+  assert.equal(await page.inputValue('#sourceLang'), 'de');
+  assert.match(await page.locator('#homeDeckNote').innerText(), /Deutsch A2/, 'the home screen says where new words go');
+  await page.fill('#input', 'Tisch - стол');
+  await page.click('#btnStart');
+  await page.locator('#screen-train.active').waitFor();
+  await page.click('#btnExit'); await page.click('#btnNewSet');
+  libD = await libNow();
+  assert.equal(libD.decks[a2d[0]].cards.length, 5, 'new words land in the chosen deck'); assert.equal(libD.decks[b1[0]].cards.length, 4);
+  assert(await page.locator('#btnHomePractice').isVisible(), 'the chosen deck can be practised from the home screen');
+  await page.selectOption('#sourceLang', 'en');
+  assert.equal(await page.inputValue('#homeDeck'), '', 'changing a language by hand releases the deck');
+  assert(await page.locator('#homeDeckNote').isHidden());
+  await page.click('#navLibrary');
+  const names = await page.locator('.deck-item h2.deck-name').allInnerTexts();
+  assert(names.includes('Deutsch A2') && names.includes('Deutsch B1'), 'library cards carry the deck names');
+  await page.click('#navProgress');
+  assert.equal(await page.locator('#progDeck option').count(), Object.keys(libD.decks).length + 1, 'progress can be narrowed to one deck');
+  await page.selectOption('#progDeck', a2d[0]);
+  assert(await page.locator('#progBody').isVisible());
+  await page.selectOption('#progDeck', '');
+  // a backup keeps both decks of the pair
+  const twoDecks = await page.evaluate(() => Object.values(VMLearning.restoreBackup(VMLearning.backupFile(JSON.parse(localStorage.getItem('vocabulary-master.library.v2'))), ['en', 'ru', 'de']).decks).filter(d => d.source === 'de').length);
+  assert.equal(twoDecks, 2);
+
   step('first run, word vault, games: onboarding once, every word listed with its date, context / scramble / true-false');
   const onbCtx = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
   await onbCtx.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await onbCtx.route(/api\.mymemory\.translated\.net/, route => route.abort());
-  const onb = await onbCtx.newPage(); watch(onb); onb.on('pageerror', e => errors.push(e.message));
+  const onb = await onbCtx.newPage(); watch(onb); onb.on('pageerror', e => errors.push(e.message + ' @ ' + String(e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await onb.goto(origin);
   await onb.locator('#onboarding:not([hidden])').waitFor();
   await onb.keyboard.press('Escape');
@@ -753,6 +828,69 @@ run.server(server);
   await onb.locator('.game-feedback.ok').waitFor();
   assert.equal(await onb.locator('.scramble-slots').innerText().then(t => t.replace(/\s/g, '').toLowerCase()), word.toLowerCase(), 'typing the letters builds the word');
   await onb.keyboard.press('Escape');
+  // arcade: Word Heist — chests after a right answer, lockout and a 10% fine after a wrong one
+  await onb.evaluate(ARC_PICK);
+  await onb.click('[data-game="heist"]');
+  await onb.locator('#arcOptions').waitFor();
+  assert.equal(await onb.locator('#arcCoins').innerText(), '0');
+  assert(await onb.locator('#gameStage.arcade.arc-heist').count(), 'the stage switches to the arcade look');
+  await onb.evaluate(() => window.arcPick(false));
+  await onb.locator('#arcChests').waitFor();
+  assert.equal(await onb.locator('#arcChests button').count(), 3, 'a right answer offers three chests');
+  await onb.keyboard.press('2');
+  await onb.locator('#arcChests button.open').waitFor();
+  const chest = await onb.evaluate(() => ({ coins: Number(document.getElementById('arcCoins').textContent), perks: document.querySelector('.arc-perks').textContent }));
+  assert(chest.coins >= 100 || /Щит|x2/.test(chest.perks), 'the chest gave coins, a shield or a multiplier');
+  await onb.locator('#arcOptions button:not([disabled])').first().waitFor();
+  const coinsBefore = await onb.evaluate(() => Number(document.getElementById('arcCoins').textContent));
+  const hadShield = /Щит/.test(await onb.locator('.arc-perks').innerText());
+  await onb.evaluate(() => window.arcPick(true));
+  if (hadShield) {
+    assert.match(await onb.locator('#gameFeedback').innerText(), /Щит спас/);
+  } else {
+    await onb.locator('#arcLock').waitFor();
+    assert.equal(await onb.evaluate(() => Number(document.getElementById('arcCoins').textContent)), coinsBefore - Math.floor(coinsBefore * 0.1), 'a mistake costs 10% of the coins');
+    assert.equal(await onb.locator('#arcOptions button:not([disabled])').count(), 0, 'nothing can be answered during the lockout');
+    await onb.locator('#arcLock').waitFor({ state: 'detached', timeout: 6000 });
+  }
+  await onb.locator('#arcOptions button:not([disabled])').first().waitFor();
+  await onb.keyboard.press('Escape');
+  assert(await onb.locator('#gameStage').isHidden());
+
+  // arcade: Boss Battle — a fast answer is a critical hit, a mistake hurts the player
+  await onb.click('[data-game="boss"]');
+  await onb.locator('.arc-bar.boss').waitFor();
+  assert.equal(await onb.getAttribute('.arc-bar.boss', 'aria-valuenow'), '1500');
+  await onb.evaluate(() => window.arcPick(false));
+  await onb.waitForFunction(() => document.querySelector('.arc-bar.boss').getAttribute('aria-valuenow') === '1200');
+  assert.match(await onb.locator('#gameFeedback').innerText(), /КРИТ/, 'under two seconds is a critical hit of 300');
+  await onb.locator('#arcOptions button:not([disabled])').first().waitFor();
+  await onb.evaluate(() => window.arcPick(true));
+  await onb.waitForFunction(() => document.querySelector('.arc-bar.player').getAttribute('aria-valuenow') === '80');
+  await onb.keyboard.press('Escape');
+
+  // arcade: Sentence Factory — tokens survive between rounds and buy upgrades
+  await onb.evaluate(() => localStorage.setItem('vm.factory', JSON.stringify({ tokens: 160, multiplier: 0, autohint: 0, saver: 0, earned: 0 })));
+  await onb.click('[data-game="factory"]');
+  await onb.locator('#arcOptions').waitFor();
+  const historyBefore = await onb.evaluate(() => Object.values(JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).history).reduce((n, h) => n + h.answers, 0));
+  for (let i = 0; i < 10; i++) {
+    await onb.evaluate(w => window.arcPick(w), i % 4 === 3);
+    await onb.locator('#gameNext:not([hidden])').waitFor();
+    await onb.click('#gameNext');
+  }
+  await onb.locator('#arcStore').waitFor();
+  const factory = await onb.evaluate(() => JSON.parse(localStorage.getItem('vm.factory')));
+  assert.equal(factory.tokens, 160 + 8 * 10 + 2 * 5 - 2 * 5, 'eight right answers earn 10 each, two combos of three add 5, two mistakes cost 5 each');
+  const historyAfter = await onb.evaluate(() => Object.values(JSON.parse(localStorage.getItem('vocabulary-master.library.v2')).history).reduce((n, h) => n + h.answers, 0));
+  assert.equal(historyAfter - historyBefore, 10, 'arcade answers feed the daily history too');
+  assert(await onb.locator('#arcStore [data-upgrade="autohint"]').isDisabled(), 'the 400-token upgrade is out of reach');
+  await onb.click('#arcStore [data-upgrade="multiplier"]');
+  const bought = await onb.evaluate(() => JSON.parse(localStorage.getItem('vm.factory')));
+  assert.equal(bought.multiplier, 1); assert.equal(bought.tokens, factory.tokens - 150, 'the multiplier costs 150 tokens');
+  assert.match(await onb.locator('#arcStore [data-upgrade="multiplier"]').innerText(), /300/, 'the next level doubles in price');
+  await onb.click('.arc-result > .row-gap .btn:not(.primary)');
+
   await onb.click('[data-game="truefalse"]');
   await onb.locator('.tf-card').waitFor();
   for (let i = 0; i < 4; i++) { await onb.keyboard.press('ArrowRight'); await onb.waitForTimeout(950); }

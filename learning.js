@@ -239,6 +239,18 @@
     return out;
   }
   var DATE = /^\d{4}-\d{2}-\d{2}$/;
+  // Decks live under "source-target" (the one deck a language pair had before named decks)
+  // or "source-target:id" for every deck the learner names. Several named decks may share a pair.
+  var DECK_KEY = /^([a-z]{2})-([a-z]{2})(?::([a-z0-9]{1,24}))?$/;
+  var NAME_MAX = 60;
+  function deckId(random) { return (Date.now().toString(36) + Math.floor((random || Math.random)() * 1e9).toString(36)).slice(0, 24); }
+  function deckKey(source, target, id) { return source + '-' + target + (id ? ':' + id : ''); }
+  function cleanName(name) { return String(name || '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, NAME_MAX); }
+  // The key a deck is stored under, if it belongs to this deck's language pair; else the pair's plain key.
+  function keyFor(key, d) {
+    var m = DECK_KEY.exec(String(key || ''));
+    return m && m[1] === d.source && m[2] === d.target ? key : deckKey(d.source, d.target);
+  }
   // Two copies of one learner's library (this device and the cloud) become one: every word from
   // both, and for a word known on both sides the copy with more reviews wins. Pure; inputs are not changed.
   function mergeLibrary(a, b) {
@@ -255,6 +267,7 @@
         var d = lib.decks[key], out = decks[key];
         if (!out) out = decks[key] = { source: d.source, target: d.target, cards: [], created: d.created, index: Object.create(null) };
         if (d.created && (!out.created || d.created < out.created)) out.created = d.created;
+        if (d.name && !out.name) out.name = d.name;
         d.cards.forEach(function (c) {
           var k = normalize(c.original), i = out.index[k];
           if (i == null) { out.index[k] = out.cards.length; out.cards.push(Object.assign({}, c)); return; }
@@ -301,7 +314,10 @@
           streak: count(c.streak), fails: count(c.fails), box: opt(c.box, 0, 5), due: opt(c.due, 0, 1e14), ease: opt(c.ease, 1.3, 5),
           interval: opt(c.interval, 0, 3650), reps: opt(c.reps, 0, 1e6), lapses: opt(c.lapses, 0, 1e6), added: opt(c.added, 0, 1e14) };
       });
-      decks[d.source + '-' + d.target] = { source: d.source, target: d.target, cards: cards, created: opt(d.created, 0, 1e14) || Date.now() };
+      var deck = { source: d.source, target: d.target, cards: cards, created: opt(d.created, 0, 1e14) || Date.now() };
+      var name = cleanName(d.name);
+      if (name) deck.name = name;
+      decks[keyFor(key, d)] = deck;
     });
     var history = {};
     Object.keys(incoming.history).filter(function (k) { return DATE.test(k); }).forEach(function (k) {
@@ -320,5 +336,5 @@
     return { decks: keys.length, words: keys.reduce(function (n, k) { return n + library.decks[k].cards.length; }, 0) };
   }
   return { forecast: forecast, maturity: maturity, weakest: weakest, accuracy: accuracy, longestStreak: longestStreak, trimHistory: trimHistory,
-    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity, status: status, mergeLibrary: mergeLibrary };
+    backupFile: backupFile, restoreBackup: restoreBackup, librarySize: librarySize, day: day, gap: gap, reconcile: reconcile, complete: complete, validate: validate, grade: grade, schedule: schedule, quiz: quiz, swapPairs: swapPairs, reverseCards: reverseCards, hint: hint, pick: pick, pairs: pairs, activity: activity, status: status, mergeLibrary: mergeLibrary, DECK_KEY: DECK_KEY, deckId: deckId, deckKey: deckKey, cleanName: cleanName, keyFor: keyFor, NAME_MAX: NAME_MAX };
 });

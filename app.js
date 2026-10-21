@@ -94,7 +94,7 @@
   var CHUNK = 35;
 
   var state = {
-    cfg: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '', target: 'ru', source: 'en', dir: 'mixed', mode: 'flashcard', simple: false },
+    cfg: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '', target: 'ru', source: 'en', dir: 'mixed', mode: 'flashcard', simple: false, deck: '' },
     serverAvailable: true,
     serverHasKey: false,
     soundEnabled: true,
@@ -152,6 +152,18 @@
   function playForgotSound() {
     playTone(240, 'sine', 0.14, 0.1);
     setTimeout(function () { playTone(180, 'sine', 0.22, 0.1); }, 70);
+  }
+
+  // Short arcade cues: the mini-games call these through VMGames.
+  function playArcadeFx(kind) {
+    if (kind === 'ok') return playSuccessSound();
+    if (kind === 'bad') return playForgotSound();
+    if (kind === 'tick') return playTone(880, 'square', 0.06, 0.05);
+    if (kind === 'hit') return playTone(160, 'sawtooth', 0.12, 0.12);
+    if (kind === 'crit') { [660, 880, 1320].forEach(function (f, i) { setTimeout(function () { playTone(f, 'square', 0.09, 0.1); }, i * 55); }); return; }
+    if (kind === 'chest') { [523, 784, 1047, 1568].forEach(function (f, i) { setTimeout(function () { playTone(f, 'triangle', 0.14, 0.1); }, i * 70); }); return; }
+    if (kind === 'win') { [523, 659, 784, 1047, 1319].forEach(function (f, i) { setTimeout(function () { playTone(f, 'triangle', 0.22, 0.12); }, i * 110); }); return; }
+    if (kind === 'lose') { [330, 262, 196].forEach(function (f, i) { setTimeout(function () { playTone(f, 'sine', 0.3, 0.12); }, i * 160); }); }
   }
 
   function toggleSound() {
@@ -1403,6 +1415,7 @@
   }
 
   function swapLanguages() {
+    releaseDeck();
     var s = state.cfg.source; state.cfg.source = state.cfg.target; state.cfg.target = s;
     $('sourceLang').value = state.cfg.source; $('targetLang').value = state.cfg.target; saveCfg();
     var input = $('input'), before = input.value, after = L.swapPairs(before);
@@ -1418,8 +1431,7 @@
     if (isTyping()) $('typedAnswer').focus();
   }
   function practiceDeck(d, mode) {
-    state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
-    $('sourceLang').value = d.source; $('targetLang').value = d.target;
+    setActiveDeck(keyOf(d));
     var cards = L.pick(d.cards, mode), all = mode === 'all';
     if (mode === 'due' && !cards.length) { cards = L.pick(d.cards, 'all'); all = true; }
     // A capped session takes the most overdue / hardest words, or a random slice of the whole deck.
@@ -1428,8 +1440,9 @@
     startTraining(cards);
   }
   function reverseDeck(d) {
-    var key = d.target + '-' + d.source;
+    var key = d.name ? Object.keys(library.decks).find(function (k) { var x = library.decks[k]; return x.source === d.target && x.target === d.source && x.name === d.name + ' ⇄'; }) || L.deckKey(d.target, d.source, L.deckId()) : L.deckKey(d.target, d.source);
     var rev = library.decks[key] || { source: d.target, target: d.source, cards: [], created: Date.now() };
+    if (d.name) rev.name = d.name + ' ⇄';
     var added = 0;
     L.reverseCards(d.cards).forEach(function (c) {
       if (rev.cards.some(function (x) { return x.original.toLowerCase() === c.original.toLowerCase(); })) return;
@@ -1501,13 +1514,11 @@
   }
 
   function saveUntranslated(cards) {
-    var key = state.cfg.source + '-' + state.cfg.target;
-    var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
+    var d = targetDeck();
     cards.forEach(function (card) {
       var known = d.cards.some(function (c) { return c.original.toLowerCase() === card.original.toLowerCase(); });
       if (!known) d.cards.push({ original: card.original, translation: '—', hint: '', definition: '', examples: [], streak: 0, fails: 0, added: Date.now() });
     });
-    library.decks[key] = d;
     persistLibrary();
   }
 
@@ -1589,14 +1600,15 @@
     ]));
   }
   function allCards() {
-    var out = [];
-    Object.keys(library.decks).forEach(function (k) { out = out.concat(library.decks[k].cards); });
+    var only = $('progDeck') && $('progDeck').value, out = [];
+    Object.keys(library.decks).forEach(function (k) { if (!only || k === only) out = out.concat(library.decks[k].cards); });
     return out;
   }
   function tile(label, value, note) {
     return h('div', { className: 'prog-tile' }, [h('span', { className: 'prog-tile-label', text: label }), h('strong', { text: value }), note ? h('span', { className: 'prog-tile-note', text: note }) : null]);
   }
   function renderProgress() {
+    fillDeckSelect($('progDeck'), tr('prog.allDecks'), $('progDeck').value);
     var cards = allCards(), today = L.day(), now = Date.now();
     var translated = cards.filter(function (c) { return c.translation && c.translation !== '—'; });
     $('progEmpty').hidden = translated.length > 0;
@@ -1712,6 +1724,80 @@
   var shareState = { deck: null, link: '', title: '', opener: null }, previewDeck = null, qrLoading = null;
   function langCodes() { return LANGS.map(function (l) { return l.code; }); }
   function pairLabel(d) { return langByCode(d.source).label + ' → ' + langByCode(d.target).label; }
+  /* ---------------- named decks: several per language pair, one of them "active" on the home screen ---------------- */
+  function deckLabel(d) { return d.name || pairLabel(d); }
+  function keyOf(d) { return Object.keys(library.decks).find(function (k) { return library.decks[k] === d; }) || null; }
+  // The deck the home screen adds words to: the chosen named deck when it fits the language pair, else the pair's plain deck.
+  function activeDeckKey() {
+    var k = state.cfg.deck, d = k && library.decks[k];
+    return d && d.source === state.cfg.source && d.target === state.cfg.target ? k : L.deckKey(state.cfg.source, state.cfg.target);
+  }
+  function targetDeck() {
+    var key = activeDeckKey();
+    var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
+    library.decks[key] = d;
+    return d;
+  }
+  function setActiveDeck(key) {
+    var d = key && library.decks[key];
+    state.cfg.deck = d ? key : '';
+    if (d) { state.cfg.source = d.source; state.cfg.target = d.target; $('sourceLang').value = d.source; $('targetLang').value = d.target; }
+    saveCfg(); renderHomeDeck();
+  }
+  // Changing a language by hand means "not that deck any more": the pair's plain deck takes over.
+  function releaseDeck() { if (state.cfg.deck) { state.cfg.deck = ''; saveCfg(); renderHomeDeck(); } }
+  function createDeck(name, source, target) {
+    var key = L.deckKey(source, target, L.deckId());
+    library.decks[key] = { source: source, target: target, name: L.cleanName(name) || pairLabel({ source: source, target: target }), cards: [], created: Date.now() };
+    persistLibrary();
+    setActiveDeck(key);
+    return key;
+  }
+  function fillDeckSelect(sel, firstLabel, keep) {
+    sel.innerHTML = '';
+    if (firstLabel !== null) sel.appendChild(h('option', { value: '', text: firstLabel }));
+    Object.keys(library.decks).sort(function (a, b) { return (library.decks[b].created || 0) - (library.decks[a].created || 0); }).forEach(function (k) {
+      var d = library.decks[k];
+      sel.appendChild(h('option', { value: k, text: deckLabel(d) + ' · ' + trn('words.count', d.cards.length) }));
+    });
+    sel.value = keep && library.decks[keep] ? keep : '';
+  }
+  function renderHomeDeck() {
+    var sel = $('homeDeck'); if (!sel) return;
+    var has = Object.keys(library.decks).length > 0;
+    var key = state.cfg.deck && library.decks[state.cfg.deck] ? state.cfg.deck : '';
+    fillDeckSelect(sel, tr('deck.anyPair'), key);
+    sel.disabled = !has;
+    var d = key ? library.decks[key] : null;
+    $('homeDeckNote').hidden = !d;
+    if (d) $('homeDeckNote').textContent = tr('deck.homeNote', { n: deckLabel(d), p: pairLabel(d) });
+    var due = d ? L.pick(d.cards, 'due').length : 0, ready = d ? L.pick(d.cards, 'all').length : 0;
+    $('btnHomePractice').hidden = !ready;
+    if (ready) $('btnHomePractice').textContent = due ? tr('deck.practiceDue', { n: due }) : tr('deck.practiceAll');
+  }
+  var deckOpener = null;
+  function openDeckDialog() {
+    deckOpener = document.activeElement;
+    var src = $('deckSource'), tgt = $('deckTarget');
+    if (!src.children.length) LANGS.forEach(function (l) { src.appendChild(h('option', { value: l.code, text: l.label })); tgt.appendChild(h('option', { value: l.code, text: l.label })); });
+    src.value = state.cfg.source; tgt.value = state.cfg.target;
+    $('deckName').value = ''; $('deckWords').value = ''; $('deckError').textContent = '';
+    $('deckDialog').hidden = false;
+    $('deckName').focus();
+  }
+  function closeDeckDialog() { $('deckDialog').hidden = true; if (deckOpener && deckOpener.focus && document.contains(deckOpener)) deckOpener.focus(); }
+  function submitDeckDialog(e) {
+    e.preventDefault();
+    var source = $('deckSource').value, target = $('deckTarget').value, name = L.cleanName($('deckName').value), words = $('deckWords').value.trim();
+    if (source === target) { $('deckError').textContent = tr('deck.sameLang'); $('deckSource').focus(); return; }
+    var key = createDeck(name, source, target);
+    closeDeckDialog();
+    navigateLearning('screen-setup');
+    toast(tr('deck.created', { n: deckLabel(library.decks[key]) }), 'ok', 3000);
+    if (words) { $('input').value = words; updateInputStat(true); start(); }
+    else { $('input').value = ''; updateInputStat(true); $('input').focus(); }
+  }
+
   function loadQr() {
     if (window.qrcode) return Promise.resolve();
     if (!qrLoading) qrLoading = new Promise(function (ok, fail) {
@@ -1779,8 +1865,8 @@
   }
   function showPreview(deck) {
     previewDeck = deck;
-    $('previewTitle').textContent = pairLabel(deck);
-    var key = deck.source + '-' + deck.target, known = Object.create(null);
+    $('previewTitle').textContent = deck.name ? deck.name + ' · ' + pairLabel(deck) : pairLabel(deck);
+    var key = previewTargetKey(deck), known = Object.create(null);
     ((library.decks[key] || {}).cards || []).forEach(function (c) { known[c.original.toLowerCase()] = true; });
     var fresh = deck.cards.filter(function (c) { return !known[c.original.toLowerCase()]; }).length;
     $('previewCount').textContent = trn('words.count', deck.cards.length) + (fresh < deck.cards.length ? ' · ' + tr('share.alreadyHave', { n: deck.cards.length - fresh }) : '');
@@ -1795,11 +1881,17 @@
     (fresh ? $('btnPreviewAdd') : $('btnPreviewCancel')).focus();
   }
   function closePreview() { $('sharePreview').hidden = true; previewDeck = null; }
+  // A named shared deck lands in a deck of the same name (or a new one); an unnamed one in the pair's plain deck.
+  function previewTargetKey(deck) {
+    if (!deck.name) return L.deckKey(deck.source, deck.target);
+    return Object.keys(library.decks).find(function (k) { var d = library.decks[k]; return d.source === deck.source && d.target === deck.target && d.name === deck.name; }) || L.deckKey(deck.source, deck.target, L.deckId());
+  }
   function addPreviewDeck() {
     var deck = previewDeck;
     if (!deck) return;
-    var previous = snapshotLibrary(), key = deck.source + '-' + deck.target;
+    var previous = snapshotLibrary(), key = previewTargetKey(deck);
     var d = library.decks[key] || { source: deck.source, target: deck.target, cards: [], created: Date.now() };
+    if (deck.name && !d.name) d.name = deck.name;
     var known = Object.create(null), added = 0;
     d.cards.forEach(function (c) { known[c.original.toLowerCase()] = true; });
     deck.cards.forEach(function (c) {
@@ -1912,13 +2004,11 @@
     });
   }
   function archiveCards() {
-    var key = state.cfg.source + '-' + state.cfg.target;
-    var d = library.decks[key] || { source: state.cfg.source, target: state.cfg.target, cards: [], created: Date.now() };
+    var d = targetDeck();
     state.cards.forEach(function (card) {
       var idx = d.cards.findIndex(function (c) { return L.validate(c.original, card.original) && c.original.toLowerCase() === card.original.toLowerCase(); });
       if (idx < 0) d.cards.push(Object.assign({ added: Date.now() }, card)); else d.cards[idx] = Object.assign({ added: d.cards[idx].added }, card);
     });
-    library.decks[key] = d;
     persistLibrary();
   }
   function recordAnswer(ok) {
@@ -1943,6 +2033,7 @@
     $('freezeBalance').textContent = tr('freeze.left', { n: library.streak.freezes });
     $('dailyGoal').value = library.goal;
     $('batchSize').value = String(library.batch || 0);
+    renderHomeDeck();
   }
   function navigateLearning(id) {
     stopMatch();
@@ -1999,7 +2090,7 @@
       body.appendChild(h('tr', {}, [
         h('th', { scope: 'row', lang: r.d.source, text: r.c.original }),
         h('td', { lang: r.d.target, text: r.c.translation }),
-        h('td', { className: 'vault-deck', text: r.d.source.toUpperCase() + ' → ' + r.d.target.toUpperCase() }),
+        h('td', { className: 'vault-deck', text: r.d.name ? r.d.name : r.d.source.toUpperCase() + ' → ' + r.d.target.toUpperCase() }),
         h('td', { className: 'vault-date', text: r.added && fmt ? fmt.format(new Date(r.added)) : '—' }),
         h('td', {}, [h('span', { className: 'status-pill st-' + r.status, text: tr('vault.st.' + r.status) })])
       ]));
@@ -2043,12 +2134,12 @@
       var panel = document.createElement('article'); panel.className = 'deck-item';
       var cover = h('div', { className: 'deck-cover cover-' + ((d.source.charCodeAt(0) + d.target.charCodeAt(1)) % 4) }, [
         h('span', { className: 'cover-langs', text: d.source.toUpperCase() + ' → ' + d.target.toUpperCase() }),
-        h('button', { className: 'cover-play', type: 'button', 'aria-label': tr('deck.play') + ': ' + langByCode(d.source).label + ' → ' + langByCode(d.target).label }),
+        h('button', { className: 'cover-play', type: 'button', 'aria-label': tr('deck.play') + ': ' + deckLabel(d) }),
         h('span', { className: 'cover-badge', text: tr('deck.minutes', { n: Math.max(1, Math.round(Math.max(due, Math.min(d.cards.length, 20)) * 0.25)) }) })
       ]);
-      panel.innerHTML = '<span class="deck-kicker">→ ' + escapeHTML(langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2>' + escapeHTML(langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track deck-progress"><i></i></div>' +
+      panel.innerHTML = '<span class="deck-kicker">' + escapeHTML(d.name ? pairLabel(d) : '→ ' + langByCode(d.target).label) + ' / ' + trn('words.count', d.cards.length) + '</span><h2 class="deck-name">' + escapeHTML(d.name || langByCode(d.source).label) + '</h2><p>' + tr('deck.stats', { m: mastered, d: due, h: trn('deck.hard', hard) }) + '</p><div class="daily-track deck-progress"><i></i></div>' +
         '<div class="actions"><button class="btn primary" type="button" data-act="practice" title="' + tr('deck.practiceTitle') + '">' + (due ? tr('deck.practiceDue', { n: due }) : tr('deck.practiceAll')) + '</button><button class="btn" type="button" data-act="hard"' + (hard ? '' : ' disabled') + ' title="' + tr('deck.hardTitle') + '">' + tr('deck.hardBtn', { n: hard }) + '</button><button class="btn" type="button" data-act="add">' + tr('deck.add') + '</button></div>' +
-        '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button><button class="link" type="button" data-act="share">' + tr('share.button') + '</button></div>' +
+        '<div class="deck-tools"><button class="link" type="button" data-act="reverse" title="' + escapeHTML(tr('deck.reverseTitle', { p: langByCode(d.target).label + ' → ' + langByCode(d.source).label })) + '">' + tr('deck.reverse') + '</button><button class="link" type="button" data-act="rename">' + tr('deck.rename') + '</button><button class="link" type="button" data-act="copy">' + tr('deck.copy') + '</button><button class="link" type="button" data-act="share">' + tr('share.button') + '</button></div>' +
         '<details><summary>' + tr('deck.all') + '</summary><div class="word-list"></div><button class="link link-danger" type="button" data-act="delete">' + tr('deck.delete') + '</button></details>';
       panel.insertBefore(cover, panel.firstChild);
       cover.querySelector('.cover-play').onclick = function () {
@@ -2085,14 +2176,20 @@
       panel.querySelector('[data-act="hard"]').onclick = function () { practiceDeck(d, 'hard'); };
       panel.querySelector('[data-act="reverse"]').onclick = function () { reverseDeck(d); };
       panel.querySelector('[data-act="copy"]').onclick = function () { copyDeck(d); };
+      panel.querySelector('[data-act="rename"]').onclick = function () {
+        var value = window.prompt(tr('deck.renamePrompt'), d.name || '');
+        if (value === null) return;
+        var name = L.cleanName(value);
+        if (name) d.name = name; else delete d.name;
+        persistLibrary(); renderLibrary(); renderHomeDeck();
+      };
       panel.querySelector('[data-act="share"]').onclick = function () { openShare(d, this); };
       panel.querySelector('[data-act="add"]').onclick = function () {
-        state.cfg.source = d.source; state.cfg.target = d.target; saveCfg();
-        $('sourceLang').value = d.source; $('targetLang').value = d.target; $('input').value = '';
+        setActiveDeck(keyOf(d)); $('input').value = '';
         navigateLearning('screen-setup'); $('input').focus(); updateInputStat(true);
       };
       panel.querySelector('[data-act="delete"]').onclick = function () {
-        var name = langByCode(d.source).label + ' → ' + langByCode(d.target).label;
+        var name = deckLabel(d);
         if (!window.confirm(tr('confirm.deleteDeckDetail', { name: name, w: d.cards.length }))) return;
         var previous = snapshotLibrary();
         delete library.decks[key]; persistLibrary(); renderLibrary();
@@ -2129,7 +2226,7 @@
     sel.disabled = $('btnQuizStart').disabled = $('btnMatchStart').disabled = empty;
     Object.keys(library.decks).forEach(function (key) {
       var d = library.decks[key]; var opt = document.createElement('option');
-      opt.value = key; opt.textContent = langByCode(d.source).label + ' → ' + langByCode(d.target).label + ' · ' + d.cards.length;
+      opt.value = key; opt.textContent = deckLabel(d) + ' · ' + d.cards.length;
       sel.appendChild(opt);
     });
   }
@@ -2168,6 +2265,7 @@
     LANGS.forEach(function (l) { var opt = document.createElement('option'); opt.value = l.code; opt.textContent = l.label; $('sourceLang').appendChild(opt); });
     $('sourceLang').value = state.cfg.source;
     $('sourceLang').onchange = function () {
+      releaseDeck();
       var prev = state.cfg.source; state.cfg.source = this.value;
       // Picking the same language on both sides means "swap them".
       if (state.cfg.target === this.value) { state.cfg.target = prev; $('targetLang').value = prev; }
@@ -2185,6 +2283,14 @@
     $('navTest').onclick = function () { navigateLearning('screen-test'); };
     $('navProgress').onclick = function () { navigateLearning('screen-progress'); };
     $('navGames').onclick = function () { navigateLearning('screen-games'); };
+    $('homeDeck').onchange = function () { setActiveDeck(this.value); if (this.value) toast(tr('deck.chosen', { n: deckLabel(library.decks[this.value]) }), 'ok', 1800); };
+    $('btnHomePractice').onclick = function () { var d = library.decks[state.cfg.deck]; if (d) practiceDeck(d, 'due'); };
+    $('btnNewDeck').onclick = openDeckDialog;
+    $('btnHomeNewDeck').onclick = openDeckDialog;
+    $('deckCancel').onclick = closeDeckDialog;
+    $('deckForm').onsubmit = submitDeckDialog;
+    $('deckDialog').addEventListener('click', function (e) { if (e.target === this) closeDeckDialog(); });
+    $('progDeck').onchange = renderProgress;
     $('tabDecks').onclick = function () { showLibraryTab(false); };
     $('tabVault').onclick = function () { vaultShown = VAULT_PAGE; showLibraryTab(true); };
     [$('tabDecks'), $('tabVault')].forEach(function (t) {
@@ -2198,10 +2304,10 @@
     $('btnGamesDemo').onclick = function () { $('gameDeck').value = addDemoDeck(); if (games) games.refresh(); $('gameDeck').value = 'en-ru'; toast(tr('toast.demoAdded'), 'ok'); };
     if (window.VMGames) games = window.VMGames.mount({
       decks: function () { return library.decks; },
-      langLabel: function (code) { return langByCode(code).label; },
+      langLabel: function (code) { return langByCode(code).label; }, deckLabel: deckLabel,
       tr: tr, trn: trn, toast: toast,
       answer: function (card, ok, grade) { if (grade) L.grade(card, ok); recordAnswer(ok); },
-      sound: function (ok) { if (ok) playSuccessSound(); else playForgotSound(); },
+      sound: function (ok) { if (ok) playSuccessSound(); else playForgotSound(); }, fx: playArcadeFx,
       complete: function () { L.complete(library.streak, L.day()); persistLibrary(); renderDaily(); },
       moreSentences: function (d) { return function (c) { var ctx = d.source === 'en' && CONTEXT[c.original.toLowerCase()]; return ctx ? [ctx[1]] : []; }; },
       openMatch: function (key) { navigateLearning('screen-test'); if (library.decks[key]) $('quizDeck').value = key; $('btnMatchStart').click(); }
@@ -2377,7 +2483,7 @@
   var CODES = LANGS.map(function (l) { return l.code; });
   function syncData() {
     var c = state.cfg;
-    return { v: 1, library: library, cfg: { source: c.source, target: c.target, dir: c.dir, mode: c.mode, simple: c.simple } }; // never the API key
+    return { v: 1, library: library, cfg: { source: c.source, target: c.target, dir: c.dir, mode: c.mode, simple: c.simple, deck: c.deck } }; // never the API key
   }
   function cleanLibrary(lib) { try { return L.restoreBackup(L.backupFile(lib), CODES); } catch (e) { return null; } }
   function applySyncData(data) {
@@ -2390,6 +2496,7 @@
       state.cfg.source = c.source; state.cfg.target = c.target;
       $('sourceLang').value = c.source; $('targetLang').value = c.target;
     }
+    if (typeof c.deck === 'string') state.cfg.deck = library.decks[c.deck] ? c.deck : '';
     if (/^(mixed|fwd|rev)$/.test(c.dir)) setDir(c.dir);
     if (/^(flashcard|typing|listen)$/.test(c.mode)) { state.cfg.mode = c.mode; document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === c.mode); }); }
     if (typeof c.simple === 'boolean') { state.cfg.simple = c.simple; $('simpleMode').checked = c.simple; }
@@ -2557,6 +2664,7 @@
     });
 
     sel.addEventListener('change', function () {
+      if (L) releaseDeck();
       var prev = state.cfg.target; state.cfg.target = sel.value;
       if (L && state.cfg.source === sel.value) { state.cfg.source = prev; $('sourceLang').value = prev; }
       saveCfg();
@@ -2716,6 +2824,7 @@
       // Alt+X swaps languages on the setup screen, even while typing the word list.
       if (L && e.altKey && e.code === 'KeyX' && $('screen-setup').classList.contains('active')) { e.preventDefault(); swapLanguages(); return; }
       if (!$('onboarding').hidden || !$('accountDialog').hidden) return;
+      if (!$('deckDialog').hidden) { if (e.key === 'Escape') { e.preventDefault(); closeDeckDialog(); } return; }
       if (!$('sessionDialog').hidden) { if (e.key === 'Escape') { e.preventDefault(); closeSessionSettings(); } return; }
       if (!$('shareDialog').hidden || !$('sharePreview').hidden || !$('displayDialog').hidden) {
         if (e.key === 'Escape') { e.preventDefault(); if (!$('displayDialog').hidden) closeDisplay(); else if (!$('shareDialog').hidden) closeShare(); else closePreview(); }

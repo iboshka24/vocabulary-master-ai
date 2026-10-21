@@ -1,5 +1,5 @@
 /* Offline support: network first (so updates arrive immediately), cache as fallback. */
-const CACHE = 'vm-v2.18';
+const CACHE = 'vm-v2.19';
 const SHELL = ['./', 'index.html', 'styles.css', 'editorial.css', 'shell.css', 'motion.css', 'display.js', 'i18n.js', 'learning.js', 'ai-core.js', 'share.js', 'games.js', 'account.js', 'vendor/qrcode/qrcode.js', 'motion.js', 'app.js',
   'vendor/lottie_light.min.js', 'motion/editorial-achievement.js', 'manifest.webmanifest', 'vendor/fonts/fonts.css', 'icons/icon-192.png'];
 
