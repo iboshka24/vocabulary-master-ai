@@ -1,4 +1,4 @@
--- Vocabulary Master AI: accounts and cloud progress.
+-- Wordex: accounts and cloud progress.
 -- Run once in Supabase → SQL Editor. One row per user; row-level security lets each user
 -- read and write only their own row, so the public anon key cannot reach anyone else's data.
 

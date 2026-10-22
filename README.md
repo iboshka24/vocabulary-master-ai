@@ -1,8 +1,8 @@
-# Vocabulary Master AI
+# Wordex
 
 Слово за словом. Каждый день.
 
-Версия 2.0 собственного проекта [WordLoop](https://github.com/iboshka24/vocabulary-master-ai): сохранены API-интеграции, парсер, озвучка и бесконечная очередь повторений. Новый интерфейс — бумага, чернила, янтарь, выразительная типографика. Без неонового фона, частиц и параллакса.
+Версия 2.0 собственного проекта [WordLoop](https://github.com/iboshka24/wordex) (позже Wordex): сохранены API-интеграции, парсер, озвучка и бесконечная очередь повторений. Новый интерфейс — бумага, чернила, янтарь, выразительная типографика. Без неонового фона, частиц и параллакса.
 
 ## Возможности
 
@@ -39,8 +39,8 @@
 Нужен Node.js 18+; для браузерных тестов — Node.js 20+.
 
 ```sh
-git clone https://github.com/iboshka24/vocabulary-master-ai.git
-cd vocabulary-master-ai
+git clone https://github.com/iboshka24/wordex.git
+cd wordex
 npm install
 npm run dev
 ```

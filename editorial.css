@@ -1,4 +1,4 @@
-/* Vocabulary Master AI · Editorial edition. Paper, ink, and a little amber. */
+/* Wordex · Editorial edition. Paper, ink, and a little amber. */
 :root {
   color-scheme: light;
   --bg:#f5f2eb; --surface:#fffdf8; --panel:#fffdf8; --text:#292923;
@@ -24,7 +24,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .logo-mark { width:36px; height:40px; background:var(--text); border-radius:5px; color:var(--bg); box-shadow:none; }
 .logo:hover .logo-mark { transform:rotate(-6deg); }
 .logo-text { font-family:var(--font-ui); font-size:14px; line-height:1.15; letter-spacing:-.3px; }
-.logo-text em { display:block; font-family:var(--font-display); font-size:20px; color:var(--amber); background:none; }
+.logo-text { font-size:22px; font-weight:700; letter-spacing:-.6px; }
+.logo-text em { display:inline; font-family:var(--font-display); font-size:inherit; color:var(--amber); background:none; }
 .topnav { display:flex; gap:26px; margin-right:auto; margin-left:65px; }
 .nav-link { border:0; background:none; padding:12px 0; font-size:13px; color:var(--muted); position:relative; }
 .nav-link.active { color:var(--text); }
@@ -216,7 +217,7 @@ input[type="checkbox"] { accent-color:var(--amber); width:15px; height:15px; }
   .daily-panel { flex-wrap:wrap; padding:20px; } .daily-track { width:150px; }
   .daily-panel strong { font-size:22px; } .quiz-options { grid-template-columns:1fr; }
   .motion-comparison { grid-template-columns:1fr; } .app-footer { margin:0 20px; flex-wrap:wrap; }
-  .icon-btn { width:32px; height:32px; } .logo-text { font-size:12px; } .logo-text em { font-size:17px; }
+  .icon-btn { width:32px; height:32px; } .logo-text { font-size:19px; }
   .library-intro { flex-wrap:wrap; } .topbar .pill { display:none; }
 }
 @media(prefers-reduced-motion:reduce) {

@@ -8,11 +8,11 @@
   var CODES = ['ru', 'en', 'uz'];
   var KEY = 'vm.ui-lang';
   var D = {
-    'meta.title': ['Vocabulary Master AI — слова становятся знаниями', 'Vocabulary Master AI — words become knowledge', "Vocabulary Master AI — so'zlar bilimga aylanadi"],
+    'meta.title': ['Wordex — слова становятся знаниями', 'Wordex — words become knowledge', "Wordex — so'zlar bilimga aylanadi"],
     'meta.desc': ['Вставь слова или готовые пары — ИИ отфильтрует мусор, переведёт на 20 языков и соберёт бесконечный цикл повторений.', 'Paste words or ready pairs — AI filters the junk, translates into 20 languages and builds an endless review loop.', "So'zlar yoki tayyor juftliklarni joylang — sun'iy intellekt keraksizini olib tashlaydi, 20 tilga tarjima qiladi va cheksiz takrorlash siklini tuzadi."],
 
     'nav.aria': ['Основная навигация', 'Main navigation', 'Asosiy navigatsiya'],
-    'nav.home': ['Vocabulary Master AI — на главную', 'Vocabulary Master AI — home', 'Vocabulary Master AI — bosh sahifa'],
+    'nav.home': ['Wordex — на главную', 'Wordex — home', 'Wordex — bosh sahifa'],
     'side.aria': ['Меню', 'Menu', 'Menyu'],
     'side.menu': ['Меню', 'Menu', 'Menyu'],
     'side.learning': ['Обучение', 'Learning', "O'qish"],
@@ -294,7 +294,7 @@
     'setup.resume': ['Продолжить прошлую сессию — ', 'Continue your last session — ', 'Oldingi sessiyani davom ettirish — '],
     'setup.resumeLink': ['открыть сохранённую колоду', 'open the saved deck', 'saqlangan kolodani ochish'],
     'setup.foot': ['Прогресс хранится на этом устройстве. Слова для перевода отправляются выбранному сервису.', 'Progress is stored on this device. Words to translate are sent to the selected service.', "Natijalar shu qurilmada saqlanadi. Tarjima uchun so'zlar tanlangan xizmatga yuboriladi."],
-    'welcome.h': ['Добро пожаловать в Vocabulary Master AI!', 'Welcome to Vocabulary Master AI!', 'Vocabulary Master AI ga xush kelibsiz!'],
+    'welcome.h': ['Добро пожаловать в Wordex!', 'Welcome to Wordex!', 'Wordex ga xush kelibsiz!'],
     'welcome.p': ['Учи новые слова без усилий! Добавляй свои списки, тренируйся на карточках или вводом ответа, а встроенный ИИ-перевод подскажет. Адаптивная система возвращает трудные слова в колоду, чтобы ты их не забывал.', 'Master new vocabulary effortlessly! Add your own word lists, practice with smart flashcards or typing modes, and let built-in AI translation guide your learning. Our adaptive system automatically reshuffles tricky words back into your deck so you never forget them!', "Yangi so'zlarni oson o'rgan! O'z ro'yxatlaringni qo'sh, kartalar yoki javob yozish orqali mashq qil, o'rnatilgan AI tarjima esa yordam beradi. Moslashuvchan tizim qiyin so'zlarni kolodaga qaytaradi — sen ularni unutmaysan."],
 
     'load.title': ['ИИ разбирает твой список…', 'AI is reading your list…', "AI ro'yxatingni tahlil qilmoqda…"],
@@ -427,7 +427,7 @@
     'quiz.saved': ['Ошибки сохранены: сложные слова вернутся в практику.', 'Mistakes are saved: hard words will come back to practice.', "Xatolar saqlandi: qiyin so'zlar mashqqa qaytadi."],
 
     'footer.tag': ['Меньше шума. Больше смысла.', 'Less noise. More meaning.', "Kamroq shovqin. Ko'proq ma'no."],
-    'footer.made': ['Сделано для ежедневной практики · v2.19', 'Made for daily practice · v2.19', 'Kundalik mashq uchun yaratilgan · v2.19'],
+    'footer.made': ['Сделано для ежедневной практики · v2.20', 'Made for daily practice · v2.20', 'Kundalik mashq uchun yaratilgan · v2.20'],
     'sum.title': ['Сессия завершена', 'Session complete', 'Sessiya yakunlandi'],
     'sum.continue': ['Продолжить цикл', 'Keep looping', 'Siklni davom ettirish'],
     'sum.newSet': ['Новый набор слов', 'New word set', "Yangi so'zlar to'plami"],
@@ -437,7 +437,7 @@
     'sum.msgClean': ['Ни одной ошибки — отличное начало. Слова закрепятся после пары повторов.', 'No mistakes — a great start. Words stick after a couple more reviews.', "Birorta ham xato yo'q — ajoyib boshlanish. So'zlar yana bir-ikki takrordan keyin mustahkamlanadi."],
     'sum.msg65': ['Хороший прогресс — цикл вернул забытые слова, закрепление идёт полным ходом.', 'Good progress — the loop brought back forgotten words, they are sticking.', "Yaxshi natija — sikl unutilgan so'zlarni qaytardi, mustahkamlash davom etmoqda."],
     'sum.msgLow': ['Всё по плану: забыл → карточка перевернулась → слово вернулось в очередь.', 'All according to plan: forgot → card flipped → the word went back to the queue.', "Hammasi reja bo'yicha: unutding → karta aylandi → so'z navbatga qaytdi."],
-    'sum.stats': ['Vocabulary Master AI: {c} карточек · {a} ответов · {p}% точность · раунд {r} · время {t}', 'Vocabulary Master AI: {c} cards · {a} answers · {p}% accuracy · round {r} · time {t}', 'Vocabulary Master AI: {c} karta · {a} javob · {p}% aniqlik · {r}-raund · vaqt {t}'],
+    'sum.stats': ['Wordex: {c} карточек · {a} ответов · {p}% точность · раунд {r} · время {t}', 'Wordex: {c} cards · {a} answers · {p}% accuracy · round {r} · time {t}', 'Wordex: {c} karta · {a} javob · {p}% aniqlik · {r}-raund · vaqt {t}'],
     'goal.title': ['Ещё один шаг вперёд.', 'One more step forward.', 'Yana bir qadam oldinga.'],
     'goal.text': ['Дневная цель достигнута. Хорошая работа!', 'Daily goal reached. Nice work!', 'Kunlik maqsadga erishildi. Barakalla!'],
     'goal.close': ['Закрыть уведомление', 'Close notification', 'Bildirishnomani yopish'],
@@ -475,7 +475,7 @@
     'toast.saveFail': ['Не удалось сохранить прогресс. Проверь свободное место в браузере.', 'Could not save progress. Check free space in your browser.', "Natijani saqlab bo'lmadi. Brauzerdagi bo'sh joyni tekshir."],
     'toast.addWords': ['Добавь слова в колоду.', 'Add words to the deck.', "Kolodaga so'z qo'sh."],
     'err.fileBig': ['Файл слишком большой (максимум 5 МБ).', 'File is too large (max 5 MB).', 'Fayl juda katta (maksimum 5 MB).'],
-    'err.notBackup': ['Это не резервная копия Vocabulary Master AI.', 'This is not a Vocabulary Master AI backup.', 'Bu Vocabulary Master AI zaxira nusxasi emas.'],
+    'err.notBackup': ['Это не резервная копия Wordex.', 'This is not a Wordex backup.', 'Bu Wordex zaxira nusxasi emas.'],
     'err.badDeck': ['Некорректная колода.', 'Invalid deck.', "Noto'g'ri koloda."],
     'err.badWord': ['Некорректное слово.', 'Invalid word.', "Noto'g'ri so'z."],
     'err.readFile': ['Не удалось прочитать файл.', 'Could not read the file.', "Faylni o'qib bo'lmadi."],

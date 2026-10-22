@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$root     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # vocabulary-master-ai\
+$root     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # wordex\
 $here     = $PSScriptRoot
 $buildDir = Join-Path $here "build"
 $motionDir = Join-Path $root "motion"

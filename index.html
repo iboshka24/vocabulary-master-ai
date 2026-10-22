@@ -3,31 +3,31 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Vocabulary Master AI — слова становятся знаниями</title>
+  <title>Wordex — слова становятся знаниями</title>
   <meta name="description" content="Вставь слова или готовые пары — ИИ отфильтрует мусор, переведёт на 20 языков и соберёт бесконечный цикл повторений." />
   <meta name="theme-color" content="#f6f1e7" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
   <!-- Self-hosted fonts (tools/fetch-fonts.js): no third-party requests, works offline and under a strict CSP. -->
-  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.19" />
-  <link rel="stylesheet" href="styles.css?v=2.19" />
-  <link rel="stylesheet" href="editorial.css?v=2.19" />
-  <link rel="stylesheet" href="shell.css?v=2.19" />
-  <link rel="stylesheet" href="motion.css?v=2.19" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css?v=2.20" />
+  <link rel="stylesheet" href="styles.css?v=2.20" />
+  <link rel="stylesheet" href="editorial.css?v=2.20" />
+  <link rel="stylesheet" href="shell.css?v=2.20" />
+  <link rel="stylesheet" href="motion.css?v=2.20" />
   <script>try{var r=document.documentElement,s=JSON.parse(localStorage.getItem('vm.display')||'null')||{},t=/^(system|light|dark)$/.test(s.theme)?s.theme:localStorage.getItem('vm.theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t==='dark'?'dark':'light';if(/^(s|l|xl)$/.test(s.size))r.dataset.size=s.size;if(s.contrast===true)r.dataset.contrast='high';if(s.spacing===true)r.dataset.spacing='wide'}catch(e){document.documentElement.dataset.theme='light'}</script>
 </head>
 <body>
   <div class="app-shell">
   <aside class="sidebar" id="sidebar" aria-label="Меню" data-i18n-attr="aria-label:side.aria">
-    <a class="logo" href="#" id="logoHome" title="Vocabulary Master AI — на главную" data-i18n-attr="title:nav.home">
+    <a class="logo" href="#" id="logoHome" title="Wordex — на главную" data-i18n-attr="title:nav.home">
       <span class="logo-mark">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
           <path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
         </svg>
       </span>
-      <span class="logo-text">Vocabulary<em>Master AI</em></span>
+      <span class="logo-text">Word<em>ex</em></span>
     </a>
     <p class="side-slogan" data-i18n="footer.tag">Меньше шума. Больше смысла.</p>
     <nav class="side-nav" aria-label="Основная навигация" data-i18n-attr="aria-label:nav.aria">
@@ -43,7 +43,7 @@
         <span data-i18n="side.ai">ИИ-переводчик</span>
       </button>
       <button class="side-link" id="btnDisplay" type="button" title="Отображение: тема, размер текста, контраст" aria-haspopup="dialog" data-i18n-attr="title:top.displayTitle"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg><span data-i18n="side.display">Отображение</span></button>
-      <a class="side-link gh-link" href="https://github.com/iboshka24/vocabulary-master-ai" target="_blank" rel="noopener noreferrer" title="Репозиторий на GitHub" aria-label="GitHub" data-i18n-attr="title:top.github">
+      <a class="side-link gh-link" href="https://github.com/iboshka24/wordex" target="_blank" rel="noopener noreferrer" title="Репозиторий на GitHub" aria-label="GitHub" data-i18n-attr="title:top.github">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
         </svg>
@@ -157,7 +157,7 @@
       </div>
 
       <p class="foot-note" data-i18n="setup.foot">Прогресс хранится на этом устройстве. Слова для перевода отправляются выбранному сервису.</p>
-      <div class="welcome-copy"><h2 data-i18n="welcome.h">Welcome to Vocabulary Master AI!</h2><p data-i18n="welcome.p">Master new vocabulary effortlessly! Add your own word lists, practice with smart flashcards or typing modes, and let built-in AI translation guide your learning. Our adaptive system automatically reshuffles tricky words back into your deck so you never forget them!</p></div>
+      <div class="welcome-copy"><h2 data-i18n="welcome.h">Welcome to Wordex!</h2><p data-i18n="welcome.p">Master new vocabulary effortlessly! Add your own word lists, practice with smart flashcards or typing modes, and let built-in AI translation guide your learning. Our adaptive system automatically reshuffles tricky words back into your deck so you never forget them!</p></div>
     </section>
 
     <!-- ============ LOADING ============ -->
@@ -362,7 +362,7 @@
       </div>
     </section>
   </main>
-  <footer class="app-footer"><span>Vocabulary Master AI</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.15</span></footer>
+  <footer class="app-footer"><span>Wordex</span><span data-i18n="footer.tag">Меньше шума. Больше смысла.</span><span data-i18n="footer.made">Сделано для ежедневной практики · v2.15</span></footer>
   </div>
   </div>
 
@@ -560,14 +560,14 @@
   <div class="goal-celebration" id="goalCelebration" hidden role="status"><div class="goal-motion" id="goalMotion" aria-hidden="true"></div><div><strong data-i18n="goal.title">Ещё один шаг вперёд.</strong><p data-i18n="goal.text">Дневная цель достигнута. Хорошая работа!</p></div><button id="closeGoalMotion" type="button" aria-label="Закрыть уведомление" data-i18n-attr="aria-label:goal.close">×</button></div>
 
   <!-- lottie + the achievement animation are loaded on demand by motion.js -->
-  <script defer src="display.js?v=2.19"></script>
-  <script defer src="i18n.js?v=2.19"></script>
-  <script defer src="motion.js?v=2.19"></script>
-  <script defer src="learning.js?v=2.19"></script>
-  <script defer src="ai-core.js?v=2.19"></script>
-  <script defer src="share.js?v=2.19"></script>
-  <script defer src="games.js?v=2.19"></script>
-  <script defer src="account.js?v=2.19"></script>
-  <script defer src="app.js?v=2.19"></script>
+  <script defer src="display.js?v=2.20"></script>
+  <script defer src="i18n.js?v=2.20"></script>
+  <script defer src="motion.js?v=2.20"></script>
+  <script defer src="learning.js?v=2.20"></script>
+  <script defer src="ai-core.js?v=2.20"></script>
+  <script defer src="share.js?v=2.20"></script>
+  <script defer src="games.js?v=2.20"></script>
+  <script defer src="account.js?v=2.20"></script>
+  <script defer src="app.js?v=2.20"></script>
 </body>
 </html>

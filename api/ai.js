@@ -1,5 +1,5 @@
 /**
- * /api/ai — translation endpoint of Vocabulary Master AI (Vercel Serverless Function).
+ * /api/ai — translation endpoint of Wordex (Vercel Serverless Function).
  *
  * Contract: POST application/json
  *   { "action": "status" }                                  → { status, serverKeyConfigured, limits }
@@ -173,7 +173,7 @@ module.exports = async (req, res) => {
   }
 
   const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (serverKey || clientKey) };
-  if (/openrouter\.ai/i.test(base)) headers['X-Title'] = 'Vocabulary Master AI';
+  if (/openrouter\.ai/i.test(base)) headers['X-Title'] = 'Wordex';
 
   let upstream;
   try {
