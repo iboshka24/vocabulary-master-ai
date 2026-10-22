@@ -40,7 +40,7 @@ curl -s -X POST https://ВАШ-ДОМЕН/api/ai -H "Origin: https://ВАШ-ДО
 1. Создать проект на [supabase.com](https://supabase.com) (бесплатного плана хватает).
 2. SQL Editor → выполнить `supabase/schema.sql`. Он создаёт таблицу `progress` (одна строка на пользователя) и включает RLS: каждый видит только свою строку.
 3. Authentication → URL Configuration:
-   - **Site URL** — адрес сайта, например `https://wordex.vercel.app`;
+   - **Site URL** — адрес сайта, например `https://wordex-app.vercel.app`;
    - в **Redirect URLs** добавить тот же адрес.
 
    Ссылки из писем (подтверждение, сброс пароля) ведут сюда.
